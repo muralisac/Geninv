@@ -41,7 +41,7 @@
         }
 
         /* ========================================================
-           DYNAMIC SMART DOCK (BOTTOM NAVIGATION)
+           FIXED: SMART BOTTOM DOCK (TRANSPARENT GLASS)
            ======================================================== */
         .top-nav { 
             position: fixed; 
@@ -49,63 +49,57 @@
             left: 0; 
             width: 100%;
             z-index: 9000; 
-            /* Default State: Highly Transparent */
-            background: rgba(11, 42, 92, 0.25); 
-            backdrop-filter: blur(4px); 
-            -webkit-backdrop-filter: blur(4px);
-            /* Accounts for mobile swipe bars at the bottom */
-            padding: 12px 15px max(15px, env(safe-area-inset-bottom)); 
+            
+            /* Highly Transparent Frosty Blue Background */
+            background: rgba(11, 42, 92, 0.65); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            
+            /* Fits flush to bottom, accounts for iPhone swipe bar */
+            padding: 12px 10px max(15px, env(safe-area-inset-bottom)); 
             display: flex; 
-            gap: 8px; 
+            justify-content: space-around;
+            gap: 5px; 
             overflow-x: auto; 
             white-space: nowrap; 
             display: none; 
-            border-radius: 20px 20px 0 0; /* Docked to bottom, rounded top */
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.05); 
+            
+            /* Flat bottom, rounded top corners */
+            border-radius: 20px 20px 0 0; 
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.15); 
             border-top: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.4s ease; /* Smooth animation */
         }
         
-        /* Centering for wider screens */
-        @media (min-width: 500px) {
-            .top-nav { justify-content: center; }
-        }
-
-        /* Focus State: Becomes solid when touched/hovered */
-        .top-nav:hover, .top-nav:active, .top-nav:focus-within {
-            background: rgba(11, 42, 92, 0.98); 
-            backdrop-filter: blur(15px); 
-            -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 -5px 25px rgba(11,42,92,0.3); 
-        }
-
         .top-nav button { 
-            background: transparent; 
-            border: none; 
-            color: #f1f5f9; 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            color: #f8fafc; 
             border-radius: 30px; 
-            padding: 10px 16px; 
+            padding: 10px 14px; 
             font-size: 13px; 
-            font-weight: 600; 
+            font-weight: 500; 
             transition: all 0.2s ease; 
-        }
-        .top-nav button:hover { 
-            color: #fff; 
-            background: rgba(255,255,255,0.15); 
         }
         .top-nav button.active { 
             background: #f7d047; 
             color: #0b2a5c; 
             font-weight: 800; 
-            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.4); 
+            border: none;
+            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3); 
         }
         .top-nav button.btn-logout { 
-            background: #ef4444; 
+            background: rgba(239, 68, 68, 0.8); 
             color: white; 
-            margin-left: 5px; 
+            border: none;
+        }
+        
+        /* Centering for PC/Tablet */
+        @media (min-width: 600px) {
+            .top-nav { justify-content: center; gap: 15px; }
+            .top-nav button { padding: 10px 20px; font-size: 14px; }
         }
         /* ======================================================== */
-        
+
         /* UI ELEMENTS */
         .panel { 
             max-width: 650px; 
@@ -226,9 +220,9 @@
 
     <div class="top-nav" id="top-nav">
         <button onclick="switchScreen('screen-history')" id="nav-history" class="active">🧾 Sales</button>
-        <button onclick="switchScreen('screen-po-history')" id="nav-po">📦 Purchases</button>
+        <button onclick="switchScreen('screen-po-history')" id="nav-po">📦 Purch</button>
         <button onclick="switchScreen('screen-customers')" id="nav-customers">👥 Directory</button>
-        <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inventory</button>
+        <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inv</button>
         <button onclick="logout()" class="btn-logout">Exit</button>
     </div>
 
@@ -507,7 +501,6 @@
         // ========================================================
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
-        // Anyone NOT on this list will only be able to view data.
         // ========================================================
         const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
@@ -525,12 +518,8 @@
         const auth = firebase.auth(); 
 
         let appData = { 
-            inventory: [], 
-            customers: [], 
-            history: [], 
-            purchaseOrders: [], 
-            lastInvoiceNum: 22, 
-            lastPoNum: 5 
+            inventory: [], customers: [], history: [], purchaseOrders: [], 
+            lastInvoiceNum: 22, lastPoNum: 5 
         };
         const SELLER_STATE = 33; 
         
@@ -540,13 +529,11 @@
         let tempDocDate = "";
         let currentDocType = "invoice"; 
         
-        // Security State
         let isAdmin = false;
 
         // --- AUTHENTICATION ---
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Check if logged-in user is an Admin
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
                 
                 document.getElementById('top-nav').style.display = 'flex';
@@ -564,7 +551,6 @@
             }
         });
 
-        // Toggle UI based on admin status
         function applyRolePermissions() {
             document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
@@ -577,24 +563,16 @@
             const email = document.getElementById('login-email').value; 
             const pass = document.getElementById('login-password').value; 
             document.getElementById('login-error').innerText = "Authenticating..."; 
-            
-            auth.signInWithEmailAndPassword(email, pass).catch(error => { 
-                document.getElementById('login-error').innerText = error.message; 
-            }); 
+            auth.signInWithEmailAndPassword(email, pass).catch(error => { document.getElementById('login-error').innerText = error.message; }); 
         }
 
         function loginWithGoogle() { 
             document.getElementById('login-error').innerText = "Opening Google Login..."; 
             const provider = new firebase.auth.GoogleAuthProvider(); 
-            
-            auth.signInWithPopup(provider).catch(error => { 
-                document.getElementById('login-error').innerText = "Error: " + error.message; 
-            }); 
+            auth.signInWithPopup(provider).catch(error => { document.getElementById('login-error').innerText = "Error: " + error.message; }); 
         }
 
-        function logout() { 
-            auth.signOut(); 
-        }
+        function logout() { auth.signOut(); }
 
         // --- CLOUD DATA FETCHING ---
         async function fetchCloudData() {
@@ -638,12 +616,10 @@
         function switchScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
-            
             document.getElementById(screenId).classList.add('active');
             
             const navBtn = document.getElementById(`nav-${screenId.replace('screen-','')}`);
             if(navBtn) navBtn.classList.add('active');
-            
             window.scrollTo({ top: 0, behavior: 'smooth' }); 
         }
 
@@ -652,10 +628,7 @@
             const list = document.getElementById("customers-list");
             list.innerHTML = appData.customers.map(c => `
                 <div class="list-item">
-                    <div>
-                        <strong style="color:#0b2a5c;">${c.name}</strong><br>
-                        <small class="text-muted">GST: ${c.gstin}</small>
-                    </div>
+                    <div><strong style="color:#0b2a5c;">${c.name}</strong><br><small class="text-muted">GST: ${c.gstin}</small></div>
                     ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
                 </div>
             `).join(''); 
@@ -669,17 +642,13 @@
             document.getElementById('btn-add-customer').style.display = 'none';
             
             if (id === 'new') { 
-                document.getElementById('cust-id').value = 'new'; 
-                document.getElementById('cust-name').value = ''; 
-                document.getElementById('cust-address').value = ''; 
-                document.getElementById('cust-gstin').value = ''; 
+                document.getElementById('cust-id').value = 'new'; document.getElementById('cust-name').value = ''; 
+                document.getElementById('cust-address').value = ''; document.getElementById('cust-gstin').value = ''; 
                 document.getElementById('cust-state').value = '33'; 
             } else { 
                 const c = appData.customers.find(x => x.id === id); 
-                document.getElementById('cust-id').value = c.id; 
-                document.getElementById('cust-name').value = c.name; 
-                document.getElementById('cust-address').value = c.address.replace(/<br>/g, '\n'); 
-                document.getElementById('cust-gstin').value = c.gstin; 
+                document.getElementById('cust-id').value = c.id; document.getElementById('cust-name').value = c.name; 
+                document.getElementById('cust-address').value = c.address.replace(/<br>/g, '\n'); document.getElementById('cust-gstin').value = c.gstin; 
                 document.getElementById('cust-state').value = isNaN(c.stateCode) ? "" : c.stateCode; 
             }
             setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
@@ -687,27 +656,14 @@
 
         async function saveCustomer() { 
             if(!isAdmin) return;
-            const id = document.getElementById('cust-id').value; 
-            const name = document.getElementById('cust-name').value; 
-            const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); 
-            const gstin = document.getElementById('cust-gstin').value; 
+            const id = document.getElementById('cust-id').value; const name = document.getElementById('cust-name').value; 
+            const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); const gstin = document.getElementById('cust-gstin').value; 
             const stateCode = parseInt(document.getElementById('cust-state').value); 
-            
             if (!name) return alert("Please enter a business name."); 
-            
             const c = { id: id === 'new' ? 'c' + Date.now() : id, name, address, gstin, stateCode }; 
-            
             await db.collection("customers").doc(c.id).set(c); 
-            
-            if (id === 'new') {
-                appData.customers.push(c); 
-            } else { 
-                const idx = appData.customers.findIndex(x => x.id === id); 
-                appData.customers[idx] = c; 
-            } 
-            
-            cancelCustomerEdit(); 
-            renderCustomerList(); 
+            if (id === 'new') { appData.customers.push(c); } else { const idx = appData.customers.findIndex(x => x.id === id); appData.customers[idx] = c; } 
+            cancelCustomerEdit(); renderCustomerList(); 
         }
 
         function cancelCustomerEdit() { 
@@ -721,7 +677,6 @@
             list.innerHTML = appData.inventory.map(p => { 
                 let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
                 let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
-                
                 return `
                 <div class="list-item">
                     <div>
@@ -737,20 +692,14 @@
         function editProduct(id) { 
             if(!isAdmin) return;
             const formContainer = document.getElementById('product-form-container');
-            formContainer.style.display = 'block'; 
-            document.getElementById('btn-add-product').style.display = 'none';
-            
+            formContainer.style.display = 'block'; document.getElementById('btn-add-product').style.display = 'none';
             if (id === 'new') { 
-                document.getElementById('prod-id').value = 'new'; 
-                document.getElementById('prod-name').value = ''; 
-                document.getElementById('prod-price').value = ''; 
-                document.getElementById('prod-purchase-price').value = '';
-                document.getElementById('prod-gst').value = '5'; 
-                document.getElementById('prod-moq').value = '1'; 
+                document.getElementById('prod-id').value = 'new'; document.getElementById('prod-name').value = ''; 
+                document.getElementById('prod-price').value = ''; document.getElementById('prod-purchase-price').value = '';
+                document.getElementById('prod-gst').value = '5'; document.getElementById('prod-moq').value = '1'; 
             } else { 
                 const p = appData.inventory.find(x => x.id === id); 
-                document.getElementById('prod-id').value = p.id; 
-                document.getElementById('prod-name').value = p.name; 
+                document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; 
                 document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; 
                 document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
                 document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
@@ -761,30 +710,15 @@
 
         async function saveProduct() { 
             if(!isAdmin) return;
-            const id = document.getElementById('prod-id').value; 
-            const name = document.getElementById('prod-name').value; 
-            const price = parseFloat(document.getElementById('prod-price').value); 
-            const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
-            const gst = parseFloat(document.getElementById('prod-gst').value); 
-            const moq = parseInt(document.getElementById('prod-moq').value); 
-            
-            if (!name) return alert("Please enter a product name."); 
-            if (isNaN(price) || price <= 0) return alert("Please enter a valid wholesale selling price."); 
-            
+            const id = document.getElementById('prod-id').value; const name = document.getElementById('prod-name').value; 
+            const price = parseFloat(document.getElementById('prod-price').value); const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
+            const gst = parseFloat(document.getElementById('prod-gst').value); const moq = parseInt(document.getElementById('prod-moq').value); 
+            if (!name) return alert("Please enter a product name."); if (isNaN(price) || price <= 0) return alert("Please enter a valid wholesale selling price."); 
             const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq }; 
             if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
-            
             await db.collection("inventory").doc(p.id).set(p); 
-            
-            if (id === 'new') {
-                appData.inventory.push(p); 
-            } else { 
-                const idx = appData.inventory.findIndex(x => x.id === id); 
-                appData.inventory[idx] = p; 
-            } 
-            
-            cancelProductEdit(); 
-            renderProductList(); 
+            if (id === 'new') { appData.inventory.push(p); } else { const idx = appData.inventory.findIndex(x => x.id === id); appData.inventory[idx] = p; } 
+            cancelProductEdit(); renderProductList(); 
         }
 
         function cancelProductEdit() { 
@@ -795,119 +729,67 @@
         // --- DROPDOWNS ---
         function populateDropdowns() { 
             const custHtml = `<option value="">-- Select --</option>` + appData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            document.getElementById("customer-select").innerHTML = custHtml; 
-            document.getElementById("po-vendor-select").innerHTML = custHtml;
-            
+            document.getElementById("customer-select").innerHTML = custHtml; document.getElementById("po-vendor-select").innerHTML = custHtml;
             const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            document.getElementById("product-select").innerHTML = prodHtml; 
-            document.getElementById("po-product-select").innerHTML = prodHtml;
+            document.getElementById("product-select").innerHTML = prodHtml; document.getElementById("po-product-select").innerHTML = prodHtml;
         }
 
         // --- BUILDER: SALES INVOICE ---
         function openNewInvoice() { 
             if(!isAdmin) return;
-            currentDocType = "invoice"; 
-            editingDocId = null; 
-            currentCart = []; 
+            currentDocType = "invoice"; editingDocId = null; currentCart = []; 
             document.getElementById("customer-select").value = ""; 
             document.getElementById("builder-title").innerText = "New Sales Invoice"; 
             document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
-            
-            const d = new Date(); 
-            tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
+            const d = new Date(); tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
             tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
-            
-            renderCartUI('invoice'); 
-            switchScreen('screen-builder'); 
+            renderCartUI('invoice'); switchScreen('screen-builder'); 
         }
 
         function addItemToCart() { 
-            const pid = document.getElementById("product-select").value; 
-            const qty = parseInt(document.getElementById("qty-input").value); 
-            
+            const pid = document.getElementById("product-select").value; const qty = parseInt(document.getElementById("qty-input").value); 
             if (!pid || !qty || qty <= 0) return; 
-            
             const product = appData.inventory.find(p => p.id === pid); 
             if (qty < product.moq) return alert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
-            
             const existing = currentCart.find(item => item.id === pid); 
-            if (existing) {
-                existing.qty += qty; 
-            } else {
-                currentCart.push({ ...product, qty: qty }); 
-            }
-            
-            document.getElementById("qty-input").value = ""; 
-            renderCartUI('invoice'); 
+            if (existing) { existing.qty += qty; } else { currentCart.push({ ...product, qty: qty }); }
+            document.getElementById("qty-input").value = ""; renderCartUI('invoice'); 
         }
 
         // --- BUILDER: PURCHASE ORDER ---
         function openNewPO() { 
             if(!isAdmin) return;
-            currentDocType = "po"; 
-            editingDocId = null; 
-            currentCart = []; 
-            document.getElementById("po-vendor-select").value = ""; 
-            document.getElementById("po-price-input").value = ""; 
-            document.getElementById("po-builder-title").innerText = "New Purchase Order"; 
-            document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
-            
-            const d = new Date(); 
-            tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
+            currentDocType = "po"; editingDocId = null; currentCart = []; 
+            document.getElementById("po-vendor-select").value = ""; document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-builder-title").innerText = "New Purchase Order"; document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
+            const d = new Date(); tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
             tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
-            
-            renderCartUI('po'); 
-            switchScreen('screen-po-builder'); 
+            renderCartUI('po'); switchScreen('screen-po-builder'); 
         }
 
         function autoFillPoPrice() {
-            const pid = document.getElementById("po-product-select").value; 
-            if(!pid) return;
+            const pid = document.getElementById("po-product-select").value; if(!pid) return;
             const product = appData.inventory.find(p => p.id === pid);
             document.getElementById("po-price-input").value = product.purchasePrice || product.price; 
         }
 
         function addPoItemToCart() { 
-            const pid = document.getElementById("po-product-select").value; 
-            const qty = parseInt(document.getElementById("po-qty-input").value); 
+            const pid = document.getElementById("po-product-select").value; const qty = parseInt(document.getElementById("po-qty-input").value); 
             const customPrice = parseFloat(document.getElementById("po-price-input").value);
-            
             if (!pid || !qty || qty <= 0 || isNaN(customPrice)) return alert("Please fill all item fields properly."); 
-            
-            const product = appData.inventory.find(p => p.id === pid); 
-            const existing = currentCart.find(item => item.id === pid); 
-            
-            if (existing) { 
-                existing.qty += qty; 
-                existing.price = customPrice; 
-            } else { 
-                currentCart.push({ ...product, qty: qty, price: customPrice }); 
-            } 
-            
-            document.getElementById("po-qty-input").value = ""; 
-            document.getElementById("po-price-input").value = ""; 
-            document.getElementById("po-product-select").value = ""; 
+            const product = appData.inventory.find(p => p.id === pid); const existing = currentCart.find(item => item.id === pid); 
+            if (existing) { existing.qty += qty; existing.price = customPrice; } else { currentCart.push({ ...product, qty: qty, price: customPrice }); } 
+            document.getElementById("po-qty-input").value = ""; document.getElementById("po-price-input").value = ""; document.getElementById("po-product-select").value = ""; 
             renderCartUI('po'); 
         }
 
         // --- SHARED CART & PREVIEW LOGIC ---
-        function removeCartItem(idx, type) { 
-            currentCart.splice(idx, 1); 
-            renderCartUI(type); 
-        }
+        function removeCartItem(idx, type) { currentCart.splice(idx, 1); renderCartUI(type); }
 
         function renderCartUI(type) { 
-            const containerId = type === 'po' ? "po-cart-container" : "cart-container"; 
-            const countId = type === 'po' ? "po-cart-count" : "cart-count"; 
-            const themeColor = type === 'po' ? "#d97706" : "#0b2a5c";
-            
+            const containerId = type === 'po' ? "po-cart-container" : "cart-container"; const countId = type === 'po' ? "po-cart-count" : "cart-count"; const themeColor = type === 'po' ? "#d97706" : "#0b2a5c";
             document.getElementById(countId).innerText = `${currentCart.length} items`; 
-            
-            if(currentCart.length === 0) { 
-                document.getElementById(containerId).innerHTML = `<div class="text-center p-4 text-muted small border rounded-4 bg-light">Cart is empty.</div>`; 
-                return; 
-            }
-            
+            if(currentCart.length === 0) { document.getElementById(containerId).innerHTML = `<div class="text-center p-4 text-muted small border rounded-4 bg-light">Cart is empty.</div>`; return; }
             document.getElementById(containerId).innerHTML = currentCart.map((item, idx) => `
                 <div class="list-item">
                     <div>
@@ -921,155 +803,51 @@
 
         async function generatePreview(type) { 
             if(!isAdmin) return;
-            currentDocType = type; 
-            const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
-            const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
-            
+            currentDocType = type; const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
             const custId = document.getElementById(vendorSelectId).value; 
-            if (!custId) return alert("Select a client/vendor."); 
-            if (currentCart.length === 0) return alert("Cart is empty."); 
-            
-            const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
-            saveBtn.innerText = "⏳ Processing..."; 
-            saveBtn.disabled = true; 
-            
+            if (!custId) return alert("Select a client/vendor."); if (currentCart.length === 0) return alert("Cart is empty."); 
+            const saveBtn = document.querySelector(`${btnContainer} .btn-success`); saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; 
             const buyer = appData.customers.find(c => c.id === custId); 
             
-            const tbody = document.getElementById("invoice-tbody"); 
-            tbody.innerHTML = ""; 
-            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
-            
+            const tbody = document.getElementById("invoice-tbody"); tbody.innerHTML = ""; let subTotal = 0, totalGst = 0, mainGstRate = 0; 
             currentCart.forEach((item, index) => { 
-                let baseAmt = item.qty * item.price; 
-                let gstAmt = baseAmt * (item.gstPercent / 100); 
-                subTotal += baseAmt; 
-                totalGst += gstAmt; 
-                mainGstRate = item.gstPercent; 
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td class="fw-medium">${item.name}</td>
-                        <td class="text-center">${item.qty}</td>
-                        <td class="text-end">₹${item.price.toFixed(2)}</td>
-                        <td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td>
-                        <td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td>
-                    </tr>
-                `; 
+                let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); subTotal += baseAmt; totalGst += gstAmt; mainGstRate = item.gstPercent; 
+                tbody.innerHTML += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`; 
             }); 
             
-            const exactGrandTotal = subTotal + totalGst; 
-            const roundedGrandTotal = Math.round(exactGrandTotal); 
-            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
-            const roundedGst = Math.round(totalGst);
+            const exactGrandTotal = subTotal + totalGst; const roundedGrandTotal = Math.round(exactGrandTotal); const roundOffAmt = roundedGrandTotal - exactGrandTotal; const roundedGst = Math.round(totalGst);
 
-            const wave = document.getElementById("doc-wave"); 
-            const gBox = document.getElementById("grand-box"); 
-            const thList = [
-                document.getElementById("th-1"), document.getElementById("th-2"), 
-                document.getElementById("th-3"), document.getElementById("th-4"), 
-                document.getElementById("th-5"), document.getElementById("th-6")
-            ];
-            
+            const wave = document.getElementById("doc-wave"); const gBox = document.getElementById("grand-box"); const thList = [document.getElementById("th-1"), document.getElementById("th-2"), document.getElementById("th-3"), document.getElementById("th-4"), document.getElementById("th-5"), document.getElementById("th-6")];
             if (type === 'po') {
-                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
-                document.getElementById("doc-type-title").style.color = "#d97706"; 
-                document.getElementById("bill-to-label").innerText = "Vendor"; 
-                document.getElementById("bill-from-label").innerText = "Purchaser";
-                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); 
-                document.getElementById("payout-status-container").style.display = "block";
+                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; document.getElementById("doc-type-title").style.color = "#d97706"; document.getElementById("bill-to-label").innerText = "Vendor"; document.getElementById("bill-from-label").innerText = "Purchaser";
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); document.getElementById("payout-status-container").style.display = "block";
             } else {
-                document.getElementById("doc-type-title").innerText = "INVOICE"; 
-                document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
-                document.getElementById("bill-to-label").innerText = "Bill To"; 
-                document.getElementById("bill-from-label").innerText = "Bill From";
-                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); 
-                document.getElementById("payout-status-container").style.display = "none";
+                document.getElementById("doc-type-title").innerText = "INVOICE"; document.getElementById("doc-type-title").style.color = "#0b2a5c"; document.getElementById("bill-to-label").innerText = "Bill To"; document.getElementById("bill-from-label").innerText = "Bill From";
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); document.getElementById("payout-status-container").style.display = "none";
             }
             
-            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
-            document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
             document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
-            
-            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
-            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
-            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; 
-            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
-            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal); 
-            
+            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal); 
             const taxContainer = document.getElementById("tax-rows-container"); 
-            if (SELLER_STATE === buyer.stateCode) { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                    <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                `; 
-            } else { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>
-                `; 
-            } 
+            if (SELLER_STATE === buyer.stateCode) { taxContainer.innerHTML = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div><div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; } else { taxContainer.innerHTML = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; } 
             
-            const record = { 
-                id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
-                invoiceNumber: tempDocNumber, 
-                date: tempDocDate, 
-                customerId: buyer.id, 
-                customerName: buyer.name, 
-                cart: currentCart, 
-                totalAmount: roundedGrandTotal, 
-                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-            }; 
+            const record = { id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), invoiceNumber: tempDocNumber, date: tempDocDate, customerId: buyer.id, customerName: buyer.name, cart: currentCart, totalAmount: roundedGrandTotal, timestamp: firebase.firestore.FieldValue.serverTimestamp() }; 
             
             try { 
-                const collectionName = type === 'po' ? "purchaseOrders" : "history"; 
-                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
-                
-                if(type === 'po' && editingDocId) { 
-                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
-                    if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
-                }
-                
+                const collectionName = type === 'po' ? "purchaseOrders" : "history"; const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                if(type === 'po' && editingDocId) { const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); if(existingPO && existingPO.payout) record.payout = existingPO.payout; }
                 await db.collection(collectionName).doc(record.id).set(record); 
-                
-                if (editingDocId) { 
-                    const idx = arrayRef.findIndex(h => h.id === editingDocId); 
-                    arrayRef[idx] = record; 
-                } else { 
-                    arrayRef.unshift(record); 
-                    if(type === 'po') { 
-                        appData.lastPoNum++; 
-                        await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
-                    } else { 
-                        appData.lastInvoiceNum++; 
-                        await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
-                    } 
-                } 
-                
-                if(type === 'po') { 
-                    renderPOList(); 
-                    renderPayoutUI(record); 
-                } else { 
-                    renderHistoryList(); 
-                }
-                
+                if (editingDocId) { const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; } else { arrayRef.unshift(record); if(type === 'po') { appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); } else { appData.lastInvoiceNum++; await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); } } 
+                if(type === 'po') { renderPOList(); renderPayoutUI(record); } else { renderHistoryList(); }
                 switchScreen('screen-preview'); 
-            } catch (error) { 
-                console.error("Save Error:", error); 
-                alert("Network error. Please try again."); 
-            } finally { 
-                saveBtn.innerText = "💾 Generate Document"; 
-                saveBtn.disabled = false; 
-            } 
+            } catch (error) { console.error("Save Error:", error); alert("Network error. Please try again."); } finally { saveBtn.innerText = "💾 Generate Document"; saveBtn.disabled = false; } 
         }
 
         // --- HISTORY LIST RENDERERS ---
         function renderHistoryList() { 
             const list = document.getElementById("history-list"); 
-            if(appData.history.length === 0) {
-                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
-                return;
-            }
-            
+            if(appData.history.length === 0) { list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; return; }
             list.innerHTML = appData.history.map(h => `
                 <div class="list-item history-card">
                     <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'invoice')">
@@ -1084,11 +862,7 @@
 
         function renderPOList() { 
             const list = document.getElementById("po-list"); 
-            if(appData.purchaseOrders.length === 0) {
-                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; 
-                return;
-            }
-            
+            if(appData.purchaseOrders.length === 0) { list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; return; }
             list.innerHTML = appData.purchaseOrders.map(h => {
                 const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
                 return `
@@ -1104,291 +878,73 @@
         }
 
         function viewOldDocument(id, type) {
-            currentDocType = type; 
-            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
-            const doc = arrayRef.find(h => h.id === id); 
-            if (!doc) return;
+            currentDocType = type; const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; const doc = arrayRef.find(h => h.id === id); if (!doc) return;
+            editingDocId = doc.id; currentCart = JSON.parse(JSON.stringify(doc.cart)); tempDocNumber = doc.invoiceNumber; tempDocDate = doc.date;
             
-            editingDocId = doc.id; 
-            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
-            tempDocNumber = doc.invoiceNumber; 
-            tempDocDate = doc.date;
+            if (type === 'po') { document.getElementById("po-vendor-select").value = doc.customerId; document.getElementById("po-builder-title").innerText = "Edit PO"; document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; renderCartUI('po'); } 
+            else { document.getElementById("customer-select").value = doc.customerId; document.getElementById("builder-title").innerText = "Edit Invoice"; document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; renderCartUI('invoice'); }
             
-            if (type === 'po') {
-                document.getElementById("po-vendor-select").value = doc.customerId; 
-                document.getElementById("po-builder-title").innerText = "Edit PO"; 
-                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`;
-                renderCartUI('po');
-            } else {
-                document.getElementById("customer-select").value = doc.customerId; 
-                document.getElementById("builder-title").innerText = "Edit Invoice"; 
-                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`;
-                renderCartUI('invoice');
-            }
-            
-            const tbody = document.getElementById("invoice-tbody"); 
-            tbody.innerHTML = ""; 
-            let subTotal = 0, totalGst = 0, mainGstRate = 0;
-            
-            doc.cart.forEach((item, index) => { 
-                let baseAmt = item.qty * item.price; 
-                let gstAmt = baseAmt * (item.gstPercent / 100); 
-                subTotal += baseAmt; 
-                totalGst += gstAmt; 
-                mainGstRate = item.gstPercent; 
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td class="fw-medium">${item.name}</td>
-                        <td class="text-center">${item.qty}</td>
-                        <td class="text-end">₹${item.price.toFixed(2)}</td>
-                        <td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td>
-                        <td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td>
-                    </tr>
-                `; 
-            });
-            
-            const exactGrandTotal = subTotal + totalGst; 
-            const roundedGrandTotal = Math.round(exactGrandTotal); 
-            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
-            const roundedGst = Math.round(totalGst);
-            
+            const tbody = document.getElementById("invoice-tbody"); tbody.innerHTML = ""; let subTotal = 0, totalGst = 0, mainGstRate = 0;
+            doc.cart.forEach((item, index) => { let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); subTotal += baseAmt; totalGst += gstAmt; mainGstRate = item.gstPercent; tbody.innerHTML += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`; });
+            const exactGrandTotal = subTotal + totalGst; const roundedGrandTotal = Math.round(exactGrandTotal); const roundOffAmt = roundedGrandTotal - exactGrandTotal; const roundedGst = Math.round(totalGst);
             const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
-            const wave = document.getElementById("doc-wave"); 
-            const gBox = document.getElementById("grand-box"); 
-            const thList = [
-                document.getElementById("th-1"), document.getElementById("th-2"), 
-                document.getElementById("th-3"), document.getElementById("th-4"), 
-                document.getElementById("th-5"), document.getElementById("th-6")
-            ];
-            
+            const wave = document.getElementById("doc-wave"); const gBox = document.getElementById("grand-box"); const thList = [document.getElementById("th-1"), document.getElementById("th-2"), document.getElementById("th-3"), document.getElementById("th-4"), document.getElementById("th-5"), document.getElementById("th-6")];
             if (type === 'po') { 
-                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
-                document.getElementById("doc-type-title").style.color = "#d97706"; 
-                document.getElementById("bill-to-label").innerText = "Vendor"; 
-                document.getElementById("bill-from-label").innerText = "Purchaser"; 
-                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); 
-                document.getElementById("payout-status-container").style.display = "block"; 
-                renderPayoutUI(doc); 
+                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; document.getElementById("doc-type-title").style.color = "#d97706"; document.getElementById("bill-to-label").innerText = "Vendor"; document.getElementById("bill-from-label").innerText = "Purchaser"; 
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); document.getElementById("payout-status-container").style.display = "block"; renderPayoutUI(doc); 
             } else { 
-                document.getElementById("doc-type-title").innerText = "INVOICE"; 
-                document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
-                document.getElementById("bill-to-label").innerText = "Bill To"; 
-                document.getElementById("bill-from-label").innerText = "Bill From"; 
-                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); 
-                document.getElementById("payout-status-container").style.display = "none"; 
+                document.getElementById("doc-type-title").innerText = "INVOICE"; document.getElementById("doc-type-title").style.color = "#0b2a5c"; document.getElementById("bill-to-label").innerText = "Bill To"; document.getElementById("bill-from-label").innerText = "Bill From"; 
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); document.getElementById("payout-status-container").style.display = "none"; 
             }
             
-            document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
-            document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
-            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
-            
-            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
-            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
-            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; 
-            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
-            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal);
-            
-            const taxContainer = document.getElementById("tax-rows-container"); 
-            if (SELLER_STATE === buyer.stateCode) { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                    <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                `; 
-            } else { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>
-                `; 
-            }
-            
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
+            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal);
+            const taxContainer = document.getElementById("tax-rows-container"); if (SELLER_STATE === buyer.stateCode) { taxContainer.innerHTML = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div><div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; } else { taxContainer.innerHTML = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; }
             switchScreen('screen-preview');
         }
 
         function loadOldDocumentForEdit(id, type) {
             if(!isAdmin) return;
-            currentDocType = type; 
-            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
-            const doc = arrayRef.find(h => h.id === id); 
-            if (!doc) return; 
-            
-            editingDocId = doc.id; 
-            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
-            tempDocNumber = doc.invoiceNumber; 
-            tempDocDate = doc.date; 
-            
-            if(type === 'po') { 
-                document.getElementById("po-vendor-select").value = doc.customerId; 
-                document.getElementById("po-builder-title").innerText = "Edit PO"; 
-                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; 
-                renderCartUI('po'); 
-                switchScreen('screen-po-builder'); 
-            } else { 
-                document.getElementById("customer-select").value = doc.customerId; 
-                document.getElementById("builder-title").innerText = "Edit Invoice"; 
-                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
-                renderCartUI('invoice'); 
-                switchScreen('screen-builder'); 
-            }
+            currentDocType = type; const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; const doc = arrayRef.find(h => h.id === id); if (!doc) return; 
+            editingDocId = doc.id; currentCart = JSON.parse(JSON.stringify(doc.cart)); tempDocNumber = doc.invoiceNumber; tempDocDate = doc.date; 
+            if(type === 'po') { document.getElementById("po-vendor-select").value = doc.customerId; document.getElementById("po-builder-title").innerText = "Edit PO"; document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; renderCartUI('po'); switchScreen('screen-po-builder'); } 
+            else { document.getElementById("customer-select").value = doc.customerId; document.getElementById("builder-title").innerText = "Edit Invoice"; document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; renderCartUI('invoice'); switchScreen('screen-builder'); }
         }
 
         function editCurrentDocument() { 
             if(!isAdmin) return;
-            if(currentDocType === 'po') {
-                switchScreen('screen-po-builder'); 
-            } else {
-                switchScreen('screen-builder'); 
-            }
+            if(currentDocType === 'po') { switchScreen('screen-po-builder'); } else { switchScreen('screen-builder'); }
         }
 
         // --- PAYOUT RECORDING LOGIC ---
         function renderPayoutUI(poDoc) {
             const container = document.getElementById("payout-details-display");
-            
             if (poDoc.payout) {
-                container.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-center text-success mb-2">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="fw-bold fs-5">Payment Locked</span>
-                    </div>
-                    <div class="text-start bg-light p-3 rounded-3 mt-3 mx-auto" style="max-width: 300px; font-size: 13px;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Date:</span> <strong>${poDoc.payout.date}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Ref No:</span> <strong>${poDoc.payout.ref}</strong>
-                        </div>
-                        ${poDoc.payout.img ? `<a href="${poDoc.payout.img}" target="_blank" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</a>` : ''}
-                    </div>
-                `;
+                container.innerHTML = `<div class="d-flex align-items-center justify-content-center text-success mb-2"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="fw-bold fs-5">Payment Locked</span></div><div class="text-start bg-light p-3 rounded-3 mt-3 mx-auto" style="max-width: 300px; font-size: 13px;"><div class="d-flex justify-content-between mb-1"><span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong></div><div class="d-flex justify-content-between mb-1"><span>Date:</span> <strong>${poDoc.payout.date}</strong></div><div class="d-flex justify-content-between mb-2"><span>Ref No:</span> <strong>${poDoc.payout.ref}</strong></div>${poDoc.payout.img ? `<a href="${poDoc.payout.img}" target="_blank" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</a>` : ''}</div>`;
             } else {
-                container.innerHTML = `
-                    <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
-                    ${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}
-                `;
+                container.innerHTML = `<div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}`;
             }
         }
 
-        function openPayoutModal(poId) { 
-            if(!isAdmin) return;
-            document.getElementById("payout-po-id").value = poId; 
-            document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
-            document.getElementById("payout-ref").value = ""; 
-            document.getElementById("payout-amount").value = ""; 
-            document.getElementById("payout-image").value = ""; 
-            document.getElementById("payout-modal").style.display = "flex"; 
-        }
-
-        function closePayoutModal() { 
-            document.getElementById("payout-modal").style.display = "none"; 
-        }
-
+        function openPayoutModal(poId) { if(!isAdmin) return; document.getElementById("payout-po-id").value = poId; document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; document.getElementById("payout-ref").value = ""; document.getElementById("payout-amount").value = ""; document.getElementById("payout-image").value = ""; document.getElementById("payout-modal").style.display = "flex"; }
+        function closePayoutModal() { document.getElementById("payout-modal").style.display = "none"; }
         async function savePayout() {
             if(!isAdmin) return;
-            const poId = document.getElementById("payout-po-id").value; 
-            const date = document.getElementById("payout-date").value; 
-            const ref = document.getElementById("payout-ref").value; 
-            const amount = document.getElementById("payout-amount").value; 
-            const fileInput = document.getElementById("payout-image");
-            
+            const poId = document.getElementById("payout-po-id").value; const date = document.getElementById("payout-date").value; const ref = document.getElementById("payout-ref").value; const amount = document.getElementById("payout-amount").value; const fileInput = document.getElementById("payout-image");
             if(!date || !amount) return alert("Date and Amount are required.");
-            
-            const btn = document.getElementById("btn-save-payout"); 
-            btn.innerText = "Processing..."; 
-            btn.disabled = true;
-            
+            const btn = document.getElementById("btn-save-payout"); btn.innerText = "Processing..."; btn.disabled = true;
             let base64Image = null;
-            
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
-                base64Image = await new Promise((resolve) => { 
-                    const reader = new FileReader(); 
-                    reader.readAsDataURL(file); 
-                    reader.onload = e => { 
-                        const img = new Image(); 
-                        img.src = e.target.result; 
-                        img.onload = () => { 
-                            const canvas = document.createElement('canvas'); 
-                            const MAX_WIDTH = 600; 
-                            const scale = MAX_WIDTH / img.width; 
-                            canvas.width = MAX_WIDTH; 
-                            canvas.height = img.height * scale; 
-                            const ctx = canvas.getContext('2d'); 
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
-                            resolve(canvas.toDataURL('image/jpeg', 0.5)); 
-                        } 
-                    }; 
-                });
+                base64Image = await new Promise((resolve) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const MAX_WIDTH = 600; const scale = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = img.height * scale; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.5)); } }; });
             }
-            
             const payoutData = { date: date, ref: ref || "N/A", amount: amount, img: base64Image };
-            
-            try { 
-                await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData }); 
-                
-                const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId); 
-                if(poIndex > -1) { 
-                    appData.purchaseOrders[poIndex].payout = payoutData; 
-                    renderPayoutUI(appData.purchaseOrders[poIndex]); 
-                    renderPOList(); 
-                } 
-                
-                closePayoutModal(); 
-            } catch (err) { 
-                console.error(err); 
-                alert("Failed to save payment to cloud."); 
-            } finally { 
-                btn.innerText = "Confirm & Lock Payment"; 
-                btn.disabled = false; 
-            }
+            try { await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData }); const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId); if(poIndex > -1) { appData.purchaseOrders[poIndex].payout = payoutData; renderPayoutUI(appData.purchaseOrders[poIndex]); renderPOList(); } closePayoutModal(); } catch (err) { console.error(err); alert("Failed to save payment to cloud."); } finally { btn.innerText = "Confirm & Lock Payment"; btn.disabled = false; }
         }
 
         // --- UTILITIES ---
-        function numberToWords(amount) { 
-            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
-            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
-            
-            function convert(num) { 
-                if (num < 20) return words[num]; 
-                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
-                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
-                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
-                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
-                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
-            } 
-            
-            let rupees = Math.floor(amount);
-            let paise = Math.round((amount - rupees) * 100); 
-            
-            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
-        }
-        
-        function downloadPDF() { 
-            document.getElementById('app-controls').style.display = 'none'; 
-            
-            const payoutBox = document.getElementById('payout-status-container'); 
-            const payoutWasVisible = payoutBox.style.display === 'block'; 
-            payoutBox.style.display = 'none'; 
-            
-            const element = document.getElementById('invoice-content'); 
-            const opt = { 
-                margin: 0, 
-                filename: `${tempDocNumber}.pdf`, 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true }, 
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } 
-            }; 
-            
-            html2pdf().set(opt).from(element).save().then(() => { 
-                document.getElementById('app-controls').style.display = 'block'; 
-                if(payoutWasVisible) payoutBox.style.display = 'block'; 
-            }); 
-        }
+        function numberToWords(amount) { const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; function convert(num) { if (num < 20) return words[num]; if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); } let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; }
+        function downloadPDF() { document.getElementById('app-controls').style.display = 'none'; const payoutBox = document.getElementById('payout-status-container'); const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; const element = document.getElementById('invoice-content'); const opt = { margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } }; html2pdf().set(opt).from(element).save().then(() => { document.getElementById('app-controls').style.display = 'block'; if(payoutWasVisible) payoutBox.style.display = 'block'; }); }
     </script>
 </body>
 </html>
