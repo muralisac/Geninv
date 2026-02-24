@@ -40,45 +40,63 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* APP DOCK */
+        /* ========================================================
+           DYNAMIC SMART DOCK (BOTTOM NAVIGATION)
+           ======================================================== */
         .top-nav { 
             position: fixed; 
-            bottom: 25px; 
-            left: 50%; 
-            transform: translateX(-50%); 
+            bottom: 0; 
+            left: 0; 
+            width: 100%;
             z-index: 9000; 
-            background: rgba(11, 42, 92, 0.95); 
-            backdrop-filter: blur(12px); 
-            -webkit-backdrop-filter: blur(12px);
-            padding: 12px; 
+            /* Default State: Highly Transparent */
+            background: rgba(11, 42, 92, 0.25); 
+            backdrop-filter: blur(4px); 
+            -webkit-backdrop-filter: blur(4px);
+            /* Accounts for mobile swipe bars at the bottom */
+            padding: 12px 15px max(15px, env(safe-area-inset-bottom)); 
             display: flex; 
             gap: 8px; 
             overflow-x: auto; 
             white-space: nowrap; 
             display: none; 
-            border-radius: 100px; 
-            box-shadow: 0 15px 35px rgba(11,42,92,0.3); 
-            max-width: 95vw;
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px 20px 0 0; /* Docked to bottom, rounded top */
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.05); 
+            border-top: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.4s ease; /* Smooth animation */
         }
+        
+        /* Centering for wider screens */
+        @media (min-width: 500px) {
+            .top-nav { justify-content: center; }
+        }
+
+        /* Focus State: Becomes solid when touched/hovered */
+        .top-nav:hover, .top-nav:active, .top-nav:focus-within {
+            background: rgba(11, 42, 92, 0.98); 
+            backdrop-filter: blur(15px); 
+            -webkit-backdrop-filter: blur(15px);
+            box-shadow: 0 -5px 25px rgba(11,42,92,0.3); 
+        }
+
         .top-nav button { 
             background: transparent; 
             border: none; 
-            color: #cbd5e1; 
+            color: #f1f5f9; 
             border-radius: 30px; 
             padding: 10px 16px; 
             font-size: 13px; 
-            font-weight: 500; 
+            font-weight: 600; 
             transition: all 0.2s ease; 
         }
         .top-nav button:hover { 
             color: #fff; 
-            background: rgba(255,255,255,0.1); 
+            background: rgba(255,255,255,0.15); 
         }
         .top-nav button.active { 
             background: #f7d047; 
             color: #0b2a5c; 
-            font-weight: 700; 
+            font-weight: 800; 
             box-shadow: 0 4px 10px rgba(247, 208, 71, 0.4); 
         }
         .top-nav button.btn-logout { 
@@ -86,6 +104,7 @@
             color: white; 
             margin-left: 5px; 
         }
+        /* ======================================================== */
         
         /* UI ELEMENTS */
         .panel { 
@@ -490,7 +509,7 @@
         // Add your admin email(s) inside this array.
         // Anyone NOT on this list will only be able to view data.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
