@@ -186,7 +186,7 @@
             <p class="text-muted small">Secure Wholesale Management</p>
         </div>
         <div class="mb-3">
-            <label class="form-label">Administrator Email</label>
+            <label class="form-label">Email Address</label>
             <input type="email" id="login-email" class="form-control form-control-lg">
         </div>
         <div class="mb-4">
@@ -216,7 +216,7 @@
     <div id="screen-history" class="screen panel">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="fw-bold m-0" style="color: #0b2a5c;">Sales Invoices</h3>
-            <button class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ New Sale</button>
+            <button id="btn-new-sale" class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ New Sale</button>
         </div>
         <div id="history-list"></div>
     </div>
@@ -224,7 +224,7 @@
     <div id="screen-po-history" class="screen panel">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="fw-bold m-0" style="color: #d97706;">Purchase Orders</h3>
-            <button class="btn btn-sm btn-warning" onclick="openNewPO()">+ New PO</button>
+            <button id="btn-new-po" class="btn btn-sm btn-warning" onclick="openNewPO()">+ New PO</button>
         </div>
         <div id="po-list"></div>
     </div>
@@ -372,7 +372,7 @@
 
     <div id="screen-preview" class="screen">
         <div class="text-center my-4" id="app-controls">
-            <button onclick="editCurrentDocument()" class="btn btn-outline-secondary bg-white shadow-sm me-2 px-4">✏️ Edit</button>
+            <button id="btn-edit-preview" onclick="editCurrentDocument()" class="btn btn-outline-secondary bg-white shadow-sm me-2 px-4">✏️ Edit</button>
             <button onclick="downloadPDF()" class="btn btn-primary shadow-sm px-4">📄 Download PDF</button>
         </div>
         
@@ -485,6 +485,13 @@
     </div>
 
     <script>
+        // ========================================================
+        // 🔒 ADMIN CONFIGURATION
+        // Add your admin email(s) inside this array.
+        // Anyone NOT on this list will only be able to view data.
+        // ========================================================
+        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
@@ -513,14 +520,22 @@
         let tempDocNumber = ""; 
         let tempDocDate = "";
         let currentDocType = "invoice"; 
+        
+        // Security State
+        let isAdmin = false;
 
         // --- AUTHENTICATION ---
         auth.onAuthStateChanged(user => {
             if (user) {
+                // Check if logged-in user is an Admin
+                isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+                
                 document.getElementById('top-nav').style.display = 'flex';
                 document.getElementById('screen-login').classList.remove('active'); 
                 document.getElementById('loading-overlay').style.display = 'flex';
-                document.getElementById('loading-text').innerText = "Loading Cloud ERP...";
+                document.getElementById('loading-text').innerText = isAdmin ? "Loading Admin ERP..." : "Loading Read-Only View...";
+                
+                applyRolePermissions();
                 fetchCloudData();
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
@@ -529,6 +544,15 @@
                 document.getElementById('screen-login').classList.add('active');
             }
         });
+
+        // Toggle UI based on admin status
+        function applyRolePermissions() {
+            document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-edit-preview').style.display = isAdmin ? 'inline-block' : 'none';
+        }
 
         function login() { 
             const email = document.getElementById('login-email').value; 
@@ -613,13 +637,14 @@
                         <strong style="color:#0b2a5c;">${c.name}</strong><br>
                         <small class="text-muted">GST: ${c.gstin}</small>
                     </div>
-                    <button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
                 </div>
             `).join(''); 
             populateDropdowns(); 
         }
 
         function editCustomer(id) { 
+            if(!isAdmin) return;
             const formContainer = document.getElementById('customer-form-container');
             formContainer.style.display = 'block'; 
             document.getElementById('btn-add-customer').style.display = 'none';
@@ -642,6 +667,7 @@
         }
 
         async function saveCustomer() { 
+            if(!isAdmin) return;
             const id = document.getElementById('cust-id').value; 
             const name = document.getElementById('cust-name').value; 
             const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); 
@@ -667,7 +693,7 @@
 
         function cancelCustomerEdit() { 
             document.getElementById('customer-form-container').style.display = 'none'; 
-            document.getElementById('btn-add-customer').style.display = 'block'; 
+            document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; 
         }
 
         // --- PRODUCT INVENTORY ---
@@ -683,13 +709,14 @@
                         <strong style="color:#0b2a5c;">${p.name}</strong><br>
                         <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small>
                     </div>
-                    <button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
                 </div>`; 
             }).join(''); 
             populateDropdowns(); 
         }
 
         function editProduct(id) { 
+            if(!isAdmin) return;
             const formContainer = document.getElementById('product-form-container');
             formContainer.style.display = 'block'; 
             document.getElementById('btn-add-product').style.display = 'none';
@@ -714,6 +741,7 @@
         }
 
         async function saveProduct() { 
+            if(!isAdmin) return;
             const id = document.getElementById('prod-id').value; 
             const name = document.getElementById('prod-name').value; 
             const price = parseFloat(document.getElementById('prod-price').value); 
@@ -742,7 +770,7 @@
 
         function cancelProductEdit() { 
             document.getElementById('product-form-container').style.display = 'none'; 
-            document.getElementById('btn-add-product').style.display = 'block'; 
+            document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none'; 
         }
 
         // --- DROPDOWNS ---
@@ -758,6 +786,7 @@
 
         // --- BUILDER: SALES INVOICE ---
         function openNewInvoice() { 
+            if(!isAdmin) return;
             currentDocType = "invoice"; 
             editingDocId = null; 
             currentCart = []; 
@@ -795,6 +824,7 @@
 
         // --- BUILDER: PURCHASE ORDER ---
         function openNewPO() { 
+            if(!isAdmin) return;
             currentDocType = "po"; 
             editingDocId = null; 
             currentCart = []; 
@@ -871,6 +901,7 @@
         }
 
         async function generatePreview(type) { 
+            if(!isAdmin) return;
             currentDocType = type; 
             const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
             const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
@@ -916,12 +947,9 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             const thList = [
-                document.getElementById("th-1"), 
-                document.getElementById("th-2"), 
-                document.getElementById("th-3"), 
-                document.getElementById("th-4"), 
-                document.getElementById("th-5"), 
-                document.getElementById("th-6")
+                document.getElementById("th-1"), document.getElementById("th-2"), 
+                document.getElementById("th-3"), document.getElementById("th-4"), 
+                document.getElementById("th-5"), document.getElementById("th-6")
             ];
             
             if (type === 'po') {
@@ -929,18 +957,14 @@
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
-                wave.classList.add('wave-po'); 
-                gBox.classList.add('grand-po'); 
-                thList.forEach(th => th.classList.add('th-po')); 
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); 
                 document.getElementById("payout-status-container").style.display = "block";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
                 document.getElementById("bill-to-label").innerText = "Bill To"; 
                 document.getElementById("bill-from-label").innerText = "Bill From";
-                wave.classList.remove('wave-po'); 
-                gBox.classList.remove('grand-po'); 
-                thList.forEach(th => th.classList.remove('th-po')); 
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); 
                 document.getElementById("payout-status-container").style.display = "none";
             }
             
@@ -1034,7 +1058,7 @@
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
                     </div>
-                    <button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : ''}
                 </div>
             `).join(''); 
         }
@@ -1055,7 +1079,7 @@
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
                     </div>
-                    <button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : ''}
                 </div>`;
             }).join(''); 
         }
@@ -1071,7 +1095,6 @@
             tempDocNumber = doc.invoiceNumber; 
             tempDocDate = doc.date;
             
-            // --- THE CRITICAL FIX: Properly map the builder backgrounds so "Edit" works perfectly ---
             if (type === 'po') {
                 document.getElementById("po-vendor-select").value = doc.customerId; 
                 document.getElementById("po-builder-title").innerText = "Edit PO"; 
@@ -1083,7 +1106,6 @@
                 document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`;
                 renderCartUI('invoice');
             }
-            // -----------------------------------------------------------------------------------------
             
             const tbody = document.getElementById("invoice-tbody"); 
             tbody.innerHTML = ""; 
@@ -1117,12 +1139,9 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             const thList = [
-                document.getElementById("th-1"), 
-                document.getElementById("th-2"), 
-                document.getElementById("th-3"), 
-                document.getElementById("th-4"), 
-                document.getElementById("th-5"), 
-                document.getElementById("th-6")
+                document.getElementById("th-1"), document.getElementById("th-2"), 
+                document.getElementById("th-3"), document.getElementById("th-4"), 
+                document.getElementById("th-5"), document.getElementById("th-6")
             ];
             
             if (type === 'po') { 
@@ -1130,9 +1149,7 @@
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser"; 
-                wave.classList.add('wave-po'); 
-                gBox.classList.add('grand-po'); 
-                thList.forEach(th => th.classList.add('th-po')); 
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po')); 
                 document.getElementById("payout-status-container").style.display = "block"; 
                 renderPayoutUI(doc); 
             } else { 
@@ -1140,9 +1157,7 @@
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
                 document.getElementById("bill-to-label").innerText = "Bill To"; 
                 document.getElementById("bill-from-label").innerText = "Bill From"; 
-                wave.classList.remove('wave-po'); 
-                gBox.classList.remove('grand-po'); 
-                thList.forEach(th => th.classList.remove('th-po')); 
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po')); 
                 document.getElementById("payout-status-container").style.display = "none"; 
             }
             
@@ -1172,6 +1187,7 @@
         }
 
         function loadOldDocumentForEdit(id, type) {
+            if(!isAdmin) return;
             currentDocType = type; 
             const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
             const doc = arrayRef.find(h => h.id === id); 
@@ -1198,6 +1214,7 @@
         }
 
         function editCurrentDocument() { 
+            if(!isAdmin) return;
             if(currentDocType === 'po') {
                 switchScreen('screen-po-builder'); 
             } else {
@@ -1233,12 +1250,13 @@
             } else {
                 container.innerHTML = `
                     <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
-                    <button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>
+                    ${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}
                 `;
             }
         }
 
         function openPayoutModal(poId) { 
+            if(!isAdmin) return;
             document.getElementById("payout-po-id").value = poId; 
             document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
             document.getElementById("payout-ref").value = ""; 
@@ -1252,6 +1270,7 @@
         }
 
         async function savePayout() {
+            if(!isAdmin) return;
             const poId = document.getElementById("payout-po-id").value; 
             const date = document.getElementById("payout-date").value; 
             const ref = document.getElementById("payout-ref").value; 
