@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Totatri POS - ERP Edition</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* GLOBAL UI */
+        body { 
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
+            font-family: 'Inter', sans-serif; 
+            color: #1e293b; 
+            padding-bottom: 120px; 
+            min-height: 100vh;
+        }
+        .screen { 
+            display: none; 
+            opacity: 0; 
+            transition: opacity 0.3s ease-in-out; 
+        }
+        .screen.active { 
+            display: block; 
+            opacity: 1; 
+            animation: slideUp 0.4s ease-out forwards; 
+        }
+        @keyframes slideUp { 
+            from { transform: translateY(15px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+
+        /* APP DOCK */
+        .top-nav { 
+            position: fixed; 
+            bottom: 25px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 9000; 
+            background: rgba(11, 42, 92, 0.95); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px; 
+            display: flex; 
+            gap: 8px; 
+            overflow-x: auto; 
+            white-space: nowrap; 
+            display: none; 
+            border-radius: 100px; 
+            box-shadow: 0 15px 35px rgba(11,42,92,0.3); 
+            max-width: 95vw;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .top-nav button { 
+            background: transparent; 
+            border: none; 
+            color: #cbd5e1; 
+            border-radius: 30px; 
+            padding: 10px 16px; 
+            font-size: 13px; 
+            font-weight: 500; 
+            transition: all 0.2s ease; 
+        }
+        .top-nav button:hover { 
+            color: #fff; 
+            background: rgba(255,255,255,0.1); 
+        }
+        .top-nav button.active { 
+            background: #f7d047; 
+            color: #0b2a5c; 
+            font-weight: 700; 
+            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.4); 
+        }
+        .top-nav button.btn-logout { 
+            background: #ef4444; 
+            color: white; 
+            margin-left: 5px; 
+        }
+        
+        /* UI ELEMENTS */
+        .panel { 
+            max-width: 650px; 
+            margin: 30px auto; 
+            background: #fff; 
+            padding: 30px; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); 
+            border: 1px solid rgba(255,255,255,0.8); 
+        }
+        .form-control, .form-select { 
+            background-color: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            padding: 14px 16px; 
+            font-size: 15px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); 
+        }
+        .form-control:focus, .form-select:focus { 
+            background-color: #fff; 
+            border-color: #0b2a5c; 
+            box-shadow: 0 0 0 4px rgba(11,42,92,0.1); 
+        }
+        .form-label { 
+            font-weight: 600; 
+            color: #64748b; 
+            margin-bottom: 6px; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            font-size: 11px; 
+        }
+        .btn { 
+            border-radius: 12px; 
+            font-weight: 600; 
+            padding: 12px 20px; 
+            transition: all 0.2s; 
+        }
+        .btn-primary { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(11,42,92,0.25); }
+        .btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.25); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.25); }
+        
+        .list-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 16px; background: #fff; margin-bottom: 12px; border-radius: 16px; 
+            border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); 
+        }
+        .history-card { border-left: 5px solid #0b2a5c; }
+        .po-card { border-left: 5px solid #f59e0b; }
+
+        /* CUSTOM MODAL OVERLAY FOR PAYOUTS */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
+        }
+        .custom-modal-content {
+            background: #fff; width: 90%; max-width: 450px; border-radius: 20px;
+            padding: 25px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        /* INVOICE/PO PREVIEW */
+        .invoice-box { 
+            max-width: 800px; margin: 0 auto; background: #fff; position: relative; overflow: hidden; 
+            min-height: 1122px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border-radius: 8px; 
+        }
+        .wave-top { position: absolute; top: -50px; left: -10%; width: 120%; height: 180px; background-color: #0b2a5c; border-radius: 50% / 100% 100% 0 0; transform: rotate(180deg); z-index: 0; }
+        .wave-po { background-color: #d97706 !important; } /* Orange wave for POs */
+        .invoice-header-wrapper-abs { position: absolute; top: 45px; left: 8%; right: 8%; z-index: 20; display: flex; justify-content: space-between; align-items: center; }
+        .invoice-header-title { white-space: nowrap; font-size: 22px; font-weight: 800; margin: 0; color: #ffffff; letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .content-wrapper { position: relative; z-index: 10; padding: 160px 8% 80px 8%; }
+        .logo-placeholder { width: 50px; height: 50px; background-color: #f7d047; clip-path: polygon(25% 0%, 75% 0%, 75% 100%, 25% 100%); transform: rotate(45deg); margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .custom-table th { background-color: #0b2a5c !important; color: white !important; font-size: 11px; text-transform: uppercase; font-weight: 600; border: none; padding: 12px; }
+        .th-po { background-color: #d97706 !important; }
+        .custom-table td { font-size: 13px; padding: 12px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+        .totals-box { border: 1px solid #cbd5e1; font-size: 13px; border-radius: 8px; overflow: hidden; background: #f8fafc; }
+        .totals-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+        .grand-total-box { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); color: white; padding: 15px 12px; display: flex; justify-content: space-between; font-weight: 800; font-size: 18px; border-radius: 8px; margin-top: 8px; }
+        .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+        
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); border-left-color: #0b2a5c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Authenticating Security...</div>
+    </div>
+
+    <div id="screen-login" class="screen panel" style="margin-top: 15vh; border-top: 6px solid #0b2a5c;">
+        <div class="text-center mb-5">
+            <div class="logo-placeholder mb-4"></div>
+            <h3 class="fw-bold" style="color: #0b2a5c;">Sri Totatri ERP</h3>
+            <p class="text-muted small">Secure Wholesale Management</p>
+        </div>
+        <div class="mb-3"><label class="form-label">Administrator Email</label><input type="email" id="login-email" class="form-control form-control-lg"></div>
+        <div class="mb-4"><label class="form-label">Password</label><input type="password" id="login-password" class="form-control form-control-lg"></div>
+        <button class="btn btn-primary btn-lg w-100 mb-3" onclick="login()">Sign In Securely</button>
+        <div class="d-flex align-items-center my-4"><div class="flex-grow-1 border-top" style="border-color: #e2e8f0;"></div><span class="px-3 text-muted small fw-bold">OR</span><div class="flex-grow-1 border-top" style="border-color: #e2e8f0;"></div></div>
+        <button class="btn btn-outline-dark btn-lg w-100" style="background: #fff; border: 1px solid #cbd5e1;" onclick="loginWithGoogle()">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 20px; margin-right: 8px; margin-top: -2px;"> Continue with Google
+        </button>
+        <p id="login-error" class="text-danger mt-3 text-center small fw-bold"></p>
+    </div>
+
+    <div class="top-nav" id="top-nav">
+        <button onclick="switchScreen('screen-history')" id="nav-history" class="active">🧾 Sales</button>
+        <button onclick="switchScreen('screen-po-history')" id="nav-po">📦 Purchases</button>
+        <button onclick="switchScreen('screen-customers')" id="nav-customers">👥 Directory</button>
+        <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inventory</button>
+        <button onclick="logout()" class="btn-logout">Exit</button>
+    </div>
+
+    <div id="screen-history" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Sales Invoices</h3>
+            <button class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ New Sale</button>
+        </div>
+        <div id="history-list"></div>
+    </div>
+
+    <div id="screen-po-history" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #d97706;">Purchase Orders</h3>
+            <button class="btn btn-sm btn-warning" onclick="openNewPO()">+ New PO</button>
+        </div>
+        <div id="po-list"></div>
+    </div>
+
+    <div id="screen-customers" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Directory</h3>
+            <button id="btn-add-customer" class="btn btn-sm btn-primary" onclick="editCustomer('new')">+ Add Entity</button>
+        </div>
+        <div id="customer-form-container" class="bg-light p-4 rounded-4 mb-4" style="display:none; border: 1px solid #e2e8f0;">
+            <h5 class="fw-bold mb-3 pb-2 border-bottom">Entity Details</h5>
+            <input type="hidden" id="cust-id">
+            <div class="mb-3"><label class="form-label">Business Name</label><input type="text" id="cust-name" class="form-control"></div>
+            <div class="mb-3"><label class="form-label">Full Address</label><textarea id="cust-address" class="form-control" rows="2"></textarea></div>
+            <div class="row g-3 mb-4"><div class="col-6"><label class="form-label">GSTIN</label><input type="text" id="cust-gstin" class="form-control"></div><div class="col-6"><label class="form-label">State Code</label><input type="number" id="cust-state" class="form-control"></div></div>
+            <div class="d-flex gap-2"><button class="btn btn-success flex-grow-1" onclick="saveCustomer()">Save to Cloud</button><button class="btn btn-outline-secondary" style="background: #fff;" onclick="cancelCustomerEdit()">Cancel</button></div>
+        </div>
+        <div id="customers-list"></div>
+    </div>
+
+    <div id="screen-products" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Inventory</h3>
+            <button id="btn-add-product" class="btn btn-sm btn-primary" onclick="editProduct('new')">+ New Item</button>
+        </div>
+        <div id="product-form-container" class="bg-light p-4 rounded-4 mb-4" style="display:none; border: 1px solid #e2e8f0;">
+            <h5 class="fw-bold mb-3 pb-2 border-bottom">Product Details</h5>
+            <input type="hidden" id="prod-id">
+            <div class="mb-3"><label class="form-label">Product Name</label><input type="text" id="prod-name" class="form-control"></div>
+            
+            <div class="row g-3 mb-3">
+                <div class="col-6"><label class="form-label">Wholesale Price (₹)</label><input type="number" step="0.01" id="prod-price" class="form-control" placeholder="Selling Price"></div>
+                <div class="col-6"><label class="form-label">Purchase Price (₹)</label><input type="number" step="0.01" id="prod-purchase-price" class="form-control" placeholder="Buying Price"></div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6"><label class="form-label">GST (%)</label><input type="number" id="prod-gst" class="form-control"></div>
+                <div class="col-6"><label class="form-label">Min. Qty (MOQ)</label><input type="number" id="prod-moq" class="form-control"></div>
+            </div>
+            <div class="d-flex gap-2"><button class="btn btn-success flex-grow-1" onclick="saveProduct()">Save to Cloud</button><button class="btn btn-outline-secondary" style="background: #fff;" onclick="cancelProductEdit()">Cancel</button></div>
+        </div>
+        <div id="products-list"></div>
+    </div>
+
+    <div id="screen-builder" class="screen panel">
+        <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
+        <p class="text-muted small mb-4" id="editing-invoice-label">Drafting document...</p>
+        
+        <div class="mb-4"><label class="form-label">Billed To (Customer)</label><select id="customer-select" class="form-select"></select></div>
+        
+        <div class="p-3 bg-light rounded-4 mb-4 border" style="border-color: #e2e8f0 !important;">
+            <label class="form-label">Add Items</label>
+            <div class="row g-2">
+                <div class="col-12"><select id="product-select" class="form-select"></select></div>
+                <div class="col-8"><input type="number" id="qty-input" class="form-control" placeholder="Quantity"></div>
+                <div class="col-4"><button onclick="addItemToCart()" class="btn btn-primary w-100 h-100">+ Add</button></div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-end mb-3"><h6 class="fw-bold m-0" style="color: #0b2a5c;">Shopping Cart</h6><span class="badge bg-secondary rounded-pill px-3 py-2" id="cart-count">0 items</span></div>
+        <div id="cart-container" class="mb-4"></div>
+        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Generate Invoice</button>
+    </div>
+
+    <div id="screen-po-builder" class="screen panel">
+        <h3 class="fw-bold mb-1" style="color: #d97706;" id="po-builder-title">Purchase Order</h3>
+        <p class="text-muted small mb-4" id="po-editing-label">Drafting PO...</p>
+        
+        <div class="mb-4"><label class="form-label">Vendor Name</label><select id="po-vendor-select" class="form-select"></select></div>
+        
+        <div class="p-3 bg-light rounded-4 mb-4 border" style="border-color: #e2e8f0 !important;">
+            <label class="form-label">Add Items to Purchase</label>
+            <div class="row g-2">
+                <div class="col-12"><select id="po-product-select" class="form-select" onchange="autoFillPoPrice()"></select></div>
+                <div class="col-6"><input type="number" step="0.01" id="po-price-input" class="form-control" placeholder="Unit Price"></div>
+                <div class="col-6"><input type="number" id="po-qty-input" class="form-control" placeholder="Quantity"></div>
+                <div class="col-12"><button onclick="addPoItemToCart()" class="btn btn-warning w-100">+ Add to PO</button></div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-end mb-3"><h6 class="fw-bold m-0" style="color: #d97706;">Order List</h6><span class="badge bg-secondary rounded-pill px-3 py-2" id="po-cart-count">0 items</span></div>
+        <div id="po-cart-container" class="mb-4"></div>
+        <button onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Generate PO</button>
+    </div>
+
+    <div id="screen-preview" class="screen">
+        <div class="text-center my-4" id="app-controls">
+            <button onclick="editCurrentDocument()" class="btn btn-outline-secondary bg-white shadow-sm me-2 px-4">✏️ Edit</button>
+            <button onclick="downloadPDF()" class="btn btn-primary shadow-sm px-4">📄 Download PDF</button>
+        </div>
+        
+        <div id="payout-status-container" class="panel text-center mt-0 mb-4 py-3" style="display:none; max-width: 800px; border: 2px solid #e2e8f0;">
+            <h5 class="fw-bold mb-2">Payment Status</h5>
+            <div id="payout-details-display"></div>
+        </div>
+
+        <div class="container-fluid p-0 p-md-3">
+            <div class="invoice-box" id="invoice-content">
+                <div class="wave-top" id="doc-wave"></div>
+                
+                <div class="invoice-header-wrapper-abs">
+                    <h2 class="invoice-header-title">SRI TOTATRI AGRO FOODS PVT LTD</h2>
+                    <div class="logo-placeholder flex-shrink-0 ms-2"></div>
+                </div>
+
+                <div class="content-wrapper">
+                    <h1 class="display-6 mb-2" id="doc-type-title" style="letter-spacing: 2px; color: #0b2a5c; font-weight: 800;">INVOICE</h1>
+                    <div class="font-13 mb-4 text-muted">
+                        <p class="mb-1" id="inv-number">Number: </p>
+                        <p class="mb-1" id="inv-date">Date: </p>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <h3 class="h6 border-bottom pb-2 fw-bold text-uppercase" id="bill-to-label" style="color: #0b2a5c; border-color:#cbd5e1!important;">Bill To</h3>
+                            <div class="font-13 lh-lg mt-2" id="bill-to"></div>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="h6 border-bottom pb-2 fw-bold text-uppercase" id="bill-from-label" style="color: #0b2a5c; border-color:#cbd5e1!important;">Bill From</h3>
+                            <div class="font-13 lh-lg mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
+                        </div>
+                    </div>
+                    <div class="border mb-4 rounded-3 overflow-hidden" style="border-color:#cbd5e1!important;">
+                        <table class="table custom-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th width="5%" id="th-1">#</th>
+                                    <th width="35%" id="th-2">Description</th>
+                                    <th width="10%" class="text-center" id="th-3">Qty</th>
+                                    <th width="15%" class="text-end" id="th-4">Price</th>
+                                    <th width="15%" class="text-end" id="th-5">GST</th>
+                                    <th width="20%" class="text-end" id="th-6">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="row">
+                        <div class="col-7 pe-md-4">
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: #0b2a5c;" id="amount-words-label">Amount in Words</h4>
+                            <p class="font-13 mb-4 text-capitalize fw-medium" id="amount-in-words"></p>
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: #0b2a5c;" id="terms-label">Terms & Conditions</h4>
+                            <p class="font-13 mb-0 text-muted">Thanks for doing business with us.</p>
+                        </div>
+                        <div class="col-5">
+                            <div class="totals-box mb-2">
+                                <div class="totals-row"><span>Sub Total:</span> <span id="sub-total">₹0.00</span></div>
+                                <div id="tax-rows-container"></div>
+                                <div class="totals-row"><span>Total GST</span> <span id="total-gst">₹0.00</span></div>
+                                <div class="totals-row text-muted" style="font-size: 11px; border-top: 1px dashed #cbd5e1;"><span>Round Off</span> <span id="round-off">₹0.00</span></div>
+                            </div>
+                            <div class="grand-total-box" id="grand-box"><span>TOTAL</span> <span id="grand-total">₹0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="payout-modal" class="custom-modal-overlay">
+        <div class="custom-modal-content">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold m-0" style="color:#0b2a5c;">Record Payment</h4>
+                <button class="btn-close" onclick="closePayoutModal()"></button>
+            </div>
+            <p class="small text-muted mb-4">Upload a screenshot of the transaction receipt.</p>
+            
+            <input type="hidden" id="payout-po-id">
+            
+            <div class="mb-3">
+                <label class="form-label">Transaction Date</label>
+                <input type="date" id="payout-date" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Reference Number (UTR/UPI)</label>
+                <input type="text" id="payout-ref" class="form-control" placeholder="e.g., UPI123456789">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Amount Paid (₹)</label>
+                <input type="number" id="payout-amount" class="form-control" placeholder="0.00">
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Receipt Image</label>
+                <input type="file" id="payout-image" class="form-control" accept="image/*">
+                <small class="text-danger mt-1 d-none" id="payout-img-warning">Image will be compressed for saving.</small>
+            </div>
+            
+            <button class="btn btn-success w-100 btn-lg" onclick="savePayout()" id="btn-save-payout">Confirm & Lock Payment</button>
+        </div>
+    </div>
+
+    <script>
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
+            authDomain: "geninv-9583c.firebaseapp.com",
+            projectId: "geninv-9583c",
+            storageBucket: "geninv-9583c.firebasestorage.app",
+            messagingSenderId: "1001857058399",
+            appId: "1:1001857058399:web:8b36dcce49ef0cf6747dea"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth(); 
+
+        // --- GLOBAL STATE ---
+        let appData = { inventory: [], customers: [], history: [], purchaseOrders: [], lastInvoiceNum: 22, lastPoNum: 5 };
+        const SELLER_STATE = 33; 
+        
+        let currentCart = []; // Used for both Sales & POs depending on active screen
+        let editingDocId = null; 
+        let tempDocNumber = ""; 
+        let tempDocDate = "";
+        let currentDocType = "invoice"; // 'invoice' or 'po'
+
+        // --- AUTHENTICATION ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('top-nav').style.display = 'flex';
+                document.getElementById('screen-login').classList.remove('active'); 
+                document.getElementById('loading-overlay').style.display = 'flex';
+                document.getElementById('loading-text').innerText = "Loading Cloud ERP...";
+                fetchCloudData();
+            } else {
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('top-nav').style.display = 'none';
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-login').classList.add('active');
+            }
+        });
+
+        function login() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            document.getElementById('login-error').innerText = "Authenticating...";
+            auth.signInWithEmailAndPassword(email, pass).catch(error => { document.getElementById('login-error').innerText = error.message; });
+        }
+        function loginWithGoogle() {
+            document.getElementById('login-error').innerText = "Opening Google Login...";
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(error => { document.getElementById('login-error').innerText = "Error: " + error.message; });
+        }
+        function logout() { auth.signOut(); }
+
+        // --- CLOUD DATA FETCHING ---
+        async function fetchCloudData() {
+            try {
+                // Settings & Counters
+                const metaDoc = await db.collection("metadata").doc("invoiceData").get();
+                if (metaDoc.exists) { 
+                    appData.lastInvoiceNum = metaDoc.data().lastNum || 22; 
+                    appData.lastPoNum = metaDoc.data().lastPoNum || 5; 
+                } else { 
+                    await db.collection("metadata").doc("invoiceData").set({ lastNum: 22, lastPoNum: 5 }); 
+                }
+
+                // Inventory & Customers
+                const invSnap = await db.collection("inventory").get();
+                appData.inventory = invSnap.docs.map(doc => doc.data());
+                const custSnap = await db.collection("customers").get();
+                appData.customers = custSnap.docs.map(doc => doc.data());
+
+                // History (Sales & POs)
+                const histSnap = await db.collection("history").orderBy("timestamp", "desc").get();
+                appData.history = histSnap.docs.map(doc => doc.data());
+                const poSnap = await db.collection("purchaseOrders").orderBy("timestamp", "desc").get();
+                appData.purchaseOrders = poSnap.docs.map(doc => doc.data());
+
+                document.getElementById('loading-overlay').style.display = 'none';
+                switchScreen('screen-history'); 
+                
+                // Render all lists
+                renderCustomerList();
+                renderProductList();
+                renderHistoryList();
+                renderPOList();
+                populateDropdowns();
+            } catch (error) {
+                console.error("Error connecting to Firebase:", error);
+                document.getElementById('loading-text').innerText = "Database error. Please refresh.";
+                document.querySelector('.spinner').style.display = 'none';
+            }
+        }
+
+        // --- NAVIGATION ---
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            
+            const navBtn = document.getElementById(`nav-${screenId.replace('screen-','')}`);
+            if(navBtn) navBtn.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        }
+
+        // --- CUSTOMER DIRECTORY ---
+        function renderCustomerList() { 
+            const list = document.getElementById("customers-list");
+            list.innerHTML = appData.customers.map(c => `
+                <div class="list-item">
+                    <div><strong style="color:#0b2a5c;">${c.name}</strong><br><small class="text-muted">GST: ${c.gstin}</small></div>
+                    <button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>
+                </div>
+            `).join(''); 
+            populateDropdowns(); 
+        }
+        function editCustomer(id) { 
+            document.getElementById('customer-form-container').style.display = 'block'; 
+            document.getElementById('btn-add-customer').style.display = 'none';
+            if (id === 'new') { 
+                document.getElementById('cust-id').value = 'new'; document.getElementById('cust-name').value = ''; 
+                document.getElementById('cust-address').value = ''; document.getElementById('cust-gstin').value = ''; 
+                document.getElementById('cust-state').value = '33'; 
+            } else { 
+                const c = appData.customers.find(x => x.id === id); 
+                document.getElementById('cust-id').value = c.id; document.getElementById('cust-name').value = c.name; 
+                document.getElementById('cust-address').value = c.address.replace(/<br>/g, '\n'); document.getElementById('cust-gstin').value = c.gstin; 
+                document.getElementById('cust-state').value = isNaN(c.stateCode) ? "" : c.stateCode; 
+            } 
+        }
+        async function saveCustomer() { 
+            const id = document.getElementById('cust-id').value; const name = document.getElementById('cust-name').value; 
+            const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); const gstin = document.getElementById('cust-gstin').value; 
+            const stateCode = parseInt(document.getElementById('cust-state').value); 
+            if (!name) return alert("Please enter a business name."); 
+            const c = { id: id === 'new' ? 'c' + Date.now() : id, name, address, gstin, stateCode }; 
+            await db.collection("customers").doc(c.id).set(c); 
+            if (id === 'new') appData.customers.push(c); else { const idx = appData.customers.findIndex(x => x.id === id); appData.customers[idx] = c; } 
+            cancelCustomerEdit(); renderCustomerList(); 
+        }
+        function cancelCustomerEdit() { document.getElementById('customer-form-container').style.display = 'none'; document.getElementById('btn-add-customer').style.display = 'block'; }
+
+        // --- PRODUCT INVENTORY ---
+        function renderProductList() { 
+            const list = document.getElementById("products-list");
+            list.innerHTML = appData.inventory.map(p => { 
+                let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
+                let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
+                return `
+                <div class="list-item">
+                    <div>
+                        <strong style="color:#0b2a5c;">${p.name}</strong><br>
+                        <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small>
+                    </div>
+                    <button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>
+                </div>`; 
+            }).join(''); 
+            populateDropdowns(); 
+        }
+        function editProduct(id) { 
+            document.getElementById('product-form-container').style.display = 'block'; document.getElementById('btn-add-product').style.display = 'none';
+            if (id === 'new') { 
+                document.getElementById('prod-id').value = 'new'; document.getElementById('prod-name').value = ''; 
+                document.getElementById('prod-price').value = ''; document.getElementById('prod-purchase-price').value = '';
+                document.getElementById('prod-gst').value = '5'; document.getElementById('prod-moq').value = '1'; 
+            } else { 
+                const p = appData.inventory.find(x => x.id === id); 
+                document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; 
+                document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; 
+                document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
+                document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
+                document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
+            } 
+        }
+        async function saveProduct() { 
+            const id = document.getElementById('prod-id').value; const name = document.getElementById('prod-name').value; 
+            const price = parseFloat(document.getElementById('prod-price').value); 
+            const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
+            const gst = parseFloat(document.getElementById('prod-gst').value); const moq = parseInt(document.getElementById('prod-moq').value); 
+            
+            if (!name) return alert("Please enter a product name."); 
+            if (isNaN(price) || price <= 0) return alert("Please enter a valid wholesale selling price."); 
+            
+            const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq }; 
+            if (!isNaN(pPrice)) p.purchasePrice = pPrice; // Add purchase price if exists
+
+            await db.collection("inventory").doc(p.id).set(p); 
+            if (id === 'new') appData.inventory.push(p); else { const idx = appData.inventory.findIndex(x => x.id === id); appData.inventory[idx] = p; } 
+            cancelProductEdit(); renderProductList(); 
+        }
+        function cancelProductEdit() { document.getElementById('product-form-container').style.display = 'none'; document.getElementById('btn-add-product').style.display = 'block'; }
+
+        // --- DROPDOWNS ---
+        function populateDropdowns() { 
+            const custHtml = `<option value="">-- Select --</option>` + appData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById("customer-select").innerHTML = custHtml;
+            document.getElementById("po-vendor-select").innerHTML = custHtml;
+
+            const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            document.getElementById("product-select").innerHTML = prodHtml;
+            document.getElementById("po-product-select").innerHTML = prodHtml;
+        }
+
+        // --- BUILDER: SALES INVOICE ---
+        function openNewInvoice() { 
+            currentDocType = "invoice"; editingDocId = null; currentCart = []; 
+            document.getElementById("customer-select").value = ""; 
+            document.getElementById("builder-title").innerText = "New Sales Invoice"; 
+            document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
+            
+            const d = new Date(); 
+            tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
+            tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
+            
+            renderCartUI('invoice'); switchScreen('screen-builder'); 
+        }
+
+        function addItemToCart() { 
+            const pid = document.getElementById("product-select").value; const qty = parseInt(document.getElementById("qty-input").value); 
+            if (!pid || !qty || qty <= 0) return; 
+            const product = appData.inventory.find(p => p.id === pid); 
+            if (qty < product.moq) return alert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
+            
+            const existing = currentCart.find(item => item.id === pid); 
+            if (existing) existing.qty += qty; else currentCart.push({ ...product, qty: qty }); 
+            
+            document.getElementById("qty-input").value = ""; renderCartUI('invoice'); 
+        }
+
+        // --- BUILDER: PURCHASE ORDER ---
+        function openNewPO() { 
+            currentDocType = "po"; editingDocId = null; currentCart = []; 
+            document.getElementById("po-vendor-select").value = ""; 
+            document.getElementById("po-price-input").value = "";
+            document.getElementById("po-builder-title").innerText = "New Purchase Order"; 
+            document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
+            
+            const d = new Date(); 
+            tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
+            tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
+            
+            renderCartUI('po'); switchScreen('screen-po-builder'); 
+        }
+
+        function autoFillPoPrice() {
+            const pid = document.getElementById("po-product-select").value;
+            if(!pid) return;
+            const product = appData.inventory.find(p => p.id === pid);
+            document.getElementById("po-price-input").value = product.purchasePrice || product.price; // Fallback to sell price if no purchase price
+        }
+
+        function addPoItemToCart() { 
+            const pid = document.getElementById("po-product-select").value; 
+            const qty = parseInt(document.getElementById("po-qty-input").value); 
+            const customPrice = parseFloat(document.getElementById("po-price-input").value);
+
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice)) return alert("Please fill all item fields properly."); 
+            
+            const product = appData.inventory.find(p => p.id === pid); 
+            
+            const existing = currentCart.find(item => item.id === pid); 
+            if (existing) {
+                existing.qty += qty; 
+                existing.price = customPrice; // Update to latest overridden price
+            } else { 
+                // Copy product but overwrite price with the purchase price provided
+                currentCart.push({ ...product, qty: qty, price: customPrice }); 
+            } 
+            
+            document.getElementById("po-qty-input").value = ""; 
+            document.getElementById("po-price-input").value = "";
+            document.getElementById("po-product-select").value = "";
+            renderCartUI('po'); 
+        }
+
+        // --- SHARED CART & PREVIEW LOGIC ---
+        function removeCartItem(idx, type) { currentCart.splice(idx, 1); renderCartUI(type); }
+
+        function renderCartUI(type) { 
+            const containerId = type === 'po' ? "po-cart-container" : "cart-container";
+            const countId = type === 'po' ? "po-cart-count" : "cart-count";
+            const themeColor = type === 'po' ? "#d97706" : "#0b2a5c";
+
+            document.getElementById(countId).innerText = `${currentCart.length} items`; 
+            if(currentCart.length === 0) { 
+                document.getElementById(containerId).innerHTML = `<div class="text-center p-4 text-muted small border rounded-4 bg-light">Cart is empty.</div>`; 
+                return; 
+            }
+            document.getElementById(containerId).innerHTML = currentCart.map((item, idx) => `
+                <div class="list-item">
+                    <div>
+                        <div class="fw-bold" style="color:${themeColor};">${item.name}</div>
+                        <div class="text-muted small fw-medium mt-1">Qty: ${item.qty} &nbsp;|&nbsp; @ ₹${item.price.toFixed(2)}</div>
+                    </div>
+                    <button class="btn btn-sm btn-light text-danger fw-bold shadow-sm" onclick="removeCartItem(${idx}, '${type}')">X</button>
+                </div>
+            `).join(''); 
+        }
+
+        async function generatePreview(type) { 
+            currentDocType = type;
+            const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select";
+            const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
+
+            const custId = document.getElementById(vendorSelectId).value; 
+            if (!custId) return alert("Select a client/vendor."); 
+            if (currentCart.length === 0) return alert("Cart is empty."); 
+            
+            const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
+            saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; 
+            
+            const buyer = appData.customers.find(c => c.id === custId); 
+            
+            // Build the PDF Math Engine
+            const tbody = document.getElementById("invoice-tbody"); 
+            tbody.innerHTML = ""; let subTotal = 0, totalGst = 0, mainGstRate = 0; 
+            
+            currentCart.forEach((item, index) => { 
+                let baseAmt = item.qty * item.price; 
+                let gstAmt = baseAmt * (item.gstPercent / 100); 
+                subTotal += baseAmt; totalGst += gstAmt; mainGstRate = item.gstPercent; 
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="fw-medium">${item.name}</td>
+                        <td class="text-center">${item.qty}</td>
+                        <td class="text-end">₹${item.price.toFixed(2)}</td>
+                        <td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td>
+                        <td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td>
+                    </tr>`; 
+            }); 
+            
+            const exactGrandTotal = subTotal + totalGst;
+            const roundedGrandTotal = Math.round(exactGrandTotal);
+            const roundOffAmt = roundedGrandTotal - exactGrandTotal;
+            const roundedGst = Math.round(totalGst);
+
+            // Apply styling depending on document type
+            const wave = document.getElementById("doc-wave");
+            const gBox = document.getElementById("grand-box");
+            const thList = [document.getElementById("th-1"), document.getElementById("th-2"), document.getElementById("th-3"), document.getElementById("th-4"), document.getElementById("th-5"), document.getElementById("th-6")];
+            
+            if (type === 'po') {
+                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER";
+                document.getElementById("doc-type-title").style.color = "#d97706";
+                document.getElementById("bill-to-label").innerText = "Vendor";
+                document.getElementById("bill-from-label").innerText = "Purchaser";
+                wave.classList.add('wave-po');
+                gBox.classList.add('grand-po');
+                thList.forEach(th => th.classList.add('th-po'));
+                document.getElementById("payout-status-container").style.display = "block"; // Show payout UI
+            } else {
+                document.getElementById("doc-type-title").innerText = "INVOICE";
+                document.getElementById("doc-type-title").style.color = "#0b2a5c";
+                document.getElementById("bill-to-label").innerText = "Bill To";
+                document.getElementById("bill-from-label").innerText = "Bill From";
+                wave.classList.remove('wave-po');
+                gBox.classList.remove('grand-po');
+                thList.forEach(th => th.classList.remove('th-po'));
+                document.getElementById("payout-status-container").style.display = "none";
+            }
+            
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
+            document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
+            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
+            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
+            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
+            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`;
+            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
+            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal); 
+            
+            const taxContainer = document.getElementById("tax-rows-container"); 
+            if (SELLER_STATE === buyer.stateCode) { 
+                taxContainer.innerHTML = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div><div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; 
+            } else { 
+                taxContainer.innerHTML = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; 
+            } 
+            
+            const record = { 
+                id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
+                invoiceNumber: tempDocNumber, date: tempDocDate, customerId: buyer.id, customerName: buyer.name, 
+                cart: currentCart, totalAmount: roundedGrandTotal, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            }; 
+            
+            try { 
+                const collectionName = type === 'po' ? "purchaseOrders" : "history";
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                
+                // If editing existing PO, preserve payout data!
+                if(type === 'po' && editingDocId) {
+                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
+                    if(existingPO && existingPO.payout) record.payout = existingPO.payout;
+                }
+
+                await db.collection(collectionName).doc(record.id).set(record); 
+                
+                if (editingDocId) { 
+                    const idx = arrayRef.findIndex(h => h.id === editingDocId); 
+                    arrayRef[idx] = record; 
+                } else { 
+                    arrayRef.unshift(record); 
+                    if(type === 'po') { appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); }
+                    else { appData.lastInvoiceNum++; await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); }
+                } 
+                
+                if(type === 'po') {
+                    renderPOList(); 
+                    renderPayoutUI(record); // Build the payout interface
+                } else {
+                    renderHistoryList(); 
+                }
+
+                switchScreen('screen-preview'); 
+            } catch (error) { 
+                console.error("Save Error:", error); alert("Network error. Please try again."); 
+            } finally { 
+                saveBtn.innerText = "💾 Generate Document"; saveBtn.disabled = false; 
+            } 
+        }
+
+        // --- HISTORY LIST RENDERERS ---
+        function renderHistoryList() { 
+            const list = document.getElementById("history-list"); 
+            if(appData.history.length === 0) return list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
+            list.innerHTML = appData.history.map(h => `
+                <div class="list-item history-card">
+                    <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'invoice')">
+                        <strong class="text-primary">${h.invoiceNumber}</strong><br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>
+                </div>
+            `).join(''); 
+        }
+
+        function renderPOList() { 
+            const list = document.getElementById("po-list"); 
+            if(appData.purchaseOrders.length === 0) return list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; 
+            list.innerHTML = appData.purchaseOrders.map(h => {
+                const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                return `
+                <div class="list-item po-card">
+                    <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'po')">
+                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${isPaid}<br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>
+                </div>`;
+            }).join(''); 
+        }
+
+        function viewOldDocument(id, type) {
+            currentDocType = type;
+            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+            const doc = arrayRef.find(h => h.id === id); if (!doc) return;
+            
+            editingDocId = doc.id; currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; tempDocDate = doc.date;
+            
+            // Just map state to preview directly
+            const tbody = document.getElementById("invoice-tbody"); tbody.innerHTML = ""; let subTotal = 0, totalGst = 0, mainGstRate = 0;
+            doc.cart.forEach((item, index) => { let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); subTotal += baseAmt; totalGst += gstAmt; mainGstRate = item.gstPercent; tbody.innerHTML += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`; });
+            const exactGrandTotal = subTotal + totalGst; const roundedGrandTotal = Math.round(exactGrandTotal); const roundOffAmt = roundedGrandTotal - exactGrandTotal; const roundedGst = Math.round(totalGst);
+            const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
+            
+            // Themes
+            const wave = document.getElementById("doc-wave"); const gBox = document.getElementById("grand-box");
+            const thList = [document.getElementById("th-1"), document.getElementById("th-2"), document.getElementById("th-3"), document.getElementById("th-4"), document.getElementById("th-5"), document.getElementById("th-6")];
+            if (type === 'po') {
+                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; document.getElementById("doc-type-title").style.color = "#d97706";
+                document.getElementById("bill-to-label").innerText = "Vendor"; document.getElementById("bill-from-label").innerText = "Purchaser";
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); thList.forEach(th => th.classList.add('th-po'));
+                document.getElementById("payout-status-container").style.display = "block";
+                renderPayoutUI(doc);
+            } else {
+                document.getElementById("doc-type-title").innerText = "INVOICE"; document.getElementById("doc-type-title").style.color = "#0b2a5c";
+                document.getElementById("bill-to-label").innerText = "Bill To"; document.getElementById("bill-from-label").innerText = "Bill From";
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); thList.forEach(th => th.classList.remove('th-po'));
+                document.getElementById("payout-status-container").style.display = "none";
+            }
+
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
+            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
+            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
+            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
+            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`;
+            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
+            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal);
+            const taxContainer = document.getElementById("tax-rows-container"); 
+            if (SELLER_STATE === buyer.stateCode) { taxContainer.innerHTML = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div><div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; } else { taxContainer.innerHTML = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; }
+            
+            switchScreen('screen-preview');
+        }
+
+        function loadOldDocumentForEdit(id, type) {
+            currentDocType = type;
+            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+            const doc = arrayRef.find(h => h.id === id); if (!doc) return; 
+            editingDocId = doc.id; currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; tempDocDate = doc.date; 
+            
+            if(type === 'po') {
+                document.getElementById("po-vendor-select").value = doc.customerId; 
+                document.getElementById("po-builder-title").innerText = "Edit PO"; document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; 
+                renderCartUI('po'); switchScreen('screen-po-builder'); 
+            } else {
+                document.getElementById("customer-select").value = doc.customerId; 
+                document.getElementById("builder-title").innerText = "Edit Invoice"; document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
+                renderCartUI('invoice'); switchScreen('screen-builder'); 
+            }
+        }
+
+        function editCurrentDocument() { 
+            if(currentDocType === 'po') switchScreen('screen-po-builder'); 
+            else switchScreen('screen-builder'); 
+        }
+
+        // --- PAYOUT RECORDING LOGIC ---
+        function renderPayoutUI(poDoc) {
+            const container = document.getElementById("payout-details-display");
+            if (poDoc.payout) {
+                // It is paid!
+                container.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center text-success mb-2">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="fw-bold fs-5">Payment Locked</span>
+                    </div>
+                    <div class="text-start bg-light p-3 rounded-3 mt-3 mx-auto" style="max-width: 300px; font-size: 13px;">
+                        <div class="d-flex justify-content-between mb-1"><span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong></div>
+                        <div class="d-flex justify-content-between mb-1"><span>Date:</span> <strong>${poDoc.payout.date}</strong></div>
+                        <div class="d-flex justify-content-between mb-2"><span>Ref No:</span> <strong>${poDoc.payout.ref}</strong></div>
+                        ${poDoc.payout.img ? `<a href="${poDoc.payout.img}" target="_blank" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</a>` : ''}
+                    </div>
+                `;
+            } else {
+                // Not paid
+                container.innerHTML = `
+                    <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
+                    <button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>
+                `;
+            }
+        }
+
+        function openPayoutModal(poId) {
+            document.getElementById("payout-po-id").value = poId;
+            document.getElementById("payout-date").value = new Date().toISOString().split('T')[0];
+            document.getElementById("payout-ref").value = "";
+            document.getElementById("payout-amount").value = "";
+            document.getElementById("payout-image").value = "";
+            document.getElementById("payout-modal").style.display = "flex";
+        }
+
+        function closePayoutModal() {
+            document.getElementById("payout-modal").style.display = "none";
+        }
+
+        async function savePayout() {
+            const poId = document.getElementById("payout-po-id").value;
+            const date = document.getElementById("payout-date").value;
+            const ref = document.getElementById("payout-ref").value;
+            const amount = document.getElementById("payout-amount").value;
+            const fileInput = document.getElementById("payout-image");
+            
+            if(!date || !amount) return alert("Date and Amount are required.");
+
+            const btn = document.getElementById("btn-save-payout");
+            btn.innerText = "Processing..."; btn.disabled = true;
+
+            let base64Image = null;
+
+            // Compress image to save DB space
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                base64Image = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = e => {
+                        const img = new Image();
+                        img.src = e.target.result;
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 600; // Heavy compression
+                            const scale = MAX_WIDTH / img.width;
+                            canvas.width = MAX_WIDTH; canvas.height = img.height * scale;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.5)); // 50% quality JPEG
+                        }
+                    };
+                });
+            }
+
+            const payoutData = { date: date, ref: ref || "N/A", amount: amount, img: base64Image };
+
+            try {
+                await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData });
+                // Update local memory
+                const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId);
+                if(poIndex > -1) {
+                    appData.purchaseOrders[poIndex].payout = payoutData;
+                    renderPayoutUI(appData.purchaseOrders[poIndex]); // update screen
+                    renderPOList(); // update history list
+                }
+                closePayoutModal();
+            } catch (err) {
+                console.error(err);
+                alert("Failed to save payment to cloud.");
+            } finally {
+                btn.innerText = "Confirm & Lock Payment"; btn.disabled = false;
+            }
+        }
+
+        // --- UTILITIES ---
+        function numberToWords(amount) { const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; function convert(num) { if (num < 20) return words[num]; if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); } let rupees = Math.floor(amount), paise = Math.round((amount - rupees) * 100); return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; }
+        
+        function downloadPDF() { 
+            // Hide on-screen only elements before PDF gen
+            document.getElementById('app-controls').style.display = 'none'; 
+            const payoutBox = document.getElementById('payout-status-container');
+            const payoutWasVisible = payoutBox.style.display === 'block';
+            payoutBox.style.display = 'none'; // Don't print the payout UI
+
+            const element = document.getElementById('invoice-content');
+            const opt = { margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
+            
+            html2pdf().set(opt).from(element).save().then(() => { 
+                document.getElementById('app-controls').style.display = 'block'; 
+                if(payoutWasVisible) payoutBox.style.display = 'block';
+            }); 
+        }
+    </script>
+</body>
+</html>
