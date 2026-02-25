@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sri Totatri POS - ERP Edition</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0b2a5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Totatri ERP">
+    <link rel="apple-touch-icon" href="logo-192.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +31,8 @@
             color: #1e293b; 
             padding-bottom: 120px; 
             min-height: 100vh;
+            /* Prevents pull-to-refresh on mobile apps */
+            overscroll-behavior-y: contain; 
         }
         .screen { 
             display: none; 
@@ -40,22 +49,16 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* ========================================================
-           FIXED: SMART BOTTOM DOCK (TRANSPARENT GLASS)
-           ======================================================== */
+        /* SMART BOTTOM DOCK (TRANSPARENT GLASS) */
         .top-nav { 
             position: fixed; 
             bottom: 0; 
             left: 0; 
             width: 100%;
             z-index: 9000; 
-            
-            /* Highly Transparent Frosty Blue Background */
             background: rgba(11, 42, 92, 0.65); 
             backdrop-filter: blur(12px); 
             -webkit-backdrop-filter: blur(12px);
-            
-            /* Fits flush to bottom, accounts for iPhone swipe bar */
             padding: 12px 10px max(15px, env(safe-area-inset-bottom)); 
             display: flex; 
             justify-content: space-around;
@@ -63,11 +66,10 @@
             overflow-x: auto; 
             white-space: nowrap; 
             display: none; 
-            
-            /* Flat bottom, rounded top corners */
             border-radius: 20px 20px 0 0; 
             box-shadow: 0 -5px 25px rgba(0,0,0,0.15); 
             border-top: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.4s ease;
         }
         
         .top-nav button { 
@@ -93,12 +95,10 @@
             border: none;
         }
         
-        /* Centering for PC/Tablet */
         @media (min-width: 600px) {
             .top-nav { justify-content: center; gap: 15px; }
             .top-nav button { padding: 10px 20px; font-size: 14px; }
         }
-        /* ======================================================== */
 
         /* UI ELEMENTS */
         .panel { 
@@ -502,7 +502,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -600,11 +600,7 @@
                 document.getElementById('loading-overlay').style.display = 'none';
                 switchScreen('screen-history'); 
                 
-                renderCustomerList(); 
-                renderProductList(); 
-                renderHistoryList(); 
-                renderPOList(); 
-                populateDropdowns();
+                renderCustomerList(); renderProductList(); renderHistoryList(); renderPOList(); populateDropdowns();
             } catch (error) {
                 console.error("Error connecting to Firebase:", error);
                 document.getElementById('loading-text').innerText = "Database error. Please refresh.";
@@ -945,6 +941,15 @@
         // --- UTILITIES ---
         function numberToWords(amount) { const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; function convert(num) { if (num < 20) return words[num]; if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); } let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; }
         function downloadPDF() { document.getElementById('app-controls').style.display = 'none'; const payoutBox = document.getElementById('payout-status-container'); const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; const element = document.getElementById('invoice-content'); const opt = { margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } }; html2pdf().set(opt).from(element).save().then(() => { document.getElementById('app-controls').style.display = 'block'; if(payoutWasVisible) payoutBox.style.display = 'block'; }); }
+        
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
     </script>
 </body>
 </html>
