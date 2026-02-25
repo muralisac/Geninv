@@ -1,7 +1,7 @@
 {
   "name": "Sri Totatri ERP",
   "short_name": "Totatri ERP",
-  "start_url": "./index.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#0b2a5c",
