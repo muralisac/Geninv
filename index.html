@@ -1183,6 +1183,7 @@
                 customerName: buyer.name, 
                 cart: currentCart, 
                 totalAmount: roundedGrandTotal, 
+                paid: false, // Default unpaid for sales invoices
                 timestamp: firebase.firestore.FieldValue.serverTimestamp() 
             }; 
             
@@ -1193,6 +1194,12 @@
                 if(type === 'po' && editingDocId) { 
                     const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
                     if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
+                }
+                
+                // Keep invoice paid status if editing
+                if(type === 'invoice' && editingDocId) {
+                    const existingInv = appData.history.find(h => h.id === editingDocId);
+                    if(existingInv && existingInv.paid) record.paid = existingInv.paid;
                 }
                 
                 await db.collection(collectionName).doc(record.id).set(record); 
@@ -1236,16 +1243,41 @@
                 return;
             }
             
-            list.innerHTML = appData.history.map(h => `
+            list.innerHTML = appData.history.map(h => {
+                const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
+                const editBtn = isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+                
+                return `
                 <div class="list-item history-card">
                     <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'invoice')">
-                        <strong class="text-primary">${h.invoiceNumber}</strong><br>
+                        <strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br>
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
                     </div>
-                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : ''}
+                    <div class="d-flex align-items-center">
+                        ${markPaidBtn}
+                        ${editBtn}
+                    </div>
                 </div>
-            `).join(''); 
+                `;
+            }).join(''); 
+        }
+
+        async function markInvoicePaid(invoiceId) {
+            if(!isAdmin) return;
+            
+            try {
+                await db.collection("history").doc(invoiceId).update({ paid: true });
+                const idx = appData.history.findIndex(h => h.id === invoiceId);
+                if (idx > -1) {
+                    appData.history[idx].paid = true;
+                    renderHistoryList(); // Re-render instantly updates UI
+                }
+            } catch (error) {
+                console.error("Error marking invoice as paid:", error);
+                alert("Failed to update payment status.");
+            }
         }
 
         function renderPOList() { 
@@ -1411,7 +1443,7 @@
             }
         }
 
-        // --- PAYOUT RECORDING & IN-APP VIEWER LOGIC ---
+        // --- PAYOUT RECORDING LOGIC ---
         function renderPayoutUI(poDoc) {
             const container = document.getElementById("payout-details-display");
             
