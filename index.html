@@ -973,7 +973,6 @@
             document.getElementById("customer-select").innerHTML = custHtml; 
             document.getElementById("po-vendor-select").innerHTML = custHtml;
             
-            // Show stock in invoice dropdown
             const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
             document.getElementById("product-select").innerHTML = prodHtml; 
             document.getElementById("po-product-select").innerHTML = prodHtml;
@@ -998,6 +997,7 @@
         }
 
         function addItemToCart() { 
+            if(!isAdmin) return;
             const pid = document.getElementById("product-select").value; 
             const qty = parseInt(document.getElementById("qty-input").value); 
             
@@ -1006,7 +1006,27 @@
             const product = appData.inventory.find(p => p.id === pid); 
             if (qty < product.moq) return alert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
             
+            // --- NEW: INVENTORY CHECKSUM LOGIC ---
+            let availableStock = product.inStock || 0;
+            
+            if (editingDocId) {
+                const oldDoc = appData.history.find(h => h.id === editingDocId);
+                if (oldDoc && oldDoc.cart) {
+                    const oldItem = oldDoc.cart.find(i => i.id === pid);
+                    if (oldItem) {
+                        availableStock += oldItem.qty; 
+                    }
+                }
+            }
+            
             const existing = currentCart.find(item => item.id === pid); 
+            const currentCartQty = existing ? existing.qty : 0;
+            
+            if ((currentCartQty + qty) > availableStock) {
+                return alert("Available quantity is less than your need. Place a Purchase order and then create invoice.");
+            }
+            // --------------------------------------
+            
             if (existing) {
                 existing.qty += qty; 
             } else {
@@ -1044,6 +1064,7 @@
         }
 
         function addPoItemToCart() { 
+            if(!isAdmin) return;
             const pid = document.getElementById("po-product-select").value; 
             const qty = parseInt(document.getElementById("po-qty-input").value); 
             const customPrice = parseFloat(document.getElementById("po-price-input").value);
@@ -1185,10 +1206,8 @@
                 `; 
             } 
             
-            // --- INVENTORY TRACKING LOGIC ---
             let stockChanges = {};
             
-            // 1. If editing, reverse the old cart's effect on inventory
             if (editingDocId) {
                 const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
                 const oldDoc = arrayRef.find(h => h.id === editingDocId);
@@ -1200,13 +1219,11 @@
                 }
             }
 
-            // 2. Apply the new cart's effect on inventory
             currentCart.forEach(item => {
                 if (!stockChanges[item.id]) stockChanges[item.id] = 0;
                 stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
             });
 
-            // 3. Process the actual DB save
             const record = { 
                 id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
                 invoiceNumber: tempDocNumber, 
@@ -1233,7 +1250,6 @@
                     if(existingInv && existingInv.paid) record.paid = existingInv.paid;
                 }
                 
-                // Execute Inventory Stock Updates as a Batch
                 const batch = db.batch();
                 for (const [pid, change] of Object.entries(stockChanges)) {
                     if (change !== 0) {
@@ -1241,7 +1257,7 @@
                         if (productIndex > -1) {
                             let currentStock = appData.inventory[productIndex].inStock || 0;
                             let newStock = currentStock + change;
-                            appData.inventory[productIndex].inStock = newStock; // update local memory
+                            appData.inventory[productIndex].inStock = newStock; 
                             
                             const productRef = db.collection("inventory").doc(pid);
                             batch.update(productRef, { inStock: newStock });
@@ -1249,11 +1265,9 @@
                     }
                 }
                 
-                // Add the new document creation to the batch
                 const docRef = db.collection(collectionName).doc(record.id);
                 batch.set(docRef, record);
                 
-                // Commit everything at once securely
                 await batch.commit(); 
                 
                 if (editingDocId) { 
@@ -1277,7 +1291,7 @@
                     renderHistoryList(); 
                 }
                 
-                renderProductList(); // Refresh stock UI
+                renderProductList(); 
                 switchScreen('screen-preview'); 
             } catch (error) { 
                 console.error("Save Error:", error); 
