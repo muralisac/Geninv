@@ -469,13 +469,17 @@
             </div>
 
             <div class="row g-3 mb-4">
-                <div class="col-6">
+                <div class="col-4">
                     <label class="form-label">GST (%)</label>
                     <input type="number" id="prod-gst" class="form-control">
                 </div>
-                <div class="col-6">
-                    <label class="form-label">Min. Qty (MOQ)</label>
+                <div class="col-4">
+                    <label class="form-label">Min. Qty</label>
                     <input type="number" id="prod-moq" class="form-control">
+                </div>
+                <div class="col-4">
+                    <label class="form-label text-primary">In Stock</label>
+                    <input type="number" id="prod-stock" class="form-control" placeholder="0">
                 </div>
             </div>
             <div class="d-flex gap-2">
@@ -514,7 +518,7 @@
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="cart-count">0 items</span>
         </div>
         <div id="cart-container" class="mb-4"></div>
-        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Generate Invoice</button>
+        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
     </div>
 
     <div id="screen-po-builder" class="screen panel">
@@ -548,7 +552,7 @@
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="po-cart-count">0 items</span>
         </div>
         <div id="po-cart-container" class="mb-4"></div>
-        <button onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Generate PO</button>
+        <button onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
     </div>
 
     <div id="screen-preview" class="screen">
@@ -678,7 +682,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -881,18 +885,20 @@
             document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; 
         }
 
-        // --- PRODUCT INVENTORY ---
+        // --- PRODUCT INVENTORY (WITH STOCK) ---
         function renderProductList() { 
             const list = document.getElementById("products-list");
             list.innerHTML = appData.inventory.map(p => { 
                 let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
                 let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
+                let stockDisplay = p.inStock ? p.inStock : 0;
                 
                 return `
                 <div class="list-item">
                     <div>
                         <strong style="color:#0b2a5c;">${p.name}</strong><br>
-                        <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small>
+                        <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small><br>
+                        <span class="badge ${stockDisplay > 0 ? 'bg-success' : 'bg-danger'} mt-1">In Stock: ${stockDisplay}</span>
                     </div>
                     ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
                 </div>`; 
@@ -913,6 +919,7 @@
                 document.getElementById('prod-purchase-price').value = '';
                 document.getElementById('prod-gst').value = '5'; 
                 document.getElementById('prod-moq').value = '1'; 
+                document.getElementById('prod-stock').value = '0';
             } else { 
                 const p = appData.inventory.find(x => x.id === id); 
                 document.getElementById('prod-id').value = p.id; 
@@ -921,6 +928,7 @@
                 document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
                 document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
                 document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
+                document.getElementById('prod-stock').value = isNaN(p.inStock) ? "0" : p.inStock; 
             } 
             setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
         }
@@ -933,11 +941,12 @@
             const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
             const gst = parseFloat(document.getElementById('prod-gst').value); 
             const moq = parseInt(document.getElementById('prod-moq').value); 
+            const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
             
             if (!name) return alert("Please enter a product name."); 
             if (isNaN(price) || price <= 0) return alert("Please enter a valid wholesale selling price."); 
             
-            const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq }; 
+            const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock }; 
             if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
             
             await db.collection("inventory").doc(p.id).set(p); 
@@ -964,7 +973,8 @@
             document.getElementById("customer-select").innerHTML = custHtml; 
             document.getElementById("po-vendor-select").innerHTML = custHtml;
             
-            const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            // Show stock in invoice dropdown
+            const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
             document.getElementById("product-select").innerHTML = prodHtml; 
             document.getElementById("po-product-select").innerHTML = prodHtml;
         }
@@ -1175,6 +1185,28 @@
                 `; 
             } 
             
+            // --- INVENTORY TRACKING LOGIC ---
+            let stockChanges = {};
+            
+            // 1. If editing, reverse the old cart's effect on inventory
+            if (editingDocId) {
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                const oldDoc = arrayRef.find(h => h.id === editingDocId);
+                if (oldDoc && oldDoc.cart) {
+                    oldDoc.cart.forEach(item => {
+                        if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                        stockChanges[item.id] += (type === 'invoice') ? item.qty : -item.qty;
+                    });
+                }
+            }
+
+            // 2. Apply the new cart's effect on inventory
+            currentCart.forEach(item => {
+                if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
+            });
+
+            // 3. Process the actual DB save
             const record = { 
                 id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
                 invoiceNumber: tempDocNumber, 
@@ -1183,7 +1215,7 @@
                 customerName: buyer.name, 
                 cart: currentCart, 
                 totalAmount: roundedGrandTotal, 
-                paid: false, // Default unpaid for sales invoices
+                paid: false, 
                 timestamp: firebase.firestore.FieldValue.serverTimestamp() 
             }; 
             
@@ -1196,13 +1228,33 @@
                     if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
                 }
                 
-                // Keep invoice paid status if editing
                 if(type === 'invoice' && editingDocId) {
                     const existingInv = appData.history.find(h => h.id === editingDocId);
                     if(existingInv && existingInv.paid) record.paid = existingInv.paid;
                 }
                 
-                await db.collection(collectionName).doc(record.id).set(record); 
+                // Execute Inventory Stock Updates as a Batch
+                const batch = db.batch();
+                for (const [pid, change] of Object.entries(stockChanges)) {
+                    if (change !== 0) {
+                        const productIndex = appData.inventory.findIndex(p => p.id === pid);
+                        if (productIndex > -1) {
+                            let currentStock = appData.inventory[productIndex].inStock || 0;
+                            let newStock = currentStock + change;
+                            appData.inventory[productIndex].inStock = newStock; // update local memory
+                            
+                            const productRef = db.collection("inventory").doc(pid);
+                            batch.update(productRef, { inStock: newStock });
+                        }
+                    }
+                }
+                
+                // Add the new document creation to the batch
+                const docRef = db.collection(collectionName).doc(record.id);
+                batch.set(docRef, record);
+                
+                // Commit everything at once securely
+                await batch.commit(); 
                 
                 if (editingDocId) { 
                     const idx = arrayRef.findIndex(h => h.id === editingDocId); 
@@ -1225,12 +1277,13 @@
                     renderHistoryList(); 
                 }
                 
+                renderProductList(); // Refresh stock UI
                 switchScreen('screen-preview'); 
             } catch (error) { 
                 console.error("Save Error:", error); 
                 alert("Network error. Please try again."); 
             } finally { 
-                saveBtn.innerText = "💾 Generate Document"; 
+                saveBtn.innerText = "💾 Save & Calculate"; 
                 saveBtn.disabled = false; 
             } 
         }
@@ -1266,13 +1319,12 @@
 
         async function markInvoicePaid(invoiceId) {
             if(!isAdmin) return;
-            
             try {
                 await db.collection("history").doc(invoiceId).update({ paid: true });
                 const idx = appData.history.findIndex(h => h.id === invoiceId);
                 if (idx > -1) {
                     appData.history[idx].paid = true;
-                    renderHistoryList(); // Re-render instantly updates UI
+                    renderHistoryList(); 
                 }
             } catch (error) {
                 console.error("Error marking invoice as paid:", error);
@@ -1443,7 +1495,7 @@
             }
         }
 
-        // --- PAYOUT RECORDING LOGIC ---
+        // --- PAYOUT RECORDING & IN-APP VIEWER LOGIC ---
         function renderPayoutUI(poDoc) {
             const container = document.getElementById("payout-details-display");
             
