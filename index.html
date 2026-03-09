@@ -31,7 +31,6 @@
             color: #1e293b; 
             padding-bottom: 120px; 
             min-height: 100vh;
-            /* Prevents pull-to-refresh on mobile apps */
             overscroll-behavior-y: contain; 
         }
         
@@ -166,6 +165,13 @@
             border: none; 
             color: white; 
             box-shadow: 0 4px 12px rgba(245,158,11,0.25); 
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
+            border: none; 
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); 
         }
         
         .list-item { 
@@ -491,8 +497,13 @@
     </div>
 
     <div id="screen-builder" class="screen panel">
-        <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
-        <p class="text-muted small mb-4" id="editing-invoice-label">Drafting document...</p>
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
+                <p class="text-muted small mb-0" id="editing-invoice-label">Drafting document...</p>
+            </div>
+            <button id="btn-delete-invoice" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="deleteInvoice()">🗑️ Delete</button>
+        </div>
         
         <div class="mb-4">
             <label class="form-label">Billed To (Customer)</label>
@@ -682,7 +693,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -987,6 +998,7 @@
             document.getElementById("customer-select").value = ""; 
             document.getElementById("builder-title").innerText = "New Sales Invoice"; 
             document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
+            document.getElementById("btn-delete-invoice").style.display = "none";
             
             const d = new Date(); 
             tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
@@ -1006,7 +1018,7 @@
             const product = appData.inventory.find(p => p.id === pid); 
             if (qty < product.moq) return alert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
             
-            // --- NEW: INVENTORY CHECKSUM LOGIC ---
+            // --- INVENTORY CHECKSUM ---
             let availableStock = product.inStock || 0;
             
             if (editingDocId) {
@@ -1025,7 +1037,7 @@
             if ((currentCartQty + qty) > availableStock) {
                 return alert("Available quantity is less than your need. Place a Purchase order and then create invoice.");
             }
-            // --------------------------------------
+            // ---------------------------
             
             if (existing) {
                 existing.qty += qty; 
@@ -1233,6 +1245,7 @@
                 cart: currentCart, 
                 totalAmount: roundedGrandTotal, 
                 paid: false, 
+                deleted: false,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp() 
             }; 
             
@@ -1311,9 +1324,21 @@
             }
             
             list.innerHTML = appData.history.map(h => {
+                // If invoice is deleted, show voided state
+                if (h.deleted) {
+                    return `
+                    <div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
+                        <div style="flex-grow: 1; padding-left: 8px;">
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span><br>
+                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
+                        </div>
+                    </div>`;
+                }
+
                 const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
                 const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
-                const editBtn = isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+                const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
                 
                 return `
                 <div class="list-item history-card">
@@ -1355,6 +1380,8 @@
             
             list.innerHTML = appData.purchaseOrders.map(h => {
                 const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                const editBtn = (isAdmin && !h.payout) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : '';
+                
                 return `
                 <div class="list-item po-card">
                     <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'po')">
@@ -1362,7 +1389,7 @@
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
                     </div>
-                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : ''}
+                    ${editBtn}
                 </div>`;
             }).join(''); 
         }
@@ -1427,6 +1454,8 @@
                 document.getElementById("th-5"), document.getElementById("th-6")
             ];
             
+            let canEdit = isAdmin;
+
             if (type === 'po') { 
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
@@ -1437,6 +1466,7 @@
                 thList.forEach(th => th.classList.add('th-po')); 
                 document.getElementById("payout-status-container").style.display = "block"; 
                 renderPayoutUI(doc); 
+                if (doc.payout) canEdit = false;
             } else { 
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1446,7 +1476,10 @@
                 gBox.classList.remove('grand-po'); 
                 thList.forEach(th => th.classList.remove('th-po')); 
                 document.getElementById("payout-status-container").style.display = "none"; 
+                if (doc.paid) canEdit = false;
             }
+            
+            document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
             
             document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
             document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
@@ -1495,8 +1528,58 @@
                 document.getElementById("customer-select").value = doc.customerId; 
                 document.getElementById("builder-title").innerText = "Edit Invoice"; 
                 document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
+                document.getElementById("btn-delete-invoice").style.display = "block";
                 renderCartUI('invoice'); 
                 switchScreen('screen-builder'); 
+            }
+        }
+
+        // --- NEW: INVOICE DELETION & STOCK ROLLBACK ---
+        async function deleteInvoice() {
+            if(!isAdmin || !editingDocId || currentDocType !== 'invoice') return;
+            if(!confirm("Are you sure you want to delete this invoice? The items will be returned to inventory.")) return;
+
+            const btn = document.getElementById("btn-delete-invoice");
+            btn.innerText = "⏳ Deleting...";
+            btn.disabled = true;
+
+            try {
+                const batch = db.batch();
+                
+                // 1. Return stock to inventory
+                currentCart.forEach(item => {
+                    const productIndex = appData.inventory.findIndex(p => p.id === item.id);
+                    if (productIndex > -1) {
+                        let newStock = (appData.inventory[productIndex].inStock || 0) + item.qty;
+                        appData.inventory[productIndex].inStock = newStock;
+                        const productRef = db.collection("inventory").doc(item.id);
+                        batch.update(productRef, { inStock: newStock });
+                    }
+                });
+
+                // 2. Mark invoice as deleted in DB (Zero out cart/money to clean reports)
+                const docRef = db.collection("history").doc(editingDocId);
+                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
+
+                await batch.commit();
+
+                // 3. Update local array
+                const idx = appData.history.findIndex(h => h.id === editingDocId);
+                if (idx > -1) {
+                    appData.history[idx].deleted = true;
+                    appData.history[idx].cart = [];
+                    appData.history[idx].totalAmount = 0;
+                }
+
+                renderProductList();
+                renderHistoryList();
+                switchScreen('screen-history');
+            } catch (error) {
+                console.error("Delete Error:", error);
+                alert("Failed to delete invoice.");
+            } finally {
+                btn.innerText = "🗑️ Delete";
+                btn.disabled = false;
             }
         }
 
@@ -1505,6 +1588,7 @@
             if(currentDocType === 'po') {
                 switchScreen('screen-po-builder'); 
             } else {
+                document.getElementById("btn-delete-invoice").style.display = "block";
                 switchScreen('screen-builder'); 
             }
         }
