@@ -378,12 +378,12 @@
 
     <div id="custom-confirm-modal" class="custom-modal-overlay" style="z-index: 10005;">
         <div class="custom-modal-content text-center">
-            <div class="mb-3 fs-1">🗑️</div>
-            <h5 class="fw-bold mb-3 text-danger">Confirm Deletion</h5>
+            <div class="mb-3 fs-1">⚠️</div>
+            <h5 class="fw-bold mb-3 text-danger">Please Confirm</h5>
             <p class="text-muted mb-4" id="custom-confirm-message"></p>
             <div class="d-flex gap-2">
                 <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeCustomConfirm()">Cancel</button>
-                <button class="btn btn-danger w-50 fw-bold shadow-sm" id="custom-confirm-btn">Yes, Delete</button>
+                <button class="btn btn-danger w-50 fw-bold shadow-sm" id="custom-confirm-btn">Confirm</button>
             </div>
         </div>
     </div>
@@ -419,7 +419,7 @@
         <button onclick="switchScreen('screen-po-history')" id="nav-po">📦 Purch</button>
         <button onclick="switchScreen('screen-customers')" id="nav-customers">👥 Directory</button>
         <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inv</button>
-        <button onclick="logout()" class="btn-logout">Exit</button>
+        <button onclick="promptLogout()" class="btn-logout">Exit</button>
     </div>
 
     <div id="screen-history" class="screen panel">
@@ -715,7 +715,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -761,12 +761,12 @@
         }
 
         let confirmCallback = null;
-        function showCustomConfirm(message, callback) {
+        function showCustomConfirm(message, callback, btnText = "Yes, Confirm") {
             document.getElementById("custom-confirm-message").innerText = message;
             confirmCallback = callback;
+            document.getElementById("custom-confirm-btn").innerText = btnText;
             document.getElementById("custom-confirm-modal").style.display = "flex";
             
-            // --- FIX: Execute the callback BEFORE closing and clearing it ---
             document.getElementById("custom-confirm-btn").onclick = function() {
                 if(confirmCallback) confirmCallback(); 
                 closeCustomConfirm();
@@ -775,10 +775,13 @@
 
         function closeCustomConfirm() {
             document.getElementById("custom-confirm-modal").style.display = "none";
-            confirmCallback = null; // Clears the memory after execution
+            confirmCallback = null; 
         }
 
-        // --- AUTHENTICATION ---
+        // --- AUTHENTICATION & APP EXIT TRAP ---
+        let backTrapSetup = false;
+        let exitConfirmed = false;
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
@@ -790,6 +793,13 @@
                 
                 applyRolePermissions();
                 fetchCloudData();
+
+                // Setup the Mobile Swipe-Back Trap
+                if (!backTrapSetup) {
+                    window.history.pushState({ page: 'main' }, "");
+                    window.addEventListener('popstate', handleBackButton);
+                    backTrapSetup = true;
+                }
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('top-nav').style.display = 'none';
@@ -797,6 +807,28 @@
                 document.getElementById('screen-login').classList.add('active');
             }
         });
+
+        // Handles the native mobile "Back" swipe
+        function handleBackButton(event) {
+            if (exitConfirmed) return; // Allow natural exit if confirmed
+
+            // Re-push state instantly to prevent the browser from closing the app
+            window.history.pushState({ page: 'main' }, "");
+
+            const activeScreen = document.querySelector('.screen.active');
+            if (!activeScreen) return;
+
+            // If user is inside a form/preview, swipe-back smartly returns them to the main list!
+            if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-po-builder' || activeScreen.id === 'screen-preview') {
+                switchScreen(currentDocType === 'po' ? 'screen-po-history' : 'screen-history');
+            } else {
+                // If on a main tab, confirm app exit
+                showCustomConfirm("Are you sure you want to close the app?", function() {
+                    exitConfirmed = true;
+                    window.history.go(-2); // Triggers visual app close
+                }, "Yes, Exit");
+            }
+        }
 
         function applyRolePermissions() {
             document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
@@ -823,6 +855,10 @@
             auth.signInWithPopup(provider).catch(error => { 
                 document.getElementById('login-error').innerText = "Error: " + error.message; 
             }); 
+        }
+
+        function promptLogout() {
+            showCustomConfirm("Are you sure you want to log out of your account?", logout, "Yes, Logout");
         }
 
         function logout() { 
@@ -1036,7 +1072,6 @@
             document.getElementById("customer-select").innerHTML = custHtml; 
             document.getElementById("po-vendor-select").innerHTML = custHtml;
             
-            // Show stock in invoice dropdown
             const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
             document.getElementById("product-select").innerHTML = prodHtml; 
             document.getElementById("po-product-select").innerHTML = prodHtml;
@@ -1071,7 +1106,6 @@
             const product = appData.inventory.find(p => p.id === pid); 
             if (qty < product.moq) return showCustomAlert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
             
-            // --- INVENTORY CHECKSUM ---
             let availableStock = product.inStock || 0;
             
             if (editingDocId) {
@@ -1090,7 +1124,6 @@
             if ((currentCartQty + qty) > availableStock) {
                 return showCustomAlert("Available quantity is less than your need. Place a Purchase order and then create invoice.", "Out of Stock", "📦");
             }
-            // ---------------------------
             
             if (existing) {
                 existing.qty += qty; 
@@ -1589,7 +1622,7 @@
         // --- NEW: INVOICE DELETION WITH CUSTOM MODAL ---
         function promptDeleteInvoice() {
             if(!isAdmin || !editingDocId || currentDocType !== 'invoice') return;
-            showCustomConfirm("Are you sure you want to delete this invoice? The items will be returned to inventory.", executeDeleteInvoice);
+            showCustomConfirm("Are you sure you want to delete this invoice? The items will be returned to inventory.", executeDeleteInvoice, "Yes, Delete");
         }
 
         async function executeDeleteInvoice() {
@@ -1600,7 +1633,6 @@
             try {
                 const batch = db.batch();
                 
-                // 1. Return stock to inventory
                 currentCart.forEach(item => {
                     const productIndex = appData.inventory.findIndex(p => p.id === item.id);
                     if (productIndex > -1) {
@@ -1611,13 +1643,11 @@
                     }
                 });
 
-                // 2. Mark invoice as deleted in DB (Zero out cart/money to clean reports)
                 const docRef = db.collection("history").doc(editingDocId);
                 batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
 
                 await batch.commit();
 
-                // 3. Update local array
                 const idx = appData.history.findIndex(h => h.id === editingDocId);
                 if (idx > -1) {
                     appData.history[idx].deleted = true;
