@@ -31,6 +31,7 @@
             color: #1e293b; 
             padding-bottom: 120px; 
             min-height: 100vh;
+            /* Prevents pull-to-refresh on mobile apps */
             overscroll-behavior-y: contain; 
         }
         
@@ -714,7 +715,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -765,15 +766,16 @@
             confirmCallback = callback;
             document.getElementById("custom-confirm-modal").style.display = "flex";
             
+            // --- FIX: Execute the callback BEFORE closing and clearing it ---
             document.getElementById("custom-confirm-btn").onclick = function() {
+                if(confirmCallback) confirmCallback(); 
                 closeCustomConfirm();
-                if(confirmCallback) confirmCallback();
             };
         }
 
         function closeCustomConfirm() {
             document.getElementById("custom-confirm-modal").style.display = "none";
-            confirmCallback = null;
+            confirmCallback = null; // Clears the memory after execution
         }
 
         // --- AUTHENTICATION ---
@@ -1598,6 +1600,7 @@
             try {
                 const batch = db.batch();
                 
+                // 1. Return stock to inventory
                 currentCart.forEach(item => {
                     const productIndex = appData.inventory.findIndex(p => p.id === item.id);
                     if (productIndex > -1) {
@@ -1608,11 +1611,13 @@
                     }
                 });
 
+                // 2. Mark invoice as deleted in DB (Zero out cart/money to clean reports)
                 const docRef = db.collection("history").doc(editingDocId);
                 batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
 
                 await batch.commit();
 
+                // 3. Update local array
                 const idx = appData.history.findIndex(h => h.id === editingDocId);
                 if (idx > -1) {
                     appData.history[idx].deleted = true;
