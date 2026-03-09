@@ -189,7 +189,7 @@
         .history-card { border-left: 5px solid #0b2a5c; }
         .po-card { border-left: 5px solid #f59e0b; }
 
-        /* CUSTOM MODAL OVERLAY FOR PAYOUTS & IMAGE VIEWER */
+        /* CUSTOM MODAL OVERLAYS (ALERTS, CONFIRMS, PAYOUTS & IMAGE VIEWER) */
         .custom-modal-overlay {
             position: fixed; 
             top: 0; 
@@ -366,6 +366,27 @@
         <div id="loading-text">Authenticating Security...</div>
     </div>
 
+    <div id="custom-alert-modal" class="custom-modal-overlay" style="z-index: 10005;">
+        <div class="custom-modal-content text-center">
+            <div id="custom-alert-icon" class="mb-3 fs-1">⚠️</div>
+            <h5 class="fw-bold mb-3" id="custom-alert-title" style="color: #0b2a5c;">Notice</h5>
+            <p class="text-muted mb-4" id="custom-alert-message"></p>
+            <button class="btn btn-primary w-100 shadow-sm" onclick="closeCustomAlert()">Got it</button>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="custom-modal-overlay" style="z-index: 10005;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">🗑️</div>
+            <h5 class="fw-bold mb-3 text-danger">Confirm Deletion</h5>
+            <p class="text-muted mb-4" id="custom-confirm-message"></p>
+            <div class="d-flex gap-2">
+                <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeCustomConfirm()">Cancel</button>
+                <button class="btn btn-danger w-50 fw-bold shadow-sm" id="custom-confirm-btn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
     <div id="screen-login" class="screen panel" style="margin-top: 15vh; border-top: 6px solid #0b2a5c;">
         <div class="text-center mb-5">
             <div class="logo-placeholder mb-4"></div>
@@ -502,7 +523,7 @@
                 <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
                 <p class="text-muted small mb-0" id="editing-invoice-label">Drafting document...</p>
             </div>
-            <button id="btn-delete-invoice" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="deleteInvoice()">🗑️ Delete</button>
+            <button id="btn-delete-invoice" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="promptDeleteInvoice()">🗑️ Delete</button>
         </div>
         
         <div class="mb-4">
@@ -726,6 +747,35 @@
         
         let isAdmin = false;
 
+        // --- CUSTOM ALERTS & CONFIRMS ---
+        function showCustomAlert(message, title = "Notice", icon = "⚠️") {
+            document.getElementById("custom-alert-message").innerText = message;
+            document.getElementById("custom-alert-title").innerText = title;
+            document.getElementById("custom-alert-icon").innerText = icon;
+            document.getElementById("custom-alert-modal").style.display = "flex";
+        }
+
+        function closeCustomAlert() {
+            document.getElementById("custom-alert-modal").style.display = "none";
+        }
+
+        let confirmCallback = null;
+        function showCustomConfirm(message, callback) {
+            document.getElementById("custom-confirm-message").innerText = message;
+            confirmCallback = callback;
+            document.getElementById("custom-confirm-modal").style.display = "flex";
+            
+            document.getElementById("custom-confirm-btn").onclick = function() {
+                closeCustomConfirm();
+                if(confirmCallback) confirmCallback();
+            };
+        }
+
+        function closeCustomConfirm() {
+            document.getElementById("custom-confirm-modal").style.display = "none";
+            confirmCallback = null;
+        }
+
         // --- AUTHENTICATION ---
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -874,7 +924,7 @@
             const gstin = document.getElementById('cust-gstin').value; 
             const stateCode = parseInt(document.getElementById('cust-state').value); 
             
-            if (!name) return alert("Please enter a business name."); 
+            if (!name) return showCustomAlert("Please enter a business name."); 
             
             const c = { id: id === 'new' ? 'c' + Date.now() : id, name, address, gstin, stateCode }; 
             
@@ -954,8 +1004,8 @@
             const moq = parseInt(document.getElementById('prod-moq').value); 
             const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
             
-            if (!name) return alert("Please enter a product name."); 
-            if (isNaN(price) || price <= 0) return alert("Please enter a valid wholesale selling price."); 
+            if (!name) return showCustomAlert("Please enter a product name."); 
+            if (isNaN(price) || price <= 0) return showCustomAlert("Please enter a valid wholesale selling price."); 
             
             const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock }; 
             if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
@@ -984,6 +1034,7 @@
             document.getElementById("customer-select").innerHTML = custHtml; 
             document.getElementById("po-vendor-select").innerHTML = custHtml;
             
+            // Show stock in invoice dropdown
             const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
             document.getElementById("product-select").innerHTML = prodHtml; 
             document.getElementById("po-product-select").innerHTML = prodHtml;
@@ -1016,7 +1067,7 @@
             if (!pid || !qty || qty <= 0) return; 
             
             const product = appData.inventory.find(p => p.id === pid); 
-            if (qty < product.moq) return alert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
+            if (qty < product.moq) return showCustomAlert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
             
             // --- INVENTORY CHECKSUM ---
             let availableStock = product.inStock || 0;
@@ -1035,7 +1086,7 @@
             const currentCartQty = existing ? existing.qty : 0;
             
             if ((currentCartQty + qty) > availableStock) {
-                return alert("Available quantity is less than your need. Place a Purchase order and then create invoice.");
+                return showCustomAlert("Available quantity is less than your need. Place a Purchase order and then create invoice.", "Out of Stock", "📦");
             }
             // ---------------------------
             
@@ -1081,7 +1132,7 @@
             const qty = parseInt(document.getElementById("po-qty-input").value); 
             const customPrice = parseFloat(document.getElementById("po-price-input").value);
             
-            if (!pid || !qty || qty <= 0 || isNaN(customPrice)) return alert("Please fill all item fields properly."); 
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice)) return showCustomAlert("Please fill all item fields properly."); 
             
             const product = appData.inventory.find(p => p.id === pid); 
             const existing = currentCart.find(item => item.id === pid); 
@@ -1135,8 +1186,8 @@
             const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
             
             const custId = document.getElementById(vendorSelectId).value; 
-            if (!custId) return alert("Select a client/vendor."); 
-            if (currentCart.length === 0) return alert("Cart is empty."); 
+            if (!custId) return showCustomAlert("Select a client/vendor."); 
+            if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
             
             const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
             saveBtn.innerText = "⏳ Processing..."; 
@@ -1308,7 +1359,7 @@
                 switchScreen('screen-preview'); 
             } catch (error) { 
                 console.error("Save Error:", error); 
-                alert("Network error. Please try again."); 
+                showCustomAlert("Failed to save to the cloud. Check your network.", "Error", "🔴"); 
             } finally { 
                 saveBtn.innerText = "💾 Save & Calculate"; 
                 saveBtn.disabled = false; 
@@ -1324,7 +1375,6 @@
             }
             
             list.innerHTML = appData.history.map(h => {
-                // If invoice is deleted, show voided state
                 if (h.deleted) {
                     return `
                     <div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
@@ -1367,7 +1417,7 @@
                 }
             } catch (error) {
                 console.error("Error marking invoice as paid:", error);
-                alert("Failed to update payment status.");
+                showCustomAlert("Failed to update payment status.", "Error", "🔴");
             }
         }
 
@@ -1534,11 +1584,13 @@
             }
         }
 
-        // --- NEW: INVOICE DELETION & STOCK ROLLBACK ---
-        async function deleteInvoice() {
+        // --- NEW: INVOICE DELETION WITH CUSTOM MODAL ---
+        function promptDeleteInvoice() {
             if(!isAdmin || !editingDocId || currentDocType !== 'invoice') return;
-            if(!confirm("Are you sure you want to delete this invoice? The items will be returned to inventory.")) return;
+            showCustomConfirm("Are you sure you want to delete this invoice? The items will be returned to inventory.", executeDeleteInvoice);
+        }
 
+        async function executeDeleteInvoice() {
             const btn = document.getElementById("btn-delete-invoice");
             btn.innerText = "⏳ Deleting...";
             btn.disabled = true;
@@ -1546,7 +1598,6 @@
             try {
                 const batch = db.batch();
                 
-                // 1. Return stock to inventory
                 currentCart.forEach(item => {
                     const productIndex = appData.inventory.findIndex(p => p.id === item.id);
                     if (productIndex > -1) {
@@ -1557,13 +1608,11 @@
                     }
                 });
 
-                // 2. Mark invoice as deleted in DB (Zero out cart/money to clean reports)
                 const docRef = db.collection("history").doc(editingDocId);
                 batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
 
                 await batch.commit();
 
-                // 3. Update local array
                 const idx = appData.history.findIndex(h => h.id === editingDocId);
                 if (idx > -1) {
                     appData.history[idx].deleted = true;
@@ -1576,7 +1625,7 @@
                 switchScreen('screen-history');
             } catch (error) {
                 console.error("Delete Error:", error);
-                alert("Failed to delete invoice.");
+                showCustomAlert("Failed to delete invoice.", "Error", "🔴");
             } finally {
                 btn.innerText = "🗑️ Delete";
                 btn.disabled = false;
@@ -1661,7 +1710,7 @@
             const amount = document.getElementById("payout-amount").value; 
             const fileInput = document.getElementById("payout-image");
             
-            if(!date || !amount) return alert("Date and Amount are required.");
+            if(!date || !amount) return showCustomAlert("Date and Amount are required.");
             
             const btn = document.getElementById("btn-save-payout"); 
             btn.innerText = "Processing..."; 
@@ -1706,7 +1755,7 @@
                 closePayoutModal(); 
             } catch (err) { 
                 console.error(err); 
-                alert("Failed to save payment to cloud."); 
+                showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); 
             } finally { 
                 btn.innerText = "Confirm & Lock Payment"; 
                 btn.disabled = false; 
