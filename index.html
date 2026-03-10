@@ -215,7 +215,7 @@
             animation: slideUp 0.3s ease-out;
         }
 
-        /* NEW: MOBILE INVOICE SCROLL WRAPPER */
+        /* MOBILE INVOICE SCROLL WRAPPER */
         .invoice-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -227,7 +227,7 @@
         .invoice-box { 
             width: 100%;
             max-width: 800px; 
-            min-width: 750px; /* Magic Fix: Forces mobile screens to scroll the wrapper, preserving A4 layout */
+            min-width: 750px; 
             margin: 0 auto; 
             background: #fff; 
             position: relative; 
@@ -426,7 +426,7 @@
 
     <div class="top-nav" id="top-nav">
         <button onclick="switchScreen('screen-history')" id="nav-history" class="active">🧾 Sales</button>
-        <button onclick="switchScreen('screen-po-history')" id="nav-po">📦 Purch</button>
+        <button onclick="switchScreen('screen-po-history')" id="nav-po-history">📦 Purch</button>
         <button onclick="switchScreen('screen-customers')" id="nav-customers">👥 Directory</button>
         <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inv</button>
         <button onclick="promptLogout()" class="btn-logout">Exit</button>
