@@ -1875,15 +1875,21 @@
             const payoutWasVisible = payoutBox.style.display === 'block'; 
             payoutBox.style.display = 'none'; 
             
-            const tableWrappers = document.querySelectorAll('.table-scroll-wrapper');
-            tableWrappers.forEach(tw => { tw.style.overflowX = 'visible'; });
+            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
+            scrollWrappers.forEach(tw => { 
+                tw.style.overflowX = 'visible'; 
+                tw.scrollLeft = 0;
+            });
             
             const element = document.getElementById('invoice-content'); 
+            const oldMargin = element.style.margin;
+            element.style.margin = '0';
+            
             const opt = { 
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollX: 0, scrollY: 0 }, 
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }; 
@@ -1892,7 +1898,8 @@
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
-                tableWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
+                element.style.margin = oldMargin;
+                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
 
