@@ -214,10 +214,19 @@
             animation: slideUp 0.3s ease-out;
         }
 
+        /* MOBILE INVOICE SCROLL WRAPPER */
+        .invoice-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 10px;
+        }
+
         /* INVOICE/PO PREVIEW */
         .invoice-box { 
             width: 100%;
             max-width: 800px; 
+            min-width: 750px; 
             margin: 0 auto; 
             background: #fff; 
             position: relative; 
@@ -241,15 +250,17 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
-            left: 8%; 
-            right: 8%; 
+            left: 0; 
+            right: 0; 
             z-index: 20; 
             display: flex; 
-            justify-content: space-between; 
+            justify-content: center; 
             align-items: center; 
+            gap: 15px;
         }
         
         .invoice-header-title { 
@@ -274,11 +285,11 @@
             background-color: #f7d047; 
             clip-path: polygon(25% 0%, 75% 0%, 75% 100%, 25% 100%); 
             transform: rotate(45deg); 
-            margin: 0 auto; 
+            margin: 0; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         }
 
-        /* NEW: RESPONSIVE TABLE WRAPPER */
+        /* RESPONSIVE TABLE WRAPPER */
         .table-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -286,7 +297,7 @@
         }
         
         .custom-table {
-            min-width: 600px; /* Forces scrolling on small phones */
+            min-width: 600px; 
         }
         
         .custom-table th { 
@@ -309,7 +320,7 @@
         }
         
         .totals-section {
-            page-break-inside: avoid; /* Prevents totals from splitting in half on PDF */
+            page-break-inside: avoid; 
         }
 
         .totals-box { 
@@ -341,7 +352,6 @@
         
         .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
         
-        /* PDF Page Break Support */
         .html2pdf__page-break { page-break-before: always; }
 
         #loading-overlay { 
@@ -599,12 +609,12 @@
             <div id="payout-details-display"></div>
         </div>
 
-        <div class="container-fluid p-0 p-md-3">
+        <div class="invoice-scroll-wrapper">
             <div class="invoice-box" id="invoice-content">
                 <div class="wave-top" id="doc-wave"></div>
                 <div class="invoice-header-wrapper-abs">
                     <h2 class="invoice-header-title">SRI TOTATRI AGRO FOODS PVT LTD</h2>
-                    <div class="logo-placeholder flex-shrink-0 ms-2"></div>
+                    <div class="logo-placeholder flex-shrink-0"></div>
                 </div>
                 <div class="content-wrapper">
                     <h1 class="display-6 mb-2" id="doc-type-title" style="letter-spacing: 2px; color: #0b2a5c; font-weight: 800;">INVOICE</h1>
@@ -1217,7 +1227,6 @@
             
             let subTotal = 0, totalGst = 0, mainGstRate = 0; 
             
-            // First loop: calculate totals
             currentCart.forEach((item) => { 
                 let baseAmt = item.qty * item.price; 
                 let gstAmt = baseAmt * (item.gstPercent / 100); 
@@ -1240,7 +1249,6 @@
                 </thead>
             `;
 
-            // NEW: Pagination & Mobile Scroll Wrapper Logic
             if (currentCart.length <= 12) {
                 let rowsHtml = "";
                 currentCart.forEach((item, index) => {
@@ -1286,16 +1294,14 @@
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
-                wave.classList.add('wave-po'); 
-                gBox.classList.add('grand-po'); 
+                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
                 document.getElementById("payout-status-container").style.display = "block";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
                 document.getElementById("bill-to-label").innerText = "Bill To"; 
                 document.getElementById("bill-from-label").innerText = "Bill From";
-                wave.classList.remove('wave-po'); 
-                gBox.classList.remove('grand-po'); 
+                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); 
                 document.getElementById("payout-status-container").style.display = "none";
             }
             
@@ -1546,7 +1552,6 @@
                 </thead>
             `;
 
-            // NEW: Pagination & Mobile Scroll Wrapper Logic
             if (doc.cart.length <= 12) {
                 let rowsHtml = "";
                 doc.cart.forEach((item, index) => {
@@ -1870,7 +1875,6 @@
             const payoutWasVisible = payoutBox.style.display === 'block'; 
             payoutBox.style.display = 'none'; 
             
-            // REMOVE SCROLL BEFORE PDF GENERATION
             const tableWrappers = document.querySelectorAll('.table-scroll-wrapper');
             tableWrappers.forEach(tw => { tw.style.overflowX = 'visible'; });
             
@@ -1879,7 +1883,7 @@
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // FORCES DESKTOP WIDTH
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }; 
@@ -1888,7 +1892,6 @@
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
-                // RESTORE SCROLL AFTER PDF GENERATION
                 tableWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
