@@ -546,16 +546,23 @@
             <label class="form-label">Add Items</label>
             <div class="row g-2">
                 <div class="col-12">
-                    <select id="product-select" class="form-select"></select>
-                </div>
-                <div class="col-8">
-                    <input type="number" id="qty-input" class="form-control" placeholder="Quantity">
+                    <select id="product-select" class="form-select" onchange="autoFillInvoicePrice()"></select>
                 </div>
                 <div class="col-4">
-                    <button onclick="addItemToCart()" class="btn btn-primary w-100 h-100">+ Add</button>
+                    <input type="number" step="0.01" id="inv-price-input" class="form-control" placeholder="Price">
+                </div>
+                <div class="col-4">
+                    <input type="number" step="0.1" id="inv-gst-input" class="form-control" placeholder="GST %">
+                </div>
+                <div class="col-4">
+                    <input type="number" id="qty-input" class="form-control" placeholder="Qty">
+                </div>
+                <div class="col-12">
+                    <button onclick="addItemToCart()" class="btn btn-primary w-100 fw-bold shadow-sm">+ Add to Invoice</button>
                 </div>
             </div>
         </div>
+        
         <div class="d-flex justify-content-between align-items-end mb-3">
             <h6 class="fw-bold m-0" style="color: #0b2a5c;">Shopping Cart</h6>
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="cart-count">0 items</span>
@@ -579,17 +586,21 @@
                 <div class="col-12">
                     <select id="po-product-select" class="form-select" onchange="autoFillPoPrice()"></select>
                 </div>
-                <div class="col-6">
-                    <input type="number" step="0.01" id="po-price-input" class="form-control" placeholder="Unit Price">
+                <div class="col-4">
+                    <input type="number" step="0.01" id="po-price-input" class="form-control" placeholder="Price">
                 </div>
-                <div class="col-6">
-                    <input type="number" id="po-qty-input" class="form-control" placeholder="Quantity">
+                <div class="col-4">
+                    <input type="number" step="0.1" id="po-gst-input" class="form-control" placeholder="GST %">
+                </div>
+                <div class="col-4">
+                    <input type="number" id="po-qty-input" class="form-control" placeholder="Qty">
                 </div>
                 <div class="col-12">
-                    <button onclick="addPoItemToCart()" class="btn btn-warning w-100">+ Add to PO</button>
+                    <button onclick="addPoItemToCart()" class="btn btn-warning w-100 fw-bold shadow-sm">+ Add to PO</button>
                 </div>
             </div>
         </div>
+        
         <div class="d-flex justify-content-between align-items-end mb-3">
             <h6 class="fw-bold m-0" style="color: #d97706;">Order List</h6>
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="po-cart-count">0 items</span>
@@ -1089,12 +1100,22 @@
             switchScreen('screen-builder'); 
         }
 
+        function autoFillInvoicePrice() {
+            const pid = document.getElementById("product-select").value;
+            if (!pid) return;
+            const product = appData.inventory.find(p => p.id === pid);
+            document.getElementById("inv-price-input").value = product.price || 0;
+            document.getElementById("inv-gst-input").value = product.gstPercent || 0;
+        }
+
         function addItemToCart() { 
             if(!isAdmin) return;
             const pid = document.getElementById("product-select").value; 
             const qty = parseInt(document.getElementById("qty-input").value); 
+            const customPrice = parseFloat(document.getElementById("inv-price-input").value);
+            const customGst = parseFloat(document.getElementById("inv-gst-input").value);
             
-            if (!pid || !qty || qty <= 0) return; 
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
             
             const product = appData.inventory.find(p => p.id === pid); 
             if (qty < product.moq) return showCustomAlert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
@@ -1120,11 +1141,16 @@
             
             if (existing) {
                 existing.qty += qty; 
+                existing.price = customPrice; 
+                existing.gstPercent = customGst; 
             } else {
-                currentCart.push({ ...product, qty: qty }); 
+                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
             }
             
             document.getElementById("qty-input").value = ""; 
+            document.getElementById("inv-price-input").value = ""; 
+            document.getElementById("inv-gst-input").value = ""; 
+            document.getElementById("product-select").value = "";
             renderCartUI('invoice'); 
         }
 
@@ -1136,6 +1162,7 @@
             currentCart = []; 
             document.getElementById("po-vendor-select").value = ""; 
             document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-gst-input").value = ""; 
             document.getElementById("po-builder-title").innerText = "New Purchase Order"; 
             document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
             
@@ -1152,6 +1179,7 @@
             if(!pid) return;
             const product = appData.inventory.find(p => p.id === pid);
             document.getElementById("po-price-input").value = product.purchasePrice || product.price; 
+            document.getElementById("po-gst-input").value = product.gstPercent || 0; 
         }
 
         function addPoItemToCart() { 
@@ -1159,8 +1187,9 @@
             const pid = document.getElementById("po-product-select").value; 
             const qty = parseInt(document.getElementById("po-qty-input").value); 
             const customPrice = parseFloat(document.getElementById("po-price-input").value);
+            const customGst = parseFloat(document.getElementById("po-gst-input").value);
             
-            if (!pid || !qty || qty <= 0 || isNaN(customPrice)) return showCustomAlert("Please fill all item fields properly."); 
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
             
             const product = appData.inventory.find(p => p.id === pid); 
             const existing = currentCart.find(item => item.id === pid); 
@@ -1168,12 +1197,14 @@
             if (existing) { 
                 existing.qty += qty; 
                 existing.price = customPrice; 
+                existing.gstPercent = customGst;
             } else { 
-                currentCart.push({ ...product, qty: qty, price: customPrice }); 
+                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
             } 
             
             document.getElementById("po-qty-input").value = ""; 
             document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-gst-input").value = ""; 
             document.getElementById("po-product-select").value = ""; 
             renderCartUI('po'); 
         }
@@ -1200,7 +1231,7 @@
                 <div class="list-item">
                     <div>
                         <div class="fw-bold" style="color:${themeColor};">${item.name}</div>
-                        <div class="text-muted small fw-medium mt-1">Qty: ${item.qty} &nbsp;|&nbsp; @ ₹${item.price.toFixed(2)}</div>
+                        <div class="text-muted small fw-medium mt-1">Qty: ${item.qty} &nbsp;|&nbsp; @ ₹${item.price.toFixed(2)} (${item.gstPercent}%)</div>
                     </div>
                     <button class="btn btn-sm btn-light text-danger fw-bold shadow-sm" onclick="removeCartItem(${idx}, '${type}')">X</button>
                 </div>
@@ -1875,21 +1906,15 @@
             const payoutWasVisible = payoutBox.style.display === 'block'; 
             payoutBox.style.display = 'none'; 
             
-            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
-            scrollWrappers.forEach(tw => { 
-                tw.style.overflowX = 'visible'; 
-                tw.scrollLeft = 0;
-            });
+            const tableWrappers = document.querySelectorAll('.table-scroll-wrapper');
+            tableWrappers.forEach(tw => { tw.style.overflowX = 'visible'; });
             
             const element = document.getElementById('invoice-content'); 
-            const oldMargin = element.style.margin;
-            element.style.margin = '0';
-            
             const opt = { 
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollX: 0, scrollY: 0 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }; 
@@ -1898,8 +1923,7 @@
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
-                element.style.margin = oldMargin;
-                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
+                tableWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
 
