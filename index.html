@@ -215,9 +215,19 @@
             animation: slideUp 0.3s ease-out;
         }
 
+        /* NEW: MOBILE INVOICE SCROLL WRAPPER */
+        .invoice-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 10px;
+        }
+
         /* INVOICE/PO PREVIEW */
         .invoice-box { 
+            width: 100%;
             max-width: 800px; 
+            min-width: 750px; /* Magic Fix: Forces mobile screens to scroll the wrapper, preserving A4 layout */
             margin: 0 auto; 
             background: #fff; 
             position: relative; 
@@ -599,7 +609,7 @@
             <div id="payout-details-display"></div>
         </div>
 
-        <div class="container-fluid p-0 p-md-3">
+        <div class="invoice-scroll-wrapper">
             <div class="invoice-box" id="invoice-content">
                 <div class="wave-top" id="doc-wave"></div>
                 <div class="invoice-header-wrapper-abs">
@@ -622,6 +632,7 @@
                             <div class="font-13 lh-lg mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
                         </div>
                     </div>
+                    
                     <div class="border mb-4 rounded-3 overflow-hidden" style="border-color:#cbd5e1!important;">
                         <table class="table custom-table mb-0">
                             <thead>
@@ -637,6 +648,7 @@
                             <tbody id="invoice-tbody"></tbody>
                         </table>
                     </div>
+                    
                     <div class="row">
                         <div class="col-7 pe-md-4">
                             <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: #0b2a5c;" id="amount-words-label">Amount in Words</h4>
@@ -794,7 +806,6 @@
                 applyRolePermissions();
                 fetchCloudData();
 
-                // Setup the Mobile Swipe-Back Trap
                 if (!backTrapSetup) {
                     window.history.pushState({ page: 'main' }, "");
                     window.addEventListener('popstate', handleBackButton);
@@ -808,24 +819,20 @@
             }
         });
 
-        // Handles the native mobile "Back" swipe
         function handleBackButton(event) {
-            if (exitConfirmed) return; // Allow natural exit if confirmed
+            if (exitConfirmed) return; 
 
-            // Re-push state instantly to prevent the browser from closing the app
             window.history.pushState({ page: 'main' }, "");
 
             const activeScreen = document.querySelector('.screen.active');
             if (!activeScreen) return;
 
-            // If user is inside a form/preview, swipe-back smartly returns them to the main list!
             if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-po-builder' || activeScreen.id === 'screen-preview') {
                 switchScreen(currentDocType === 'po' ? 'screen-po-history' : 'screen-history');
             } else {
-                // If on a main tab, confirm app exit
                 showCustomConfirm("Are you sure you want to close the app?", function() {
                     exitConfirmed = true;
-                    window.history.go(-2); // Triggers visual app close
+                    window.history.go(-2); 
                 }, "Yes, Exit");
             }
         }
@@ -1619,7 +1626,6 @@
             }
         }
 
-        // --- NEW: INVOICE DELETION WITH CUSTOM MODAL ---
         function promptDeleteInvoice() {
             if(!isAdmin || !editingDocId || currentDocType !== 'invoice') return;
             showCustomConfirm("Are you sure you want to delete this invoice? The items will be returned to inventory.", executeDeleteInvoice, "Yes, Delete");
