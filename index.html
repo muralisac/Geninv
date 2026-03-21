@@ -7,7 +7,6 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b2a5c">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Totatri ERP">
@@ -17,13 +16,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js" crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         /* GLOBAL UI */
@@ -252,6 +250,7 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -904,6 +903,7 @@
                 appData.inventory = invSnap.docs.map(doc => doc.data());
                 
                 const custSnap = await db.collection("customers").get(); 
+                appData.customers = doc => doc.data());
                 appData.customers = custSnap.docs.map(doc => doc.data());
                 
                 const histSnap = await db.collection("history").orderBy("timestamp", "desc").get(); 
@@ -1363,14 +1363,7 @@
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
                 wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
-                
-                let isConverted = false;
-                if (editingDocId) {
-                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
-                    if (existingPO && existingPO.status === 'converted') isConverted = true;
-                }
-                
-                document.getElementById("payout-status-container").style.display = isConverted ? "block" : "none";
+                document.getElementById("payout-status-container").style.display = "block";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1497,7 +1490,10 @@
                 if(type === 'po') { 
                     renderPOList(); 
                     if(record.status === 'converted') {
+                        document.getElementById("payout-status-container").style.display = "block";
                         renderPayoutUI(record);
+                    } else {
+                        document.getElementById("payout-status-container").style.display = "none";
                     }
                 } else { 
                     renderHistoryList(); 
@@ -1601,7 +1597,7 @@
                     deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
                 }
                 
-                if (statusStr === 'converted' && isAdmin) {
+                if (statusStr === 'converted' && isAdmin && !h.payout) {
                     deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm ms-2" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
                 }
                 
