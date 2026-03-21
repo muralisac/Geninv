@@ -724,7 +724,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -1331,13 +1331,19 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             
+            let poStatus = 'created';
+            if(type === 'po' && editingDocId) {
+                const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
+                poStatus = existingPO ? (existingPO.status || 'converted') : 'created';
+            }
+
             if (type === 'po') {
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
                 wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
-                document.getElementById("payout-status-container").style.display = "block"; 
+                document.getElementById("payout-status-container").style.display = poStatus === 'converted' ? "block" : "none";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1464,10 +1470,7 @@
                 if(type === 'po') { 
                     renderPOList(); 
                     if(record.status === 'converted') {
-                        document.getElementById("payout-status-container").style.display = "block";
                         renderPayoutUI(record);
-                    } else {
-                        document.getElementById("payout-status-container").style.display = "none";
                     }
                 } else { 
                     renderHistoryList(); 
@@ -1550,6 +1553,8 @@
                 const statusStr = h.status || 'converted';
                 const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
                 
+                const badges = statusStr === 'converted' ? `<span class="badge bg-primary ms-2">Converted</span> ${isPaid}` : '';
+                
                 let convertBtn = '';
                 if (statusStr === 'created' && isAdmin) {
                     convertBtn = `<button class="btn btn-sm shadow-sm me-2 fw-bold" style="background-color: #38bdf8; color: white; border: none;" onclick="event.stopPropagation(); convertPO('${h.id}')">Created</button>`;
@@ -1560,7 +1565,7 @@
                 return `
                 <div class="list-item po-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'po')">
                     <div style="flex-grow: 1; padding-left: 8px;">
-                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${statusStr === 'converted' ? isPaid : '<span class="badge bg-info ms-2">Created</span>'}<br>
+                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${badges}<br>
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
                     </div>
@@ -1997,7 +2002,6 @@
             const element = document.getElementById('invoice-content'); 
             const oldMargin = element.style.margin;
             
-            // MAGIC FIX FOR PDF CENTERING AND WIDTH
             element.style.margin = '0';
             element.style.width = '800px';
             element.style.minWidth = '800px';
