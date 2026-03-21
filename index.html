@@ -791,6 +791,20 @@
         let backTrapSetup = false;
         let exitConfirmed = false;
 
+        function ensureBackTrap() {
+            if (!backTrapSetup) {
+                // Double push creates a buffer so native back swipe gets caught perfectly
+                window.history.pushState({ page: 'base' }, "");
+                window.history.pushState({ page: 'main' }, "");
+                window.addEventListener('popstate', handleBackButton);
+                backTrapSetup = true;
+            }
+        }
+
+        // Guarantees back trap activates on first user touch even if auto-logged in
+        document.body.addEventListener('click', () => { if (auth.currentUser) ensureBackTrap(); }, { once: true });
+        document.body.addEventListener('touchstart', () => { if (auth.currentUser) ensureBackTrap(); }, { once: true });
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
@@ -802,12 +816,7 @@
                 
                 applyRolePermissions();
                 fetchCloudData();
-
-                if (!backTrapSetup) {
-                    window.history.pushState({ page: 'main' }, "");
-                    window.addEventListener('popstate', handleBackButton);
-                    backTrapSetup = true;
-                }
+                ensureBackTrap(); // Activates for manual logins
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('top-nav').style.display = 'none';
@@ -819,6 +828,7 @@
         function handleBackButton(event) {
             if (exitConfirmed) return; 
 
+            // Restore state to block immediate exit
             window.history.pushState({ page: 'main' }, "");
 
             const activeScreen = document.querySelector('.screen.active');
@@ -829,7 +839,7 @@
             } else {
                 showCustomConfirm("Are you sure you want to close the app?", function() {
                     exitConfirmed = true;
-                    window.history.go(-2); 
+                    window.history.go(-2); // Exits application gracefully
                 }, "Yes, Exit");
             }
         }
@@ -1376,7 +1386,6 @@
                 stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
             });
 
-            // ⚠️ FIX: Deep copy currentCart when saving the record!
             const record = { 
                 id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
                 invoiceNumber: tempDocNumber, 
