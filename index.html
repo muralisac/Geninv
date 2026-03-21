@@ -31,6 +31,7 @@
             color: #1e293b; 
             padding-bottom: 120px; 
             min-height: 100vh;
+            /* Prevents pull-to-refresh on mobile apps */
             overscroll-behavior-y: contain; 
         }
         
@@ -51,7 +52,7 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* SMART BOTTOM DOCK */
+        /* SMART BOTTOM DOCK (TRANSPARENT GLASS) */
         .top-nav { 
             position: fixed; 
             bottom: 0; 
@@ -250,6 +251,7 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -288,6 +290,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         }
 
+        /* RESPONSIVE TABLE WRAPPER */
         .table-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -738,6 +741,7 @@
             messagingSenderId: "1001857058399",
             appId: "1:1001857058399:web:8b36dcce49ef0cf6747dea"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth(); 
@@ -750,6 +754,7 @@
             lastInvoiceNum: 22, 
             lastPoNum: 5 
         };
+        
         const SELLER_STATE = 33; 
         
         let currentCart = []; 
@@ -803,8 +808,13 @@
             }
         }
 
-        document.body.addEventListener('click', () => { if (auth.currentUser) ensureBackTrap(); }, { once: true });
-        document.body.addEventListener('touchstart', () => { if (auth.currentUser) ensureBackTrap(); }, { once: true });
+        document.body.addEventListener('click', () => { 
+            if (auth.currentUser) ensureBackTrap(); 
+        }, { once: true });
+        
+        document.body.addEventListener('touchstart', () => { 
+            if (auth.currentUser) ensureBackTrap(); 
+        }, { once: true });
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -1101,6 +1111,7 @@
             currentDocType = "invoice"; 
             editingDocId = null; 
             currentCart = []; 
+            
             document.getElementById("customer-select").value = ""; 
             document.getElementById("builder-title").innerText = "New Sales Invoice"; 
             document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
@@ -1342,6 +1353,394 @@
             const roundedGrandTotal = Math.round(exactGrandTotal); 
             const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
             const roundedGst = Math.round(totalGst);
+
+            const wave = document.getElementById("doc-wave"); 
+            const gBox = document.getElementById("grand-box"); 
+            
+            if (type === 'po') {
+                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
+                document.getElementById("doc-type-title").style.color = "#d97706"; 
+                document.getElementById("bill-to-label").innerText = "Vendor"; 
+                document.getElementById("bill-from-label").innerText = "Purchaser";
+                wave.classList.add('wave-po'); 
+                gBox.classList.add('grand-po'); 
+                
+                const existingPO = editingDocId ? appData.purchaseOrders.find(h => h.id === editingDocId) : null;
+                const statusStr = existingPO ? (existingPO.status || 'converted') : 'created';
+                
+                if (statusStr === 'converted') {
+                    document.getElementById("payout-status-container").style.display = "block"; 
+                } else {
+                    document.getElementById("payout-status-container").style.display = "none"; 
+                }
+            } else {
+                document.getElementById("doc-type-title").innerText = "INVOICE"; 
+                document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
+                document.getElementById("bill-to-label").innerText = "Bill To"; 
+                document.getElementById("bill-from-label").innerText = "Bill From";
+                wave.classList.remove('wave-po'); 
+                gBox.classList.remove('grand-po'); 
+                document.getElementById("payout-status-container").style.display = "none";
+            }
+            
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
+            document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
+            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
+            
+            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
+            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
+            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; 
+            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
+            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal); 
+            
+            const taxContainer = document.getElementById("tax-rows-container"); 
+            if (SELLER_STATE === buyer.stateCode) { 
+                taxContainer.innerHTML = `
+                    <div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
+                    <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
+                `; 
+            } else { 
+                taxContainer.innerHTML = `
+                    <div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>
+                `; 
+            } 
+            
+            let stockChanges = {};
+            
+            if (editingDocId) {
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                const oldDoc = arrayRef.find(h => h.id === editingDocId);
+                
+                let shouldReverse = type === 'invoice' || (type === 'po' && oldDoc && oldDoc.status === 'converted');
+                if (oldDoc && oldDoc.cart && shouldReverse) {
+                    oldDoc.cart.forEach(item => {
+                        if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                        stockChanges[item.id] += (type === 'invoice') ? item.qty : -item.qty;
+                    });
+                }
+            }
+
+            let isPOConverted = false;
+            if (type === 'po' && editingDocId) {
+                const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
+                if (existingPO && existingPO.status === 'converted') isPOConverted = true;
+            }
+            
+            let shouldApplyNew = type === 'invoice' || (type === 'po' && isPOConverted);
+
+            if(shouldApplyNew) {
+                currentCart.forEach(item => {
+                    if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                    stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
+                });
+            }
+
+            const record = { 
+                id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
+                invoiceNumber: tempDocNumber, 
+                date: tempDocDate, 
+                customerId: buyer.id, 
+                customerName: buyer.name, 
+                cart: JSON.parse(JSON.stringify(currentCart)), 
+                totalAmount: roundedGrandTotal, 
+                paid: false, 
+                deleted: false,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            }; 
+            
+            try { 
+                const collectionName = type === 'po' ? "purchaseOrders" : "history"; 
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                
+                if(type === 'po') { 
+                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
+                    record.status = existingPO ? (existingPO.status || 'converted') : 'created';
+                    if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
+                }
+                
+                if(type === 'invoice' && editingDocId) {
+                    const existingInv = appData.history.find(h => h.id === editingDocId);
+                    if(existingInv && existingInv.paid) record.paid = existingInv.paid;
+                }
+                
+                const batch = db.batch();
+                for (const [pid, change] of Object.entries(stockChanges)) {
+                    if (change !== 0) {
+                        const productIndex = appData.inventory.findIndex(p => p.id === pid);
+                        if (productIndex > -1) {
+                            let currentStock = appData.inventory[productIndex].inStock || 0;
+                            let newStock = currentStock + change;
+                            appData.inventory[productIndex].inStock = newStock; 
+                            
+                            const productRef = db.collection("inventory").doc(pid);
+                            batch.update(productRef, { inStock: newStock });
+                        }
+                    }
+                }
+                
+                const docRef = db.collection(collectionName).doc(record.id);
+                batch.set(docRef, record);
+                
+                await batch.commit(); 
+                
+                if (editingDocId) { 
+                    const idx = arrayRef.findIndex(h => h.id === editingDocId); 
+                    arrayRef[idx] = record; 
+                } else { 
+                    arrayRef.unshift(record); 
+                    if(type === 'po') { 
+                        appData.lastPoNum++; 
+                        await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
+                    } else { 
+                        appData.lastInvoiceNum++; 
+                        await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
+                    } 
+                } 
+                
+                if(type === 'po') { 
+                    renderPOList(); 
+                    if(record.status === 'converted') {
+                        document.getElementById("payout-status-container").style.display = "block";
+                        renderPayoutUI(record);
+                    } else {
+                        document.getElementById("payout-status-container").style.display = "none";
+                    }
+                } else { 
+                    renderHistoryList(); 
+                }
+                
+                renderProductList(); 
+                switchScreen('screen-preview'); 
+            } catch (error) { 
+                console.error("Save Error:", error); 
+                showCustomAlert("Failed to save to the cloud. Check your network.", "Error", "🔴"); 
+            } finally { 
+                saveBtn.innerText = "💾 Save & Calculate"; 
+                saveBtn.disabled = false; 
+            } 
+        }
+
+        // --- HISTORY LIST RENDERERS ---
+        function renderHistoryList() { 
+            const list = document.getElementById("history-list"); 
+            if(appData.history.length === 0) {
+                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
+                return;
+            }
+            
+            list.innerHTML = appData.history.map(h => {
+                if (h.deleted) {
+                    return `
+                    <div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
+                        <div style="flex-grow: 1; padding-left: 8px;">
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span><br>
+                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
+                        </div>
+                    </div>`;
+                }
+
+                const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
+                const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+                
+                return `
+                <div class="list-item history-card">
+                    <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'invoice')">
+                        <strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${markPaidBtn}
+                        ${editBtn}
+                    </div>
+                </div>
+                `;
+            }).join(''); 
+        }
+
+        async function markInvoicePaid(invoiceId) {
+            if(!isAdmin) return;
+            try {
+                await db.collection("history").doc(invoiceId).update({ paid: true });
+                const idx = appData.history.findIndex(h => h.id === invoiceId);
+                if (idx > -1) {
+                    appData.history[idx].paid = true;
+                    renderHistoryList(); 
+                }
+            } catch (error) {
+                console.error("Error marking invoice as paid:", error);
+                showCustomAlert("Failed to update payment status.", "Error", "🔴");
+            }
+        }
+
+        function renderPOList() { 
+            const list = document.getElementById("po-list"); 
+            if(appData.purchaseOrders.length === 0) {
+                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; 
+                return;
+            }
+            
+            list.innerHTML = appData.purchaseOrders.map(h => {
+                if (h.deleted) {
+                    return `
+                    <div class="list-item po-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
+                        <div style="flex-grow: 1; padding-left: 8px;">
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span><br>
+                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
+                        </div>
+                    </div>`;
+                }
+
+                const statusStr = h.status || 'converted';
+                const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                
+                const badges = statusStr === 'converted' ? `<span class="badge bg-primary ms-2">Converted</span> ${isPaid}` : '';
+                
+                let convertBtn = '';
+                if (statusStr === 'created' && isAdmin) {
+                    convertBtn = `<button class="btn btn-sm shadow-sm me-2 fw-bold" style="background-color: #38bdf8; color: white; border: none;" onclick="event.stopPropagation(); convertPO('${h.id}')">Created</button>`;
+                }
+                
+                const editBtn = (isAdmin && statusStr === 'created') ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : '';
+                
+                return `
+                <div class="list-item po-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'po')">
+                    <div style="flex-grow: 1; padding-left: 8px;">
+                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${badges}<br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${convertBtn}
+                        ${editBtn}
+                    </div>
+                </div>`;
+            }).join(''); 
+        }
+
+        function convertPO(poId) {
+            if(!isAdmin) return;
+            showCustomConfirm("Mark this Purchase Order as Received? This will securely update your inventory stock and cannot be undone.", async function() {
+                try {
+                    const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId);
+                    if(poIndex === -1) return;
+                    const po = appData.purchaseOrders[poIndex];
+                    
+                    const batch = db.batch();
+                    
+                    po.cart.forEach(item => {
+                        const prodIdx = appData.inventory.findIndex(p => p.id === item.id);
+                        if (prodIdx > -1) {
+                            let newStock = (appData.inventory[prodIdx].inStock || 0) + item.qty;
+                            appData.inventory[prodIdx].inStock = newStock;
+                            batch.update(db.collection("inventory").doc(item.id), { inStock: newStock });
+                        }
+                    });
+
+                    batch.update(db.collection("purchaseOrders").doc(poId), { status: 'converted' });
+                    appData.purchaseOrders[poIndex].status = 'converted';
+
+                    await batch.commit();
+
+                    showCustomAlert("Purchase Order converted successfully. Inventory updated.", "Success", "✅");
+                    renderPOList();
+                    renderProductList();
+                } catch (err) {
+                    console.error(err);
+                    showCustomAlert("Failed to convert Purchase Order.", "Error", "🔴");
+                }
+            }, "Yes, Convert");
+        }
+
+        function viewOldDocument(id, type) {
+            currentDocType = type; 
+            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
+            const doc = arrayRef.find(h => h.id === id); 
+            if (!doc) return;
+            
+            editingDocId = doc.id; 
+            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; 
+            tempDocDate = doc.date;
+            
+            if (type === 'po') {
+                document.getElementById("po-vendor-select").value = doc.customerId; 
+                document.getElementById("po-builder-title").innerText = "Edit PO"; 
+                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`;
+                renderCartUI('po');
+            } else {
+                document.getElementById("customer-select").value = doc.customerId; 
+                document.getElementById("builder-title").innerText = "Edit Invoice"; 
+                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`;
+                renderCartUI('invoice');
+            }
+            
+            const tablesContainer = document.getElementById("invoice-tables-container"); 
+            tablesContainer.innerHTML = ""; 
+            
+            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
+            
+            doc.cart.forEach((item) => { 
+                let baseAmt = item.qty * item.price; 
+                let gstAmt = baseAmt * (item.gstPercent / 100); 
+                subTotal += baseAmt; 
+                totalGst += gstAmt; 
+                mainGstRate = item.gstPercent; 
+            }); 
+            
+            const headerClass = type === 'po' ? 'th-po' : '';
+            const tableHeader = `
+                <thead>
+                    <tr>
+                        <th width="5%" class="${headerClass}">#</th>
+                        <th width="35%" class="${headerClass}">Description</th>
+                        <th width="10%" class="text-center ${headerClass}">Qty</th>
+                        <th width="15%" class="text-end ${headerClass}">Price</th>
+                        <th width="15%" class="text-end ${headerClass}">GST</th>
+                        <th width="20%" class="text-end ${headerClass}">Amount</th>
+                    </tr>
+                </thead>
+            `;
+
+            if (doc.cart.length <= 12) {
+                let rowsHtml = "";
+                doc.cart.forEach((item, index) => {
+                    let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
+                    rowsHtml += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
+                });
+                tablesContainer.innerHTML = `
+                    <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
+                        <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
+                    </div>
+                `;
+            } else {
+                for (let i = 0; i < doc.cart.length; i += 10) {
+                    let chunk = doc.cart.slice(i, i + 10);
+                    let rowsHtml = "";
+                    chunk.forEach((item, idx) => {
+                        let actualIndex = i + idx;
+                        let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
+                        rowsHtml += `<tr><td>${actualIndex + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
+                    });
+                    
+                    let isLastChunk = (i + 10 >= doc.cart.length);
+                    let pageBreak = !isLastChunk ? `<div class="html2pdf__page-break"></div><div style="height: 30px;"></div>` : '';
+                    
+                    tablesContainer.innerHTML += `
+                        <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
+                            <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
+                        </div>${pageBreak}
+                    `;
+                }
+            }
+            
+            const exactGrandTotal = subTotal + totalGst; 
+            const roundedGrandTotal = Math.round(exactGrandTotal); 
+            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
+            const roundedGst = Math.round(totalGst);
             
             const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
             const wave = document.getElementById("doc-wave"); 
@@ -1357,17 +1756,17 @@
                 wave.classList.add('wave-po'); 
                 gBox.classList.add('grand-po'); 
                 
-                const existingPO = editingDocId ? appData.purchaseOrders.find(h => h.id === editingDocId) : null;
-                const statusStr = existingPO ? (existingPO.status || 'converted') : 'created';
-                
+                const statusStr = doc.status || 'converted';
                 if (statusStr === 'converted') {
                     document.getElementById("payout-status-container").style.display = "block"; 
-                    canEdit = true; 
+                    renderPayoutUI(doc); 
+                    canEdit = false;
                 } else {
                     document.getElementById("payout-status-container").style.display = "none"; 
                     canEdit = true;
                 }
                 
+                if (doc.payout) canEdit = false;
             } else { 
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1376,15 +1775,13 @@
                 wave.classList.remove('wave-po'); 
                 gBox.classList.remove('grand-po'); 
                 document.getElementById("payout-status-container").style.display = "none"; 
-                
-                const existingInv = editingDocId ? appData.history.find(h => h.id === editingDocId) : null;
-                if (existingInv && existingInv.paid) canEdit = false;
+                if (doc.paid) canEdit = false;
             }
             
             document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
             
-            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
-            document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
+            document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
+            document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
             document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
             
             document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
@@ -1443,7 +1840,6 @@
             }
         }
 
-        // --- NEW: PO DELETION WITH CUSTOM MODAL ---
         function promptDeletePO() {
             if(!isAdmin || !editingDocId || currentDocType !== 'po') return;
             const po = appData.purchaseOrders.find(p => p.id === editingDocId);
