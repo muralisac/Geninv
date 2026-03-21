@@ -8,10 +8,13 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b2a5c">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Totatri ERP">
     <link rel="apple-touch-icon" href="logo-192.png">
-    <link rel="icon" href="logo-192.png"> <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" href="logo-192.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -20,6 +23,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 
     <style>
@@ -535,9 +539,15 @@
             <button id="btn-delete-invoice" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="promptDeleteInvoice()">🗑️ Delete</button>
         </div>
         
-        <div class="mb-4">
-            <label class="form-label">Billed To (Customer)</label>
-            <select id="customer-select" class="form-select"></select>
+        <div class="row mb-4">
+            <div class="col-7">
+                <label class="form-label">Billed To</label>
+                <select id="customer-select" class="form-select"></select>
+            </div>
+            <div class="col-5">
+                <label class="form-label">Date</label>
+                <input type="date" id="inv-date-input" class="form-control">
+            </div>
         </div>
         
         <div class="p-3 bg-light rounded-4 mb-4 border" style="border-color: #e2e8f0 !important;">
@@ -578,9 +588,15 @@
             <button id="btn-delete-po" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="promptDeletePO()">🗑️ Delete</button>
         </div>
         
-        <div class="mb-4">
-            <label class="form-label">Vendor Name</label>
-            <select id="po-vendor-select" class="form-select"></select>
+        <div class="row mb-4">
+            <div class="col-7">
+                <label class="form-label">Vendor Name</label>
+                <select id="po-vendor-select" class="form-select"></select>
+            </div>
+            <div class="col-5">
+                <label class="form-label">PO Date</label>
+                <input type="date" id="po-date-input" class="form-control">
+            </div>
         </div>
         
         <div class="p-3 bg-light rounded-4 mb-4 border" id="po-add-item-panel" style="border-color: #e2e8f0 !important;">
@@ -762,6 +778,23 @@
         let currentDocType = "invoice"; 
         
         let isAdmin = false;
+
+        // --- UTILITIES FOR DATES ---
+        function getLocalYMD(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function createDateFromYMD(ymdStr) {
+            if (!ymdStr) return new Date();
+            const parts = ymdStr.split('-');
+            if (parts.length === 3) {
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+            return new Date();
+        }
 
         // --- CUSTOM ALERTS & CONFIRMS ---
         function showCustomAlert(message, title = "Notice", icon = "⚠️") {
@@ -1117,7 +1150,9 @@
             
             const d = new Date(); 
             tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
-            tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
+            
+            // Set current date to input field
+            document.getElementById("inv-date-input").value = getLocalYMD(d);
             
             renderCartUI('invoice'); 
             switchScreen('screen-builder'); 
@@ -1197,7 +1232,8 @@
             
             const d = new Date(); 
             tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
-            tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(); 
+            
+            document.getElementById("po-date-input").value = getLocalYMD(d);
             
             renderCartUI('po'); 
             switchScreen('screen-po-builder'); 
@@ -1283,6 +1319,16 @@
             if (!custId) return showCustomAlert("Select a client/vendor."); 
             if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
             
+            if (type === 'invoice') {
+                const rawD = document.getElementById("inv-date-input").value;
+                const d = createDateFromYMD(rawD);
+                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            } else if (type === 'po') {
+                const rawD = document.getElementById("po-date-input").value;
+                const d = createDateFromYMD(rawD);
+                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            }
+
             const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
             saveBtn.innerText = "⏳ Processing..."; 
             saveBtn.disabled = true; 
@@ -1362,14 +1408,13 @@
                 document.getElementById("bill-from-label").innerText = "Purchaser";
                 wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
                 
-                const existingPO = editingDocId ? appData.purchaseOrders.find(h => h.id === editingDocId) : null;
-                const statusStr = existingPO ? (existingPO.status || 'converted') : 'created';
-                
-                if (statusStr === 'converted') {
-                    document.getElementById("payout-status-container").style.display = "block"; 
-                } else {
-                    document.getElementById("payout-status-container").style.display = "none"; 
+                let isConverted = false;
+                if (editingDocId) {
+                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
+                    if (existingPO && existingPO.status === 'converted') isConverted = true;
                 }
+                
+                document.getElementById("payout-status-container").style.display = isConverted ? "block" : "none";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1760,12 +1805,11 @@
                 wave.classList.add('wave-po'); 
                 gBox.classList.add('grand-po'); 
                 
-                const existingPO = editingDocId ? appData.purchaseOrders.find(h => h.id === editingDocId) : null;
-                const statusStr = existingPO ? (existingPO.status || 'converted') : 'created';
-                
+                const statusStr = doc.status || 'converted';
                 if (statusStr === 'converted') {
                     document.getElementById("payout-status-container").style.display = "block"; 
-                    canEdit = true; 
+                    renderPayoutUI(doc); 
+                    canEdit = false;
                 } else {
                     document.getElementById("payout-status-container").style.display = "none"; 
                     canEdit = true;
@@ -1784,7 +1828,7 @@
             }
             
             document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
-            document.getElementById("btn-delete-preview").style.display = isAdmin ? 'inline-block' : 'none';
+            document.getElementById("btn-delete-preview").style.display = isAdmin && !doc.payout ? 'inline-block' : 'none';
             
             document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
             document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
@@ -1825,6 +1869,9 @@
             
             if(type === 'po') { 
                 const isConverted = doc.status === 'converted';
+                const poParsedD = new Date(doc.date);
+                document.getElementById("po-date-input").value = !isNaN(poParsedD) ? getLocalYMD(poParsedD) : getLocalYMD(new Date());
+
                 document.getElementById("po-vendor-select").value = doc.customerId; 
                 document.getElementById("po-vendor-select").disabled = isConverted; 
                 document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
@@ -1837,6 +1884,9 @@
                 renderCartUI('po'); 
                 switchScreen('screen-po-builder'); 
             } else { 
+                const invParsedD = new Date(doc.date);
+                document.getElementById("inv-date-input").value = !isNaN(invParsedD) ? getLocalYMD(invParsedD) : getLocalYMD(new Date());
+
                 document.getElementById("customer-select").value = doc.customerId; 
                 document.getElementById("builder-title").innerText = "Edit Invoice"; 
                 document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
