@@ -51,7 +51,7 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* SMART BOTTOM DOCK */
+        /* SMART BOTTOM DOCK (TRANSPARENT GLASS) */
         .top-nav { 
             position: fixed; 
             bottom: 0; 
@@ -250,6 +250,7 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -288,6 +289,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         }
 
+        /* RESPONSIVE TABLE WRAPPER */
         .table-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -722,7 +724,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -897,7 +899,6 @@
                 const poSnap = await db.collection("purchaseOrders").orderBy("timestamp", "desc").get(); 
                 appData.purchaseOrders = poSnap.docs.map(doc => {
                     let data = doc.data();
-                    // Backward Compatibility: Old POs are assumed converted
                     if (!data.status) data.status = 'converted';
                     return data;
                 });
@@ -1336,7 +1337,7 @@
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
                 wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
-                document.getElementById("payout-status-container").style.display = "block"; // might hide later in logic
+                document.getElementById("payout-status-container").style.display = "block"; 
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1374,7 +1375,6 @@
                 const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
                 const oldDoc = arrayRef.find(h => h.id === editingDocId);
                 
-                // Only reverse stock for POs if they were actually Converted
                 let shouldReverse = type === 'invoice' || (type === 'po' && oldDoc && oldDoc.status === 'converted');
                 if (oldDoc && oldDoc.cart && shouldReverse) {
                     oldDoc.cart.forEach(item => {
@@ -1384,7 +1384,6 @@
                 }
             }
 
-            // Determine if we should apply new stock changes
             let isPOConverted = false;
             if (type === 'po' && editingDocId) {
                 const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
@@ -1707,7 +1706,6 @@
                 document.getElementById("bill-from-label").innerText = "Purchaser"; 
                 wave.classList.add('wave-po'); 
                 gBox.classList.add('grand-po'); 
-                thList.forEach(th => th.classList.add('th-po')); 
                 
                 const statusStr = doc.status || 'converted';
                 if (statusStr === 'converted') {
@@ -1727,7 +1725,6 @@
                 document.getElementById("bill-from-label").innerText = "Bill From"; 
                 wave.classList.remove('wave-po'); 
                 gBox.classList.remove('grand-po'); 
-                thList.forEach(th => th.classList.remove('th-po')); 
                 document.getElementById("payout-status-container").style.display = "none"; 
                 if (doc.paid) canEdit = false;
             }
@@ -1999,13 +1996,17 @@
             
             const element = document.getElementById('invoice-content'); 
             const oldMargin = element.style.margin;
+            
+            // MAGIC FIX FOR PDF CENTERING AND WIDTH
             element.style.margin = '0';
+            element.style.width = '800px';
+            element.style.minWidth = '800px';
             
             const opt = { 
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollX: 0, scrollY: 0 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }; 
@@ -2015,6 +2016,8 @@
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
                 element.style.margin = oldMargin;
+                element.style.width = '100%';
+                element.style.minWidth = '750px';
                 scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
