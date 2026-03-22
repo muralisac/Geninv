@@ -32,7 +32,8 @@
             background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
             font-family: 'Inter', sans-serif; 
             color: #1e293b; 
-            padding-bottom: 120px; 
+            padding-top: 80px; 
+            padding-bottom: 40px;
             min-height: 100vh;
             overscroll-behavior-y: contain; 
         }
@@ -54,63 +55,55 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* SMART BOTTOM DOCK */
-        .top-nav { 
+        /* 🌟 NEW: TOP APP BAR & HAMBURGER MENU 🌟 */
+        #app-header {
             position: fixed; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%;
-            z-index: 9000; 
-            background: rgba(11, 42, 92, 0.65); 
-            backdrop-filter: blur(12px); 
-            -webkit-backdrop-filter: blur(12px);
-            padding: 12px 10px max(15px, env(safe-area-inset-bottom)); 
-            display: flex; 
-            justify-content: space-around;
-            gap: 5px; 
-            overflow-x: auto; 
-            white-space: nowrap; 
-            display: none; 
-            border-radius: 20px 20px 0 0; 
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.15); 
-            border-top: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.4s ease;
+            top: 0; left: 0; width: 100%; 
+            z-index: 9000;
+            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%);
+            padding: 15px 20px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            display: none; /* Hidden on login screen */
         }
         
-        .top-nav button { 
-            background: rgba(255,255,255,0.05); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            color: #f8fafc; 
-            border-radius: 30px; 
-            padding: 10px 14px; 
-            font-size: 13px; 
-            font-weight: 500; 
-            transition: all 0.2s ease; 
+        #app-sidebar {
+            position: fixed; 
+            top: 0; right: -300px; 
+            width: 280px; max-width: 80vw; height: 100%;
+            background: #fff; z-index: 9999; 
+            box-shadow: -5px 0 25px rgba(0,0,0,0.2);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            display: flex; flex-direction: column;
         }
         
-        .top-nav button.active { 
-            background: #f7d047; 
-            color: #0b2a5c; 
-            font-weight: 800; 
-            border: none;
-            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3); 
+        #app-sidebar.open { right: 0; }
+        
+        #sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.6); z-index: 9998; 
+            display: none; backdrop-filter: blur(2px);
+            opacity: 0; transition: opacity 0.3s ease;
         }
         
-        .top-nav button.btn-logout { 
-            background: rgba(239, 68, 68, 0.8); 
-            color: white; 
-            border: none;
+        #sidebar-overlay.open { display: block; opacity: 1; }
+        
+        .nav-btn {
+            background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b;
+            border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600;
+            text-align: left; transition: all 0.2s ease; 
         }
         
-        @media (min-width: 600px) {
-            .top-nav { justify-content: center; gap: 15px; }
-            .top-nav button { padding: 10px 20px; font-size: 14px; }
+        .nav-btn:active { transform: scale(0.98); }
+        
+        .nav-btn.active {
+            background: #f7d047; color: #0b2a5c; border-color: #f7d047; 
+            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3);
         }
 
         /* UI ELEMENTS */
         .panel { 
             max-width: 650px; 
-            margin: 30px auto; 
+            margin: 15px auto 30px auto; 
             background: #fff; 
             padding: 30px; 
             border-radius: 24px; 
@@ -253,7 +246,6 @@
         
         .wave-po { background-color: #d97706 !important; }
         
-        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -379,6 +371,31 @@
         <div id="loading-text">Authenticating Security...</div>
     </div>
 
+    <header id="app-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <div class="fw-bold text-white fs-4" style="letter-spacing: 0.5px;">Sri Totatri ERP</div>
+            <button class="btn text-white fs-1 p-0 lh-1" onclick="toggleMenu()">☰</button>
+        </div>
+    </header>
+
+    <div id="sidebar-overlay" onclick="toggleMenu()"></div>
+    <div id="app-sidebar">
+        <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="background: #f8fafc;">
+            <div class="fw-bold fs-5" style="color: #0b2a5c;">Menu Options</div>
+            <button class="btn-close" onclick="toggleMenu()"></button>
+        </div>
+        <div class="d-flex flex-column p-4 gap-3 flex-grow-1 overflow-y-auto">
+            <button onclick="switchScreen('screen-history')" id="nav-history" class="nav-btn active">🧾 Sales Invoices</button>
+            <button onclick="switchScreen('screen-po-history')" id="nav-po-history" class="nav-btn">📦 Purchase Orders</button>
+            <button onclick="switchScreen('screen-customers')" id="nav-customers" class="nav-btn">👥 Business Directory</button>
+            <button onclick="switchScreen('screen-products')" id="nav-products" class="nav-btn">🛒 Master Inventory</button>
+            
+            <div class="mt-auto pt-4 border-top">
+                <button onclick="promptLogout()" class="btn btn-danger w-100 btn-lg fw-bold shadow-sm">Exit Application</button>
+            </div>
+        </div>
+    </div>
+
     <div id="custom-alert-modal" class="custom-modal-overlay" style="z-index: 10005;">
         <div class="custom-modal-content text-center">
             <div id="custom-alert-icon" class="mb-3 fs-1">⚠️</div>
@@ -424,14 +441,6 @@
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 20px; margin-right: 8px; margin-top: -2px;" crossorigin="anonymous"> Continue with Google
         </button>
         <p id="login-error" class="text-danger mt-3 text-center small fw-bold"></p>
-    </div>
-
-    <div class="top-nav" id="top-nav">
-        <button onclick="switchScreen('screen-history')" id="nav-history" class="active">🧾 Sales</button>
-        <button onclick="switchScreen('screen-po-history')" id="nav-po-history">📦 Purch</button>
-        <button onclick="switchScreen('screen-customers')" id="nav-customers">👥 Directory</button>
-        <button onclick="switchScreen('screen-products')" id="nav-products">🛒 Inv</button>
-        <button onclick="promptLogout()" class="btn-logout">Exit</button>
     </div>
 
     <div id="screen-history" class="screen panel">
@@ -779,6 +788,24 @@
         
         let isAdmin = false;
 
+        // --- MENU TOGGLE LOGIC ---
+        function toggleMenu() {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                overlay.style.opacity = '0';
+                setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            } else {
+                overlay.style.display = 'block';
+                setTimeout(() => { 
+                    overlay.style.opacity = '1'; 
+                    sidebar.classList.add('open');
+                }, 10);
+            }
+        }
+
         // --- UTILITIES FOR DATES ---
         function getLocalYMD(dateObj) {
             const year = dateObj.getFullYear();
@@ -851,7 +878,7 @@
             if (user) {
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
                 
-                document.getElementById('top-nav').style.display = 'flex';
+                document.getElementById('app-header').style.display = 'block'; // NEW HEADER
                 document.getElementById('screen-login').classList.remove('active'); 
                 document.getElementById('loading-overlay').style.display = 'flex';
                 document.getElementById('loading-text').innerText = isAdmin ? "Loading Admin ERP..." : "Loading Read-Only View...";
@@ -861,7 +888,7 @@
                 ensureBackTrap(); 
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('top-nav').style.display = 'none';
+                document.getElementById('app-header').style.display = 'none'; // HIDE HEADER
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                 document.getElementById('screen-login').classList.add('active');
             }
@@ -871,6 +898,13 @@
             if (exitConfirmed) return; 
 
             window.history.pushState({ page: 'main' }, "");
+
+            // If sidebar is open, close it instead of exiting app
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) {
+                toggleMenu();
+                return;
+            }
 
             const activeScreen = document.querySelector('.screen.active');
             if (!activeScreen) return;
@@ -913,6 +947,10 @@
         }
 
         function promptLogout() {
+            // Close menu before prompting logout
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) toggleMenu();
+            
             showCustomConfirm("Are you sure you want to log out of your account?", logout, "Yes, Logout");
         }
 
@@ -965,7 +1003,7 @@
         // --- NAVIGATION ---
         function switchScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             
             document.getElementById(screenId).classList.add('active');
             
@@ -973,6 +1011,10 @@
             if(navBtn) navBtn.classList.add('active');
             
             window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            
+            // Auto close menu when a link is selected
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) toggleMenu();
         }
 
         // --- CUSTOMER DIRECTORY ---
@@ -1151,7 +1193,6 @@
             const d = new Date(); 
             tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
             
-            // Set current date to input field
             document.getElementById("inv-date-input").value = getLocalYMD(d);
             
             renderCartUI('invoice'); 
@@ -1401,27 +1442,21 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             
+            // Hide payment UI during preview creation, it gets shown after save if converted
+            document.getElementById("payout-status-container").style.display = "none";
+            
             if (type === 'po') {
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
                 document.getElementById("bill-to-label").innerText = "Vendor"; 
                 document.getElementById("bill-from-label").innerText = "Purchaser";
                 wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
-                
-                let isConverted = false;
-                if (editingDocId) {
-                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
-                    if (existingPO && existingPO.status === 'converted') isConverted = true;
-                }
-                
-                document.getElementById("payout-status-container").style.display = isConverted ? "block" : "none";
             } else {
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
                 document.getElementById("bill-to-label").innerText = "Bill To"; 
                 document.getElementById("bill-from-label").innerText = "Bill From";
                 wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); 
-                document.getElementById("payout-status-container").style.display = "none";
             }
             
             document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
@@ -1806,13 +1841,14 @@
                 gBox.classList.add('grand-po'); 
                 
                 const statusStr = doc.status || 'converted';
+                
                 if (statusStr === 'converted') {
                     document.getElementById("payout-status-container").style.display = "block"; 
                     renderPayoutUI(doc); 
-                    canEdit = false;
+                    canEdit = false; 
                 } else {
                     document.getElementById("payout-status-container").style.display = "none"; 
-                    canEdit = true;
+                    canEdit = true; 
                 }
                 
                 if (doc.payout) canEdit = false;
