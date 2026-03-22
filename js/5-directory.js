@@ -102,4 +102,5 @@ async function saveCustomer() {
 function cancelCustomerEdit() { 
     document.getElementById('customer-form-container').style.display = 'none'; 
     document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; 
-}
+        }
+        
