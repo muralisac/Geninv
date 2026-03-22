@@ -1,3 +1,5 @@
+// js/5-directory.js
+
 function renderCustomerList() { 
     const list = document.getElementById("customers-list");
     list.innerHTML = appData.customers.map(c => `
@@ -6,10 +8,47 @@ function renderCustomerList() {
                 <strong style="color:#0b2a5c;">${c.name}</strong><br>
                 <small class="text-muted">GST: ${c.gstin}</small>
             </div>
-            ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
+            <div class="d-flex align-items-center gap-2">
+                ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
+                ${isAdmin ? `<button class="btn btn-danger btn-sm shadow-sm" onclick="promptDeleteCustomer('${c.id}')">🗑️</button>` : ''}
+            </div>
         </div>
     `).join(''); 
     populateDropdowns(); 
+}
+
+function promptDeleteCustomer(id) {
+    if(!isAdmin) return;
+    const customer = appData.customers.find(c => c.id === id);
+    if(!customer) return;
+    
+    showCustomConfirm(
+        `Are you sure you want to permanently delete the business contact "${customer.name}"?`, 
+        () => executeDeleteCustomer(id), 
+        "Yes, Delete"
+    );
+}
+
+async function executeDeleteCustomer(id) {
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-text').innerText = "Deleting Contact...";
+    
+    try {
+        // Delete from Firebase Cloud
+        await db.collection("customers").doc(id).delete();
+        
+        // Remove from local array
+        appData.customers = appData.customers.filter(c => c.id !== id);
+        
+        // Refresh UI
+        renderCustomerList(); 
+        showCustomAlert("Contact successfully deleted.", "Success", "✅");
+    } catch (error) {
+        console.error("Error deleting contact:", error);
+        showCustomAlert("Failed to delete contact. Check your network.", "Error", "🔴");
+    } finally {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
 }
 
 function editCustomer(id) { 
