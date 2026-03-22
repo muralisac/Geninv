@@ -865,71 +865,74 @@
             document.getElementById("view-reason-modal").style.display = "none";
         }
 
-        // --- 🌟 BULLETPROOF HASH-BASED BACK TRAP 🌟 ---
+        // --- 🌟 BULLETPROOF BACK BUTTON TRAP 🌟 ---
         let exitConfirmed = false;
-        let trapInitialized = false;
+        let trapSet = false;
 
-        function initBackTrap() {
-            if (trapInitialized) return;
-            
-            // Push hash state to lock browser into the app context
-            window.history.pushState(null, "", "#app");
-            trapInitialized = true;
-
-            window.addEventListener('popstate', (event) => {
-                if (exitConfirmed || !auth.currentUser) return;
-
-                // User hit back, hash is gone. Restore immediately to re-trap.
-                window.history.pushState(null, "", "#app");
-
-                // 1. Check if any Modals are open, close them first!
-                const modals = [
-                    { id: 'receipt-viewer-modal', closeFn: closeReceiptViewer },
-                    { id: 'delete-reason-modal', closeFn: closeDeleteReasonModal },
-                    { id: 'view-reason-modal', closeFn: closeViewReasonModal },
-                    { id: 'payout-modal', closeFn: closePayoutModal },
-                    { id: 'custom-confirm-modal', closeFn: closeCustomConfirm },
-                    { id: 'custom-alert-modal', closeFn: closeCustomAlert }
-                ];
-                
-                for (let m of modals) {
-                    const el = document.getElementById(m.id);
-                    if (el && (el.style.display === 'flex' || el.style.display === 'block')) {
-                        m.closeFn();
-                        return; // Intercepted back button
-                    }
-                }
-                
-                // 2. Close Sidebar if open
-                const sidebar = document.getElementById('app-sidebar');
-                if (sidebar && sidebar.classList.contains('open')) {
-                    toggleMenu();
-                    return; // Intercepted back button
-                }
-
-                // 3. Handle Screen Navigation
-                const activeScreen = document.querySelector('.screen.active');
-                if (!activeScreen) return;
-
-                if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-po-builder' || activeScreen.id === 'screen-preview') {
-                    // Navigate back to lists
-                    switchScreen(currentDocType === 'po' ? 'screen-po-history' : 'screen-history');
-                } else {
-                    // At main dashboard, ask to exit
-                    showCustomConfirm("Are you sure you want to close the application?", function() {
-                        exitConfirmed = true;
-                        window.history.go(-2); 
-                    }, "Yes, Exit");
-                }
-            });
+        function setBackTrap() {
+            if (trapSet) return;
+            window.history.pushState({ trap: true }, "");
+            trapSet = true;
         }
 
-        // Engage trap aggressively on any user interaction
-        const engageTrap = () => {
-            if (auth.currentUser && !trapInitialized) initBackTrap();
-        };
-        document.addEventListener('click', engageTrap, { passive: true });
-        document.addEventListener('touchstart', engageTrap, { passive: true });
+        // Securely engage trap upon any screen interaction
+        const interactEvents = ['click', 'touchstart'];
+        interactEvents.forEach(evt => {
+            document.addEventListener(evt, () => {
+                if (auth.currentUser && !trapSet) setBackTrap();
+            }, { passive: true });
+        });
+
+        window.addEventListener('popstate', (event) => {
+            if (exitConfirmed || !auth.currentUser) return;
+
+            // 1. Re-apply the trap immediately
+            window.history.pushState({ trap: true }, "");
+
+            // 2. Check for open modals/sidebar and close them safely
+            const modals = [
+                { id: 'receipt-viewer-modal', closeFn: closeReceiptViewer },
+                { id: 'delete-reason-modal', closeFn: closeDeleteReasonModal },
+                { id: 'view-reason-modal', closeFn: closeViewReasonModal },
+                { id: 'payout-modal', closeFn: closePayoutModal },
+                { id: 'custom-confirm-modal', closeFn: closeCustomConfirm },
+                { id: 'custom-alert-modal', closeFn: closeCustomAlert }
+            ];
+            
+            for (let m of modals) {
+                const el = document.getElementById(m.id);
+                if (el && (el.style.display === 'flex' || el.style.display === 'block')) {
+                    m.closeFn();
+                    return; // Successfully intercepted hardware back button
+                }
+            }
+            
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar && sidebar.classList.contains('open')) {
+                toggleMenu();
+                return; // Successfully intercepted hardware back button
+            }
+
+            // 3. Handle sub-screens (Preview / Builders) gracefully
+            const activeScreen = document.querySelector('.screen.active');
+            if (activeScreen) {
+                if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-preview') {
+                    if(currentDocType === 'po') switchScreen('screen-po-history');
+                    else switchScreen('screen-history');
+                    return;
+                }
+                if (activeScreen.id === 'screen-po-builder') {
+                    switchScreen('screen-po-history');
+                    return;
+                }
+            }
+
+            // 4. If at a main screen, prompt exit
+            showCustomConfirm("Are you sure you want to exit the application?", () => {
+                exitConfirmed = true;
+                window.history.go(-2); // Jump out of the browser history trap entirely
+            }, "Yes, Exit");
+        });
 
         // --- AUTHENTICATION ---
         auth.onAuthStateChanged(user => {
@@ -943,7 +946,10 @@
                 
                 applyRolePermissions();
                 fetchCloudData();
-                engageTrap(); 
+                
+                // Reset the trap
+                exitConfirmed = false;
+                setTimeout(() => { setBackTrap(); }, 500); 
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('app-header').style.display = 'none'; 
