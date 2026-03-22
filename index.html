@@ -210,7 +210,7 @@
             animation: slideUp 0.3s ease-out;
         }
 
-        /* 🌟 NEW DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
+        /* MOBILE INVOICE SCROLL WRAPPER */
         .invoice-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -218,10 +218,11 @@
             padding: 20px 10px;
         }
 
+        /* 🌟 DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
         .invoice-page {
             width: 800px;
-            min-height: 1122px; 
-            margin: 0 auto; 
+            height: 1122px; /* Perfect A4 Proportion */
+            margin: 0 auto 25px auto; 
             background: #fff; 
             position: relative; 
             overflow: hidden; 
@@ -229,6 +230,20 @@
             border-radius: 8px;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+        }
+        
+        /* THIS CLASS IS APPLIED DURING EXPORT TO REMOVE SHADOWS & BLANK PAGES */
+        .pdf-mode .invoice-page {
+            margin: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+            page-break-after: always;
+        }
+
+        .pdf-mode .invoice-page:last-child {
+            page-break-after: auto;
         }
         
         .wave-top { 
@@ -245,6 +260,7 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -255,6 +271,34 @@
             justify-content: center; 
             align-items: center; 
             gap: 15px;
+        }
+        
+        .invoice-header-title { 
+            white-space: nowrap; 
+            font-size: 22px; 
+            font-weight: 800; 
+            margin: 0; 
+            color: #ffffff; 
+            letter-spacing: 0.5px; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+        }
+        
+        .content-wrapper { 
+            position: relative; 
+            z-index: 10; 
+            padding: 160px 8% 40px 8%; 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column;
+        }
+
+        /* CUSTOM PADDING CLASSES FOR TABLE ROWS */
+        .py-1-custom { padding-top: 6px !important; padding-bottom: 6px !important; }
+        .py-2-custom { padding-top: 12px !important; padding-bottom: 12px !important; }
+        .py-3-custom { padding-top: 22px !important; padding-bottom: 22px !important; }
+        
+        .custom-table {
+            min-width: 600px; 
         }
         
         .custom-table th { 
@@ -275,6 +319,10 @@
             color: #334155; 
         }
         
+        .totals-section {
+            page-break-inside: avoid; 
+        }
+
         .totals-box { 
             border: 1px solid #cbd5e1; 
             font-size: 13px; 
@@ -304,8 +352,6 @@
         
         .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
         
-        .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
-
         #loading-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); 
@@ -378,7 +424,7 @@
         </div>
     </div>
 
-    <div id="screen-login" class="screen panel" style="margin-top: 10vh; border-top: 6px solid #0b2a5c;">
+    <div id="screen-login" class="screen panel" style="margin-top: 5vh; border-top: 6px solid #0b2a5c;">
         <div class="text-center mb-5">
             <img src="NNlogo-removebg-preview.png" alt="NellaiNaturals Logo" style="width: 120px; height: auto; margin-bottom: 20px;">
             <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
@@ -1269,13 +1315,13 @@
             const roundedGst = Math.round(totalGst);
 
             let chunks = [];
-            if (cart.length <= 12) {
-                chunks.push(cart);
-            } else {
-                for (let i = 0; i < cart.length; i += 10) {
-                    chunks.push(cart.slice(i, i + 10));
-                }
+            const ITEMS_PER_PAGE = 18; // Perfect count to fit safely in 1120px height
+            
+            for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) {
+                chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
             }
+
+            if (chunks.length === 0) chunks.push([]); // Fallback for empty
 
             let html = '';
             const headerClass = type === 'po' ? 'th-po' : '';
@@ -1287,14 +1333,16 @@
 
             chunks.forEach((chunk, cIdx) => {
                 let isLast = cIdx === chunks.length - 1;
-                let pageBreak = cIdx > 0 ? 'html2pdf__page-break' : '';
+                let pageBreak = cIdx > 0 ? 'page-break' : '';
                 
                 let tbody = '';
                 chunk.forEach((item, idx) => {
-                    let actualIdx = (cart.length <= 12) ? idx : (cIdx * 10) + idx;
+                    let actualIdx = (cIdx * ITEMS_PER_PAGE) + idx;
                     let baseAmt = item.qty * item.price; 
                     let gstAmt = baseAmt * (item.gstPercent / 100); 
-                    let padClass = cart.length <= 5 ? 'py-3' : 'py-2';
+                    
+                    // Smart Dynamic Padding
+                    let padClass = cart.length <= 5 ? 'py-3-custom' : (cart.length <= 12 ? 'py-2-custom' : 'py-1-custom');
 
                     tbody += `<tr>
                         <td class="${padClass}">${actualIdx + 1}</td>
@@ -1334,7 +1382,7 @@
                             </div>
                         </div>
                     </div>
-                ` : '';
+                ` : `<div class="mt-auto text-end text-muted font-13 fw-bold pe-4 pt-4 border-top">Continued on next page...</div>`;
 
                 html += `
                 <div class="invoice-page ${pageBreak}">
@@ -1363,7 +1411,7 @@
                         </div>
 
                         <div class="border rounded-3 overflow-hidden ${isLast ? '' : 'mb-4'}" style="border-color:#cbd5e1!important;">
-                            <table class="table custom-table mb-0 ${cart.length > 5 ? 'table-sm' : ''}">
+                            <table class="table custom-table mb-0">
                                 <thead>
                                     <tr>
                                         <th width="5%" class="${headerClass}">#</th>
@@ -1413,7 +1461,7 @@
             
             const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
             
-            // 🌟 GENERATE THE NEW DYNAMIC HTML 🌟
+            // GENERATE HTML BEFORE SAVING
             const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
             document.getElementById("invoice-content").innerHTML = html;
             
@@ -1509,6 +1557,7 @@
                     } 
                 } 
                 
+                // 🌟 FIX: INSTANTLY ASSIGN NEW ID AND SHOW BUTTONS 🌟
                 editingDocId = record.id;
                 
                 let canEditPrev = isAdmin;
@@ -1719,8 +1768,7 @@
             
             const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
             
-            // 🌟 RENDER THE NEW DYNAMIC HTML FOR VIEWING 🌟
-            const { html, roundedGrandTotal } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
+            const { html } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
             document.getElementById("invoice-content").innerHTML = html;
             
             let canEdit = isAdmin;
@@ -2071,28 +2119,21 @@
             });
             
             const element = document.getElementById('invoice-content'); 
-            const oldMargin = element.style.margin;
-            
-            element.style.margin = '0';
-            element.style.width = '800px';
-            element.style.minWidth = '800px';
+            element.classList.add('pdf-mode'); // 🌟 IMPORTANT: Strip shadows for PDF rendering 🌟
             
             const opt = { 
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
             }; 
             
             html2pdf().set(opt).from(element).save().then(() => { 
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
-                element.style.margin = oldMargin;
-                element.style.width = '100%';
-                element.style.minWidth = '750px';
+                element.classList.remove('pdf-mode'); // Restore shadows
                 scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
