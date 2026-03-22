@@ -1,7 +1,7 @@
 {
-  "name": "NellaiNaturals ERP",
-  "short_name": "NellaiNaturals",
-  "start_url": "./index.html",
+  "name": "Sri Totatri ERP",
+  "short_name": "Totatri ERP",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#f0f4f8",
   "theme_color": "#0b2a5c",
@@ -12,7 +12,7 @@
       "type": "image/png"
     },
     {
-      "src": "logo-192.png",
+      "src": "logo-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

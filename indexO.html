@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sri Totatri POS - ERP Edition</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0b2a5c">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NellaiNaturals">
+    <link rel="apple-touch-icon" href="logo-192.png">
+    <link rel="icon" href="logo-192.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        /* GLOBAL UI */
+        body { 
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
+            font-family: 'Inter', sans-serif; 
+            color: #1e293b; 
+            padding-top: 80px; 
+            padding-bottom: 40px;
+            min-height: 100vh;
+            overscroll-behavior-y: contain; 
+        }
+        
+        .screen { 
+            display: none; 
+            opacity: 0; 
+            transition: opacity 0.3s ease-in-out; 
+        }
+        
+        .screen.active { 
+            display: block; 
+            opacity: 1; 
+            animation: slideUp 0.4s ease-out forwards; 
+        }
+        
+        @keyframes slideUp { 
+            from { transform: translateY(15px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+
+        /* TOP APP BAR & HAMBURGER MENU */
+        #app-header {
+            position: fixed; 
+            top: 0; left: 0; width: 100%; 
+            z-index: 9000;
+            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%);
+            padding: 15px 20px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            display: none; 
+        }
+        
+        #app-sidebar {
+            position: fixed; 
+            top: 0; right: -300px; 
+            width: 280px; max-width: 80vw; height: 100%;
+            background: #fff; z-index: 9999; 
+            box-shadow: -5px 0 25px rgba(0,0,0,0.2);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            display: flex; flex-direction: column;
+        }
+        
+        #app-sidebar.open { right: 0; }
+        
+        #sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.6); z-index: 9998; 
+            display: none; backdrop-filter: blur(2px);
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        
+        #sidebar-overlay.open { display: block; opacity: 1; }
+        
+        .nav-btn {
+            background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b;
+            border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600;
+            text-align: left; transition: all 0.2s ease; 
+        }
+        
+        .nav-btn:active { transform: scale(0.98); }
+        
+        .nav-btn.active {
+            background: #f7d047; color: #0b2a5c; border-color: #f7d047; 
+            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3);
+        }
+
+        /* UI ELEMENTS */
+        .panel { 
+            max-width: 650px; 
+            margin: 15px auto 30px auto; 
+            background: #fff; 
+            padding: 30px; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); 
+            border: 1px solid rgba(255,255,255,0.8); 
+        }
+        
+        .form-control, .form-select { 
+            background-color: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            padding: 14px 16px; 
+            font-size: 15px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); 
+        }
+        
+        .form-control:focus, .form-select:focus { 
+            background-color: #fff; 
+            border-color: #0b2a5c; 
+            box-shadow: 0 0 0 4px rgba(11,42,92,0.1); 
+        }
+        
+        .form-label { 
+            font-weight: 600; 
+            color: #64748b; 
+            margin-bottom: 6px; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            font-size: 11px; 
+        }
+        
+        .btn { 
+            border-radius: 12px; 
+            font-weight: 600; 
+            padding: 12px 20px; 
+            transition: all 0.2s; 
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); 
+            border: none; 
+            color: white; 
+            box-shadow: 0 4px 12px rgba(11,42,92,0.25); 
+        }
+        
+        .btn-success { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+            border: none; 
+            color: white; 
+            box-shadow: 0 4px 12px rgba(16,185,129,0.25); 
+        }
+        
+        .btn-warning { 
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+            border: none; 
+            color: white; 
+            box-shadow: 0 4px 12px rgba(245,158,11,0.25); 
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
+            border: none; 
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); 
+        }
+        
+        .list-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 16px; 
+            background: #fff; 
+            margin-bottom: 12px; 
+            border-radius: 16px; 
+            border: 1px solid #f1f5f9; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); 
+        }
+        
+        .history-card { border-left: 5px solid #0b2a5c; }
+        .po-card { border-left: 5px solid #f59e0b; }
+
+        /* CUSTOM MODAL OVERLAYS */
+        .custom-modal-overlay {
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85); 
+            backdrop-filter: blur(4px);
+            z-index: 9999; 
+            display: none; 
+            justify-content: center; 
+            align-items: center;
+        }
+        
+        .custom-modal-content {
+            background: #fff; 
+            width: 90%; 
+            max-width: 450px; 
+            border-radius: 20px;
+            padding: 25px; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        /* MOBILE INVOICE SCROLL WRAPPER */
+        .invoice-scroll-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 10px;
+        }
+
+        /* 🌟 DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
+        .invoice-page {
+            width: 800px;
+            height: 1122px; 
+            margin: 0 auto 25px auto; 
+            background: #fff; 
+            position: relative; 
+            overflow: hidden; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        
+        .pdf-mode .invoice-page {
+            margin: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+            page-break-after: always;
+        }
+
+        .pdf-mode .invoice-page:last-child {
+            page-break-after: auto;
+        }
+        
+        .wave-top { 
+            position: absolute; 
+            top: -50px; 
+            left: -10%; 
+            width: 120%; 
+            height: 180px; 
+            background-color: #0b2a5c; 
+            border-radius: 50% / 100% 100% 0 0; 
+            transform: rotate(180deg); 
+            z-index: 0; 
+        }
+        
+        .wave-po { background-color: #d97706 !important; }
+        
+        .invoice-header-wrapper-abs { 
+            position: absolute; 
+            top: 45px; 
+            left: 0; 
+            right: 0; 
+            z-index: 20; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 15px;
+        }
+        
+        .invoice-header-title { 
+            white-space: nowrap; 
+            font-size: 22px; 
+            font-weight: 800; 
+            margin: 0; 
+            color: #ffffff; 
+            letter-spacing: 0.5px; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+        }
+        
+        .content-wrapper { 
+            position: relative; 
+            z-index: 10; 
+            padding: 160px 8% 40px 8%; 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column;
+        }
+
+        .py-1-custom { padding-top: 6px !important; padding-bottom: 6px !important; }
+        .py-2-custom { padding-top: 12px !important; padding-bottom: 12px !important; }
+        .py-3-custom { padding-top: 22px !important; padding-bottom: 22px !important; }
+        
+        .custom-table {
+            min-width: 600px; 
+        }
+        
+        .custom-table th { 
+            background-color: #0b2a5c !important; 
+            color: white !important; 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            font-weight: 600; 
+            border: none; 
+            padding: 12px; 
+        }
+        
+        .th-po { background-color: #d97706 !important; }
+        
+        .custom-table td { 
+            font-size: 13px; 
+            border-bottom: 1px solid #e2e8f0; 
+            color: #334155; 
+        }
+        
+        .totals-section {
+            page-break-inside: avoid; 
+        }
+
+        .totals-box { 
+            border: 1px solid #cbd5e1; 
+            font-size: 13px; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            background: #f8fafc; 
+        }
+        
+        .totals-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px 12px; 
+            border-bottom: 1px solid #e2e8f0; 
+        }
+        
+        .grand-total-box { 
+            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); 
+            color: white; 
+            padding: 15px 12px; 
+            display: flex; 
+            justify-content: space-between; 
+            font-weight: 800; 
+            font-size: 18px; 
+            border-radius: 8px; 
+            margin-top: 8px; 
+        }
+        
+        .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+        
+        .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
+
+        #loading-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); 
+            z-index: 9999; display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; 
+        }
+        
+        .spinner { 
+            width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); 
+            border-left-color: #0b2a5c; border-radius: 50%; 
+            animation: spin 1s linear infinite; margin-bottom: 15px; 
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Authenticating Security...</div>
+    </div>
+
+    <header id="app-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <div class="d-flex align-items-center">
+                <img src="NNlogo-removebg-preview.png" alt="Logo" style="height: 32px; width: auto; margin-right: 10px;">
+                <div class="fw-bold text-white fs-4" style="letter-spacing: 0.5px;">NellaiNaturals</div>
+            </div>
+            <button class="btn text-white fs-1 p-0 lh-1" onclick="toggleMenu()">☰</button>
+        </div>
+    </header>
+
+    <div id="sidebar-overlay" onclick="toggleMenu()"></div>
+    <div id="app-sidebar">
+        <div class="p-4 border-bottom d-flex justify-content-between align-items-center" style="background: #f8fafc;">
+            <div class="fw-bold fs-5" style="color: #0b2a5c;">Menu Options</div>
+            <button class="btn-close" onclick="toggleMenu()"></button>
+        </div>
+        <div class="d-flex flex-column p-4 gap-3 flex-grow-1 overflow-y-auto">
+            <button onclick="switchScreen('screen-history')" id="nav-history" class="nav-btn active">🧾 Sales Invoices</button>
+            <button onclick="switchScreen('screen-po-history')" id="nav-po-history" class="nav-btn">📦 Purchase Orders</button>
+            <button onclick="switchScreen('screen-customers')" id="nav-customers" class="nav-btn">👥 Business Directory</button>
+            <button onclick="switchScreen('screen-products')" id="nav-products" class="nav-btn">🛒 Master Inventory</button>
+            
+            <div class="mt-auto pt-4 border-top">
+                <button onclick="promptLogout()" class="btn btn-danger w-100 btn-lg fw-bold shadow-sm">Exit Application</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-alert-modal" class="custom-modal-overlay" style="z-index: 10005;">
+        <div class="custom-modal-content text-center">
+            <div id="custom-alert-icon" class="mb-3 fs-1">⚠️</div>
+            <h5 class="fw-bold mb-3" id="custom-alert-title" style="color: #0b2a5c;">Notice</h5>
+            <p class="text-muted mb-4" id="custom-alert-message"></p>
+            <button class="btn btn-primary w-100 shadow-sm" onclick="closeCustomAlert()">Got it</button>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="custom-modal-overlay" style="z-index: 10005;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">⚠️</div>
+            <h5 class="fw-bold mb-3 text-danger">Please Confirm</h5>
+            <p class="text-muted mb-4" id="custom-confirm-message"></p>
+            <div class="d-flex gap-2">
+                <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeCustomConfirm()">Cancel</button>
+                <button class="btn btn-danger w-50 fw-bold shadow-sm" id="custom-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-reason-modal" class="custom-modal-overlay" style="z-index: 10006;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">🗑️</div>
+            <h5 class="fw-bold mb-3 text-danger" id="delete-reason-title">Delete Document</h5>
+            <p class="text-muted mb-3 font-13" id="delete-reason-text"></p>
+            <textarea id="delete-reason-input" class="form-control mb-4" rows="3" placeholder="Enter reason for deletion..."></textarea>
+            <input type="hidden" id="delete-target-id">
+            <input type="hidden" id="delete-target-type">
+            <div class="d-flex gap-2">
+                <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeDeleteReasonModal()">Cancel</button>
+                <button class="btn btn-danger w-50 fw-bold shadow-sm" onclick="confirmDeleteWithReason()">Confirm Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-reason-modal" class="custom-modal-overlay" style="z-index: 10006;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">💬</div>
+            <h5 class="fw-bold mb-3" style="color: #0b2a5c;">Deletion Reason</h5>
+            <div class="p-3 bg-light rounded-3 text-start mb-4 border" style="border-color: #e2e8f0 !important;">
+                <p class="mb-0 text-dark fw-medium font-13" id="view-reason-text" style="white-space: pre-wrap;"></p>
+            </div>
+            <button class="btn btn-primary w-100 shadow-sm fw-bold" onclick="closeViewReasonModal()">Close</button>
+        </div>
+    </div>
+
+    <div id="screen-login" class="screen panel" style="margin-top: 5vh; border-top: 6px solid #0b2a5c;">
+        <div class="text-center mb-5">
+            <img src="NNlogo-removebg-preview.png" alt="NellaiNaturals Logo" style="width: 120px; height: auto; margin-bottom: 20px;">
+            <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
+            <p class="text-muted small">Secure Wholesale Management</p>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="login-email" class="form-control form-control-lg">
+        </div>
+        <div class="mb-4">
+            <label class="form-label">Password</label>
+            <input type="password" id="login-password" class="form-control form-control-lg">
+        </div>
+        <button class="btn btn-primary btn-lg w-100 mb-3" onclick="login()">Sign In Securely</button>
+        <div class="d-flex align-items-center my-4">
+            <div class="flex-grow-1 border-top" style="border-color: #e2e8f0;"></div>
+            <span class="px-3 text-muted small fw-bold">OR</span>
+            <div class="flex-grow-1 border-top" style="border-color: #e2e8f0;"></div>
+        </div>
+        <button class="btn btn-outline-dark btn-lg w-100" style="background: #fff; border: 1px solid #cbd5e1;" onclick="loginWithGoogle()">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 20px; margin-right: 8px; margin-top: -2px;" crossorigin="anonymous"> Continue with Google
+        </button>
+        <p id="login-error" class="text-danger mt-3 text-center small fw-bold"></p>
+    </div>
+
+    <div id="screen-history" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Sales Invoices</h3>
+            <button id="btn-new-sale" class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ New Sale</button>
+        </div>
+        <div id="history-list"></div>
+    </div>
+
+    <div id="screen-po-history" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #d97706;">Purchase Orders</h3>
+            <button id="btn-new-po" class="btn btn-sm btn-warning" onclick="openNewPO()">+ New PO</button>
+        </div>
+        <div id="po-list"></div>
+    </div>
+
+    <div id="screen-customers" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Directory</h3>
+            <button id="btn-add-customer" class="btn btn-sm btn-primary" onclick="editCustomer('new')">+ Add Entity</button>
+        </div>
+        <div id="customer-form-container" class="bg-light p-4 rounded-4 mb-4" style="display:none; border: 1px solid #e2e8f0;">
+            <h5 class="fw-bold mb-3 pb-2 border-bottom">Entity Details</h5>
+            <input type="hidden" id="cust-id">
+            <div class="mb-3">
+                <label class="form-label">Business Name</label>
+                <input type="text" id="cust-name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Full Address</label>
+                <textarea id="cust-address" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <label class="form-label">GSTIN</label>
+                    <input type="text" id="cust-gstin" class="form-control">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">State Code</label>
+                    <input type="number" id="cust-state" class="form-control">
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success flex-grow-1" onclick="saveCustomer()">Save to Cloud</button>
+                <button class="btn btn-outline-secondary" style="background: #fff;" onclick="cancelCustomerEdit()">Cancel</button>
+            </div>
+        </div>
+        <div id="customers-list"></div>
+    </div>
+
+    <div id="screen-products" class="screen panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Inventory</h3>
+            <button id="btn-add-product" class="btn btn-sm btn-primary" onclick="editProduct('new')">+ New Item</button>
+        </div>
+        <div id="product-form-container" class="bg-light p-4 rounded-4 mb-4" style="display:none; border: 1px solid #e2e8f0;">
+            <h5 class="fw-bold mb-3 pb-2 border-bottom">Product Details</h5>
+            <input type="hidden" id="prod-id">
+            <div class="mb-3">
+                <label class="form-label">Product Name</label>
+                <input type="text" id="prod-name" class="form-control">
+            </div>
+            
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label">Wholesale Price (₹)</label>
+                    <input type="number" step="0.01" id="prod-price" class="form-control" placeholder="Selling Price">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Purchase Price (₹)</label>
+                    <input type="number" step="0.01" id="prod-purchase-price" class="form-control" placeholder="Buying Price">
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-4">
+                    <label class="form-label">GST (%)</label>
+                    <input type="number" id="prod-gst" class="form-control">
+                </div>
+                <div class="col-4">
+                    <label class="form-label">Min. Qty</label>
+                    <input type="number" id="prod-moq" class="form-control">
+                </div>
+                <div class="col-4">
+                    <label class="form-label text-primary">In Stock</label>
+                    <input type="number" id="prod-stock" class="form-control" placeholder="0">
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success flex-grow-1" onclick="saveProduct()">Save to Cloud</button>
+                <button class="btn btn-outline-secondary" style="background: #fff;" onclick="cancelProductEdit()">Cancel</button>
+            </div>
+        </div>
+        <div id="products-list"></div>
+    </div>
+
+    <div id="screen-builder" class="screen panel">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
+                <p class="text-muted small mb-0" id="editing-invoice-label">Drafting document...</p>
+            </div>
+            <button id="btn-delete-invoice" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="promptDeleteInvoice()">🗑️ Delete</button>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-7">
+                <label class="form-label">Billed To</label>
+                <select id="customer-select" class="form-select"></select>
+            </div>
+            <div class="col-5">
+                <label class="form-label">Date</label>
+                <input type="date" id="inv-date-input" class="form-control">
+            </div>
+        </div>
+        
+        <div class="p-3 bg-light rounded-4 mb-4 border" style="border-color: #e2e8f0 !important;">
+            <label class="form-label">Add Items</label>
+            <div class="row g-2">
+                <div class="col-12">
+                    <select id="product-select" class="form-select" onchange="autoFillInvoicePrice()"></select>
+                </div>
+                <div class="col-4">
+                    <input type="number" step="0.01" id="inv-price-input" class="form-control" placeholder="Price">
+                </div>
+                <div class="col-4">
+                    <input type="number" step="0.1" id="inv-gst-input" class="form-control" placeholder="GST %">
+                </div>
+                <div class="col-4">
+                    <input type="number" id="qty-input" class="form-control" placeholder="Qty">
+                </div>
+                <div class="col-12">
+                    <button onclick="addItemToCart()" class="btn btn-primary w-100 fw-bold shadow-sm">+ Add to Invoice</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <h6 class="fw-bold m-0" style="color: #0b2a5c;">Shopping Cart</h6>
+            <span class="badge bg-secondary rounded-pill px-3 py-2" id="cart-count">0 items</span>
+        </div>
+        <div id="cart-container" class="mb-4"></div>
+        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
+    </div>
+
+    <div id="screen-po-builder" class="screen panel">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h3 class="fw-bold mb-1" style="color: #d97706;" id="po-builder-title">Purchase Order</h3>
+                <p class="text-muted small mb-0" id="po-editing-label">Drafting PO...</p>
+            </div>
+            <button id="btn-delete-po" class="btn btn-danger btn-sm px-3 shadow-sm" style="display: none;" onclick="promptDeletePO()">🗑️ Delete</button>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-7">
+                <label class="form-label">Vendor Name</label>
+                <select id="po-vendor-select" class="form-select"></select>
+            </div>
+            <div class="col-5">
+                <label class="form-label">PO Date</label>
+                <input type="date" id="po-date-input" class="form-control">
+            </div>
+        </div>
+        
+        <div class="p-3 bg-light rounded-4 mb-4 border" id="po-add-item-panel" style="border-color: #e2e8f0 !important;">
+            <label class="form-label">Add Items to Purchase</label>
+            <div class="row g-2">
+                <div class="col-12">
+                    <select id="po-product-select" class="form-select" onchange="autoFillPoPrice()"></select>
+                </div>
+                <div class="col-4">
+                    <input type="number" step="0.01" id="po-price-input" class="form-control" placeholder="Price">
+                </div>
+                <div class="col-4">
+                    <input type="number" step="0.1" id="po-gst-input" class="form-control" placeholder="GST %">
+                </div>
+                <div class="col-4">
+                    <input type="number" id="po-qty-input" class="form-control" placeholder="Qty">
+                </div>
+                <div class="col-12">
+                    <button onclick="addPoItemToCart()" class="btn btn-warning w-100 fw-bold shadow-sm">+ Add to PO</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <h6 class="fw-bold m-0" style="color: #d97706;">Order List</h6>
+            <span class="badge bg-secondary rounded-pill px-3 py-2" id="po-cart-count">0 items</span>
+        </div>
+        <div id="po-cart-container" class="mb-4"></div>
+        <button id="btn-save-po" onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
+    </div>
+
+    <div id="screen-preview" class="screen">
+        <div class="text-center my-4" id="app-controls">
+            <button id="btn-delete-preview" onclick="promptDeleteFromPreview()" class="btn btn-danger shadow-sm me-2 px-3" style="display: none;">🗑️ Delete</button>
+            <button id="btn-edit-preview" onclick="editCurrentDocument()" class="btn btn-outline-secondary bg-white shadow-sm me-2 px-4">✏️ Edit</button>
+            <button onclick="downloadPDF()" class="btn btn-primary shadow-sm px-4">📄 Download PDF</button>
+        </div>
+        
+        <div id="payout-status-container" class="panel text-center mt-0 mb-4 py-3" style="display:none; max-width: 800px; border: 2px solid #e2e8f0;">
+            <h5 class="fw-bold mb-2">Payment Status</h5>
+            <div id="payout-details-display"></div>
+        </div>
+
+        <div class="invoice-scroll-wrapper">
+            <div id="invoice-content">
+                </div>
+        </div>
+    </div>
+
+    <div id="payout-modal" class="custom-modal-overlay">
+        <div class="custom-modal-content">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold m-0" style="color:#0b2a5c;">Record Payment</h4>
+                <button class="btn-close" onclick="closePayoutModal()"></button>
+            </div>
+            <p class="small text-muted mb-4">Upload a screenshot of the transaction receipt.</p>
+            
+            <input type="hidden" id="payout-po-id">
+            
+            <div class="mb-3">
+                <label class="form-label">Transaction Date</label>
+                <input type="date" id="payout-date" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Reference Number (UTR/UPI)</label>
+                <input type="text" id="payout-ref" class="form-control" placeholder="e.g., UPI123456789">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Amount Paid (₹)</label>
+                <input type="number" id="payout-amount" class="form-control" placeholder="0.00">
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Receipt Image</label>
+                <input type="file" id="payout-image" class="form-control" accept="image/*">
+            </div>
+            
+            <button class="btn btn-success w-100 btn-lg" onclick="savePayout()" id="btn-save-payout">Confirm & Lock Payment</button>
+        </div>
+    </div>
+
+    <div id="receipt-viewer-modal" class="custom-modal-overlay" onclick="closeReceiptViewer()" style="z-index: 10000;">
+        <div class="text-center" style="max-width: 95vw; position: relative;" onclick="event.stopPropagation()">
+            <button class="btn-close btn-close-white position-absolute top-0 end-0 m-2" onclick="closeReceiptViewer()" style="z-index: 10001; background-color: rgba(0,0,0,0.6); padding: 10px; border-radius: 50%;"></button>
+            <img id="receipt-viewer-img" src="" alt="Receipt" style="max-width: 100%; max-height: 80vh; border-radius: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+            <button class="btn btn-light mt-4 fw-bold px-4 shadow" onclick="closeReceiptViewer()">Close Image</button>
+        </div>
+    </div>
+
+    <script>
+        // ========================================================
+        // 🔒 ADMIN CONFIGURATION
+        // Add your admin email(s) inside this array.
+        // ========================================================
+        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "murali@nellainaturals.com"];
+
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
+            authDomain: "geninv-9583c.firebaseapp.com",
+            projectId: "geninv-9583c",
+            storageBucket: "geninv-9583c.firebasestorage.app",
+            messagingSenderId: "1001857058399",
+            appId: "1:1001857058399:web:8b36dcce49ef0cf6747dea"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth(); 
+
+        let appData = { 
+            inventory: [], 
+            customers: [], 
+            history: [], 
+            purchaseOrders: [], 
+            lastInvoiceNum: 22, 
+            lastPoNum: 5 
+        };
+        
+        const SELLER_STATE = 33; 
+        
+        let currentCart = []; 
+        let editingDocId = null; 
+        let tempDocNumber = ""; 
+        let tempDocDate = "";
+        let currentDocType = "invoice"; 
+        
+        let isAdmin = false;
+
+        // --- MENU TOGGLE LOGIC ---
+        function toggleMenu() {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                overlay.style.opacity = '0';
+                setTimeout(() => { overlay.style.display = 'none'; }, 300);
+            } else {
+                overlay.style.display = 'block';
+                setTimeout(() => { 
+                    overlay.style.opacity = '1'; 
+                    sidebar.classList.add('open');
+                }, 10);
+            }
+        }
+
+        // --- UTILITIES FOR DATES ---
+        function getLocalYMD(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function createDateFromYMD(ymdStr) {
+            if (!ymdStr) return new Date();
+            const parts = ymdStr.split('-');
+            if (parts.length === 3) {
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+            return new Date();
+        }
+
+        // --- CUSTOM ALERTS & CONFIRMS ---
+        function showCustomAlert(message, title = "Notice", icon = "⚠️") {
+            document.getElementById("custom-alert-message").innerText = message;
+            document.getElementById("custom-alert-title").innerText = title;
+            document.getElementById("custom-alert-icon").innerText = icon;
+            document.getElementById("custom-alert-modal").style.display = "flex";
+        }
+
+        function closeCustomAlert() {
+            document.getElementById("custom-alert-modal").style.display = "none";
+        }
+
+        let confirmCallback = null;
+        function showCustomConfirm(message, callback, btnText = "Yes, Confirm") {
+            document.getElementById("custom-confirm-message").innerText = message;
+            confirmCallback = callback;
+            document.getElementById("custom-confirm-btn").innerText = btnText;
+            document.getElementById("custom-confirm-modal").style.display = "flex";
+            
+            document.getElementById("custom-confirm-btn").onclick = function() {
+                if(confirmCallback) confirmCallback(); 
+                closeCustomConfirm();
+            };
+        }
+
+        function closeCustomConfirm() {
+            document.getElementById("custom-confirm-modal").style.display = "none";
+            confirmCallback = null; 
+        }
+
+        // --- 🌟 NEW: DELETE REASON LOGIC 🌟 ---
+        function closeDeleteReasonModal() {
+            document.getElementById("delete-reason-modal").style.display = "none";
+        }
+        
+        function confirmDeleteWithReason() {
+            const reason = document.getElementById("delete-reason-input").value.trim();
+            if(!reason) {
+                showCustomAlert("Please enter a reason for deletion.", "Required", "⚠️");
+                return;
+            }
+            const targetId = document.getElementById("delete-target-id").value;
+            const type = document.getElementById("delete-target-type").value;
+            
+            closeDeleteReasonModal();
+            
+            if (type === 'invoice') {
+                executeDeleteInvoice(targetId, reason);
+            } else if (type === 'po') {
+                executeDeletePO(targetId, reason);
+            }
+        }
+        
+        function showDeleteReason(id, type) {
+            let doc;
+            if (type === 'invoice') doc = appData.history.find(x => x.id === id);
+            else if (type === 'po') doc = appData.purchaseOrders.find(x => x.id === id);
+            
+            document.getElementById("view-reason-text").innerText = doc && doc.deleteReason ? doc.deleteReason : "No reason provided.";
+            document.getElementById("view-reason-modal").style.display = "flex";
+        }
+
+        function closeViewReasonModal() {
+            document.getElementById("view-reason-modal").style.display = "none";
+        }
+
+        // --- AUTHENTICATION & APP EXIT TRAP ---
+        let backTrapSetup = false;
+        let exitConfirmed = false;
+
+        function ensureBackTrap() {
+            if (!backTrapSetup) {
+                window.history.pushState({ page: 'base' }, "");
+                window.history.pushState({ page: 'main' }, "");
+                window.addEventListener('popstate', handleBackButton);
+                backTrapSetup = true;
+            }
+        }
+
+        document.body.addEventListener('click', () => { 
+            if (auth.currentUser) ensureBackTrap(); 
+        }, { once: true });
+        
+        document.body.addEventListener('touchstart', () => { 
+            if (auth.currentUser) ensureBackTrap(); 
+        }, { once: true });
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+                
+                document.getElementById('app-header').style.display = 'block'; 
+                document.getElementById('screen-login').classList.remove('active'); 
+                document.getElementById('loading-overlay').style.display = 'flex';
+                document.getElementById('loading-text').innerText = isAdmin ? "Loading Admin ERP..." : "Loading Read-Only View...";
+                
+                applyRolePermissions();
+                fetchCloudData();
+                ensureBackTrap(); 
+            } else {
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('app-header').style.display = 'none'; 
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-login').classList.add('active');
+            }
+        });
+
+        function handleBackButton(event) {
+            if (exitConfirmed) return; 
+
+            window.history.pushState({ page: 'main' }, "");
+
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) {
+                toggleMenu();
+                return;
+            }
+
+            const activeScreen = document.querySelector('.screen.active');
+            if (!activeScreen) return;
+
+            if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-po-builder' || activeScreen.id === 'screen-preview') {
+                switchScreen(currentDocType === 'po' ? 'screen-po-history' : 'screen-history');
+            } else {
+                showCustomConfirm("Are you sure you want to close the app?", function() {
+                    exitConfirmed = true;
+                    window.history.go(-2); 
+                }, "Yes, Exit");
+            }
+        }
+
+        function applyRolePermissions() {
+            document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none';
+        }
+
+        function login() { 
+            const email = document.getElementById('login-email').value; 
+            const pass = document.getElementById('login-password').value; 
+            document.getElementById('login-error').innerText = "Authenticating..."; 
+            
+            auth.signInWithEmailAndPassword(email, pass).catch(error => { 
+                document.getElementById('login-error').innerText = error.message; 
+            }); 
+        }
+
+        function loginWithGoogle() { 
+            document.getElementById('login-error').innerText = "Opening Google Login..."; 
+            const provider = new firebase.auth.GoogleAuthProvider(); 
+            
+            auth.signInWithPopup(provider).catch(error => { 
+                document.getElementById('login-error').innerText = "Error: " + error.message; 
+            }); 
+        }
+
+        function promptLogout() {
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) toggleMenu();
+            
+            showCustomConfirm("Are you sure you want to log out of your account?", logout, "Yes, Logout");
+        }
+
+        function logout() { 
+            auth.signOut(); 
+        }
+
+        // --- CLOUD DATA FETCHING ---
+        async function fetchCloudData() {
+            try {
+                const metaDoc = await db.collection("metadata").doc("invoiceData").get();
+                if (metaDoc.exists) { 
+                    appData.lastInvoiceNum = metaDoc.data().lastNum || 22; 
+                    appData.lastPoNum = metaDoc.data().lastPoNum || 5; 
+                } else { 
+                    await db.collection("metadata").doc("invoiceData").set({ lastNum: 22, lastPoNum: 5 }); 
+                }
+
+                const invSnap = await db.collection("inventory").get(); 
+                appData.inventory = invSnap.docs.map(doc => doc.data());
+                
+                const custSnap = await db.collection("customers").get(); 
+                appData.customers = custSnap.docs.map(doc => doc.data());
+                
+                const histSnap = await db.collection("history").orderBy("timestamp", "desc").get(); 
+                appData.history = histSnap.docs.map(doc => doc.data());
+                
+                const poSnap = await db.collection("purchaseOrders").orderBy("timestamp", "desc").get(); 
+                appData.purchaseOrders = poSnap.docs.map(doc => {
+                    let data = doc.data();
+                    if (!data.status) data.status = 'converted';
+                    return data;
+                });
+
+                document.getElementById('loading-overlay').style.display = 'none';
+                switchScreen('screen-history'); 
+                
+                renderCustomerList(); 
+                renderProductList(); 
+                renderHistoryList(); 
+                renderPOList(); 
+                populateDropdowns();
+            } catch (error) {
+                console.error("Error connecting to Firebase:", error);
+                document.getElementById('loading-text').innerText = "Database error. Please refresh.";
+                document.querySelector('.spinner').style.display = 'none';
+            }
+        }
+
+        // --- NAVIGATION ---
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(screenId).classList.add('active');
+            
+            const navBtn = document.getElementById(`nav-${screenId.replace('screen-','')}`);
+            if(navBtn) navBtn.classList.add('active');
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar.classList.contains('open')) toggleMenu();
+        }
+
+        // --- CUSTOMER DIRECTORY ---
+        function renderCustomerList() { 
+            const list = document.getElementById("customers-list");
+            list.innerHTML = appData.customers.map(c => `
+                <div class="list-item">
+                    <div>
+                        <strong style="color:#0b2a5c;">${c.name}</strong><br>
+                        <small class="text-muted">GST: ${c.gstin}</small>
+                    </div>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
+                </div>
+            `).join(''); 
+            populateDropdowns(); 
+        }
+
+        function editCustomer(id) { 
+            if(!isAdmin) return;
+            const formContainer = document.getElementById('customer-form-container');
+            formContainer.style.display = 'block'; 
+            document.getElementById('btn-add-customer').style.display = 'none';
+            
+            if (id === 'new') { 
+                document.getElementById('cust-id').value = 'new'; 
+                document.getElementById('cust-name').value = ''; 
+                document.getElementById('cust-address').value = ''; 
+                document.getElementById('cust-gstin').value = ''; 
+                document.getElementById('cust-state').value = '33'; 
+            } else { 
+                const c = appData.customers.find(x => x.id === id); 
+                document.getElementById('cust-id').value = c.id; 
+                document.getElementById('cust-name').value = c.name; 
+                document.getElementById('cust-address').value = c.address.replace(/<br>/g, '\n'); 
+                document.getElementById('cust-gstin').value = c.gstin; 
+                document.getElementById('cust-state').value = isNaN(c.stateCode) ? "" : c.stateCode; 
+            }
+            setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
+        }
+
+        async function saveCustomer() { 
+            if(!isAdmin) return;
+            const id = document.getElementById('cust-id').value; 
+            const name = document.getElementById('cust-name').value; 
+            const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); 
+            const gstin = document.getElementById('cust-gstin').value; 
+            const stateCode = parseInt(document.getElementById('cust-state').value); 
+            
+            if (!name) return showCustomAlert("Please enter a business name."); 
+            
+            const c = { id: id === 'new' ? 'c' + Date.now() : id, name, address, gstin, stateCode }; 
+            
+            await db.collection("customers").doc(c.id).set(c); 
+            
+            if (id === 'new') {
+                appData.customers.push(c); 
+            } else { 
+                const idx = appData.customers.findIndex(x => x.id === id); 
+                appData.customers[idx] = c; 
+            } 
+            
+            cancelCustomerEdit(); 
+            renderCustomerList(); 
+        }
+
+        function cancelCustomerEdit() { 
+            document.getElementById('customer-form-container').style.display = 'none'; 
+            document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; 
+        }
+
+        // --- PRODUCT INVENTORY (WITH STOCK) ---
+        function renderProductList() { 
+            const list = document.getElementById("products-list");
+            list.innerHTML = appData.inventory.map(p => { 
+                let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
+                let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
+                let stockDisplay = p.inStock ? p.inStock : 0;
+                
+                return `
+                <div class="list-item">
+                    <div>
+                        <strong style="color:#0b2a5c;">${p.name}</strong><br>
+                        <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small><br>
+                        <span class="badge ${stockDisplay > 0 ? 'bg-success' : 'bg-danger'} mt-1">In Stock: ${stockDisplay}</span>
+                    </div>
+                    ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
+                </div>`; 
+            }).join(''); 
+            populateDropdowns(); 
+        }
+
+        function editProduct(id) { 
+            if(!isAdmin) return;
+            const formContainer = document.getElementById('product-form-container');
+            formContainer.style.display = 'block'; 
+            document.getElementById('btn-add-product').style.display = 'none';
+            
+            if (id === 'new') { 
+                document.getElementById('prod-id').value = 'new'; 
+                document.getElementById('prod-name').value = ''; 
+                document.getElementById('prod-price').value = ''; 
+                document.getElementById('prod-purchase-price').value = '';
+                document.getElementById('prod-gst').value = '5'; 
+                document.getElementById('prod-moq').value = '1'; 
+                document.getElementById('prod-stock').value = '0';
+            } else { 
+                const p = appData.inventory.find(x => x.id === id); 
+                document.getElementById('prod-id').value = p.id; 
+                document.getElementById('prod-name').value = p.name; 
+                document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; 
+                document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
+                document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
+                document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
+                document.getElementById('prod-stock').value = isNaN(p.inStock) ? "0" : p.inStock; 
+            } 
+            setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
+        }
+
+        async function saveProduct() { 
+            if(!isAdmin) return;
+            const id = document.getElementById('prod-id').value; 
+            const name = document.getElementById('prod-name').value; 
+            const price = parseFloat(document.getElementById('prod-price').value); 
+            const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
+            const gst = parseFloat(document.getElementById('prod-gst').value); 
+            const moq = parseInt(document.getElementById('prod-moq').value); 
+            const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
+            
+            if (!name) return showCustomAlert("Please enter a product name."); 
+            if (isNaN(price) || price <= 0) return showCustomAlert("Please enter a valid wholesale selling price."); 
+            
+            const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock }; 
+            if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
+            
+            await db.collection("inventory").doc(p.id).set(p); 
+            
+            if (id === 'new') {
+                appData.inventory.push(p); 
+            } else { 
+                const idx = appData.inventory.findIndex(x => x.id === id); 
+                appData.inventory[idx] = p; 
+            } 
+            
+            cancelProductEdit(); 
+            renderProductList(); 
+        }
+
+        function cancelProductEdit() { 
+            document.getElementById('product-form-container').style.display = 'none'; 
+            document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none'; 
+        }
+
+        // --- DROPDOWNS ---
+        function populateDropdowns() { 
+            const custHtml = `<option value="">-- Select --</option>` + appData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById("customer-select").innerHTML = custHtml; 
+            document.getElementById("po-vendor-select").innerHTML = custHtml;
+            
+            const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
+            document.getElementById("product-select").innerHTML = prodHtml; 
+            document.getElementById("po-product-select").innerHTML = prodHtml;
+        }
+
+        // --- BUILDER: SALES INVOICE ---
+        function openNewInvoice() { 
+            if(!isAdmin) return;
+            currentDocType = "invoice"; 
+            editingDocId = null; 
+            currentCart = []; 
+            
+            document.getElementById("customer-select").value = ""; 
+            document.getElementById("builder-title").innerText = "New Sales Invoice"; 
+            document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
+            document.getElementById("btn-delete-invoice").style.display = "none";
+            
+            const d = new Date(); 
+            tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
+            
+            document.getElementById("inv-date-input").value = getLocalYMD(d);
+            
+            renderCartUI('invoice'); 
+            switchScreen('screen-builder'); 
+        }
+
+        function autoFillInvoicePrice() {
+            const pid = document.getElementById("product-select").value;
+            if (!pid) return;
+            const product = appData.inventory.find(p => p.id === pid);
+            document.getElementById("inv-price-input").value = product.price || 0;
+            document.getElementById("inv-gst-input").value = product.gstPercent || 0;
+        }
+
+        function addItemToCart() { 
+            if(!isAdmin) return;
+            const pid = document.getElementById("product-select").value; 
+            const qty = parseInt(document.getElementById("qty-input").value); 
+            const customPrice = parseFloat(document.getElementById("inv-price-input").value);
+            const customGst = parseFloat(document.getElementById("inv-gst-input").value);
+            
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
+            
+            const product = appData.inventory.find(p => p.id === pid); 
+            if (qty < product.moq) return showCustomAlert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
+            
+            let availableStock = product.inStock || 0;
+            
+            if (editingDocId) {
+                const oldDoc = appData.history.find(h => h.id === editingDocId);
+                if (oldDoc && oldDoc.cart) {
+                    const oldItem = oldDoc.cart.find(i => i.id === pid);
+                    if (oldItem) {
+                        availableStock += oldItem.qty; 
+                    }
+                }
+            }
+            
+            const existing = currentCart.find(item => item.id === pid); 
+            const currentCartQty = existing ? existing.qty : 0;
+            
+            if ((currentCartQty + qty) > availableStock) {
+                return showCustomAlert("Available quantity is less than your need. Place a Purchase order and then create invoice.", "Out of Stock", "📦");
+            }
+            
+            if (existing) {
+                existing.qty += qty; 
+                existing.price = customPrice; 
+                existing.gstPercent = customGst; 
+            } else {
+                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
+            }
+            
+            document.getElementById("qty-input").value = ""; 
+            document.getElementById("inv-price-input").value = ""; 
+            document.getElementById("inv-gst-input").value = ""; 
+            document.getElementById("product-select").value = "";
+            renderCartUI('invoice'); 
+        }
+
+        // --- BUILDER: PURCHASE ORDER ---
+        function openNewPO() { 
+            if(!isAdmin) return;
+            currentDocType = "po"; 
+            editingDocId = null; 
+            currentCart = []; 
+            
+            document.getElementById("po-vendor-select").value = ""; 
+            document.getElementById("po-vendor-select").disabled = false; 
+            document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-gst-input").value = ""; 
+            document.getElementById("po-builder-title").innerText = "New Purchase Order"; 
+            document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
+            
+            document.getElementById("btn-delete-po").style.display = "none";
+            document.getElementById("po-add-item-panel").style.display = "block";
+            document.getElementById("btn-save-po").style.display = "block";
+            
+            const d = new Date(); 
+            tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
+            
+            document.getElementById("po-date-input").value = getLocalYMD(d);
+            
+            renderCartUI('po'); 
+            switchScreen('screen-po-builder'); 
+        }
+
+        function autoFillPoPrice() {
+            const pid = document.getElementById("po-product-select").value; 
+            if(!pid) return;
+            const product = appData.inventory.find(p => p.id === pid);
+            document.getElementById("po-price-input").value = product.purchasePrice || product.price; 
+            document.getElementById("po-gst-input").value = product.gstPercent || 0; 
+        }
+
+        function addPoItemToCart() { 
+            if(!isAdmin) return;
+            const pid = document.getElementById("po-product-select").value; 
+            const qty = parseInt(document.getElementById("po-qty-input").value); 
+            const customPrice = parseFloat(document.getElementById("po-price-input").value);
+            const customGst = parseFloat(document.getElementById("po-gst-input").value);
+            
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
+            
+            const product = appData.inventory.find(p => p.id === pid); 
+            const existing = currentCart.find(item => item.id === pid); 
+            
+            if (existing) { 
+                existing.qty += qty; 
+                existing.price = customPrice; 
+                existing.gstPercent = customGst;
+            } else { 
+                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
+            } 
+            
+            document.getElementById("po-qty-input").value = ""; 
+            document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-gst-input").value = ""; 
+            document.getElementById("po-product-select").value = ""; 
+            renderCartUI('po'); 
+        }
+
+        // --- SHARED CART & PREVIEW LOGIC ---
+        function removeCartItem(idx, type) { 
+            currentCart.splice(idx, 1); 
+            renderCartUI(type); 
+        }
+
+        function renderCartUI(type) { 
+            const containerId = type === 'po' ? "po-cart-container" : "cart-container"; 
+            const countId = type === 'po' ? "po-cart-count" : "cart-count"; 
+            const themeColor = type === 'po' ? "#d97706" : "#0b2a5c";
+            
+            let isLocked = false;
+            if (type === 'po' && editingDocId) {
+                const po = appData.purchaseOrders.find(p => p.id === editingDocId);
+                if (po && po.status === 'converted') isLocked = true;
+            }
+            
+            document.getElementById(countId).innerText = `${currentCart.length} items`; 
+            
+            if(currentCart.length === 0) { 
+                document.getElementById(containerId).innerHTML = `<div class="text-center p-4 text-muted small border rounded-4 bg-light">Cart is empty.</div>`; 
+                return; 
+            }
+            
+            document.getElementById(containerId).innerHTML = currentCart.map((item, idx) => `
+                <div class="list-item">
+                    <div>
+                        <div class="fw-bold" style="color:${themeColor};">${item.name}</div>
+                        <div class="text-muted small fw-medium mt-1">Qty: ${item.qty} &nbsp;|&nbsp; @ ₹${item.price.toFixed(2)} (${item.gstPercent}%)</div>
+                    </div>
+                    ${!isLocked ? `<button class="btn btn-sm btn-light text-danger fw-bold shadow-sm" onclick="removeCartItem(${idx}, '${type}')">X</button>` : ''}
+                </div>
+            `).join(''); 
+        }
+
+        // 🌟 NEW DYNAMIC HTML RENDER ENGINE FOR A4 PDF 🌟
+        function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
+            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
+            cart.forEach((item) => { 
+                let baseAmt = item.qty * item.price; 
+                let gstAmt = baseAmt * (item.gstPercent / 100); 
+                subTotal += baseAmt; 
+                totalGst += gstAmt; 
+                mainGstRate = item.gstPercent; 
+            }); 
+            const exactGrandTotal = subTotal + totalGst; 
+            const roundedGrandTotal = Math.round(exactGrandTotal); 
+            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
+            const roundedGst = Math.round(totalGst);
+
+            let chunks = [];
+            const ITEMS_PER_PAGE = 18; 
+            
+            for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) {
+                chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
+            }
+
+            if (chunks.length === 0) chunks.push([]); 
+
+            let html = '';
+            const headerClass = type === 'po' ? 'th-po' : '';
+            const waveClass = type === 'po' ? 'wave-po' : '';
+            const titleColor = type === 'po' ? '#d97706' : '#0b2a5c';
+            const titleText = type === 'po' ? 'PURCHASE ORDER' : 'INVOICE';
+            const billToLabel = type === 'po' ? 'VENDOR' : 'BILL TO';
+            const billFromLabel = type === 'po' ? 'PURCHASER' : 'BILL FROM';
+
+            chunks.forEach((chunk, cIdx) => {
+                let isLast = cIdx === chunks.length - 1;
+                let pageBreak = cIdx > 0 ? 'page-break' : '';
+                
+                let tbody = '';
+                chunk.forEach((item, idx) => {
+                    let actualIdx = (cIdx * ITEMS_PER_PAGE) + idx;
+                    let baseAmt = item.qty * item.price; 
+                    let gstAmt = baseAmt * (item.gstPercent / 100); 
+                    
+                    let padClass = cart.length <= 5 ? 'py-3-custom' : (cart.length <= 12 ? 'py-2-custom' : 'py-1-custom');
+
+                    tbody += `<tr>
+                        <td class="${padClass}">${actualIdx + 1}</td>
+                        <td class="${padClass} fw-medium">${item.name}</td>
+                        <td class="${padClass} text-center">${item.qty}</td>
+                        <td class="${padClass} text-end">₹${item.price.toFixed(2)}</td>
+                        <td class="${padClass} text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td>
+                        <td class="${padClass} text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td>
+                    </tr>`;
+                });
+
+                let taxRows = '';
+                if (SELLER_STATE === buyer.stateCode) { 
+                    taxRows = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
+                               <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; 
+                } else { 
+                    taxRows = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; 
+                }
+
+                let totalsHTML = isLast ? `
+                    <div class="row totals-section pt-4 mt-auto">
+                        <div class="col-7 pe-md-4">
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: ${titleColor};">Amount in Words</h4>
+                            <p class="font-13 mb-4 text-capitalize fw-medium">${numberToWords(roundedGrandTotal)}</p>
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: ${titleColor};">Terms & Conditions</h4>
+                            <p class="font-13 mb-0 text-muted">Thanks for doing business with us.</p>
+                        </div>
+                        <div class="col-5">
+                            <div class="totals-box mb-2">
+                                <div class="totals-row"><span>Sub Total:</span> <span>₹${subTotal.toFixed(2)}</span></div>
+                                ${taxRows}
+                                <div class="totals-row"><span>Total GST</span> <span>₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})</span></div>
+                                <div class="totals-row text-muted" style="font-size: 11px; border-top: 1px dashed #cbd5e1;"><span>Round Off</span> <span>${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}</span></div>
+                            </div>
+                            <div class="grand-total-box ${type === 'po' ? 'grand-po' : ''}">
+                                <span>TOTAL</span> <span>₹${roundedGrandTotal.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : `<div class="mt-auto text-end text-muted font-13 fw-bold pe-4 pt-4 border-top">Continued on next page...</div>`;
+
+                html += `
+                <div class="invoice-page ${pageBreak}">
+                    <div class="wave-top ${waveClass}"></div>
+                    <div class="invoice-header-wrapper-abs">
+                        <img src="NNlogo-removebg-preview.png" alt="Logo" class="flex-shrink-0" style="height: 45px; width: auto; margin-right: 15px;">
+                        <h2 class="invoice-header-title text-white m-0" style="font-size:24px;">SRI TOTATRI AGRO FOODS PVT LTD</h2>
+                    </div>
+                    <div class="content-wrapper d-flex flex-column" style="padding: 130px 8% 40px 8%; flex-grow: 1; height: 100%;">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3" style="border-color:#cbd5e1!important;">
+                            <h1 class="m-0" style="letter-spacing: 1px; color: ${titleColor}; font-weight: 900; font-size: 32px; line-height: 1;">${titleText}</h1>
+                            <div class="text-muted font-13">Number: <strong class="text-dark">${docNum}</strong></div>
+                            <div class="text-muted font-13">Date: <strong class="text-dark">${docDate}</strong></div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h3 class="h6 pb-2 fw-bold text-uppercase" style="color: ${titleColor}; border-bottom: 1px solid #cbd5e1;">${billToLabel}</h3>
+                                <div class="font-13 lh-base mt-2"><span class="fw-bold" style="font-size: 14px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span></div>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="h6 pb-2 fw-bold text-uppercase" style="color: ${titleColor}; border-bottom: 1px solid #cbd5e1;">${billFromLabel}</h3>
+                                <div class="font-13 lh-base mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-3 overflow-hidden ${isLast ? '' : 'mb-4'}" style="border-color:#cbd5e1!important;">
+                            <table class="table custom-table mb-0 ${cart.length > 5 ? 'table-sm' : ''}">
+                                <thead>
+                                    <tr>
+                                        <th width="5%" class="${headerClass}">#</th>
+                                        <th width="35%" class="${headerClass}">Description</th>
+                                        <th width="10%" class="text-center ${headerClass}">Qty</th>
+                                        <th width="15%" class="text-end ${headerClass}">Price</th>
+                                        <th width="15%" class="text-end ${headerClass}">GST</th>
+                                        <th width="20%" class="text-end ${headerClass}">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tbody}</tbody>
+                            </table>
+                        </div>
+
+                        ${totalsHTML}
+                    </div>
+                </div>
+                `;
+            });
+            
+            return { html, roundedGrandTotal };
+        }
+
+        async function generatePreview(type) { 
+            if(!isAdmin) return;
+            currentDocType = type; 
+            const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
+            const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
+            
+            const custId = document.getElementById(vendorSelectId).value; 
+            if (!custId) return showCustomAlert("Select a client/vendor."); 
+            if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
+            
+            if (type === 'invoice') {
+                const rawD = document.getElementById("inv-date-input").value;
+                const d = createDateFromYMD(rawD);
+                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            } else if (type === 'po') {
+                const rawD = document.getElementById("po-date-input").value;
+                const d = createDateFromYMD(rawD);
+                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+            }
+
+            const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
+            saveBtn.innerText = "⏳ Processing..."; 
+            saveBtn.disabled = true; 
+            
+            const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
+            
+            const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
+            document.getElementById("invoice-content").innerHTML = html;
+            
+            let stockChanges = {};
+            
+            if (editingDocId) {
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                const oldDoc = arrayRef.find(h => h.id === editingDocId);
+                
+                let shouldReverse = type === 'invoice' || (type === 'po' && oldDoc && oldDoc.status === 'converted');
+                if (oldDoc && oldDoc.cart && shouldReverse) {
+                    oldDoc.cart.forEach(item => {
+                        if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                        stockChanges[item.id] += (type === 'invoice') ? item.qty : -item.qty;
+                    });
+                }
+            }
+
+            let isPOConverted = false;
+            if (type === 'po' && editingDocId) {
+                const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId);
+                if (existingPO && existingPO.status === 'converted') isPOConverted = true;
+            }
+            
+            let shouldApplyNew = type === 'invoice' || (type === 'po' && isPOConverted);
+
+            if(shouldApplyNew) {
+                currentCart.forEach(item => {
+                    if (!stockChanges[item.id]) stockChanges[item.id] = 0;
+                    stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
+                });
+            }
+
+            const record = { 
+                id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
+                invoiceNumber: tempDocNumber, 
+                date: tempDocDate, 
+                customerId: buyer.id, 
+                customerName: buyer.name, 
+                cart: JSON.parse(JSON.stringify(currentCart)), 
+                totalAmount: roundedGrandTotal, 
+                paid: false, 
+                deleted: false,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+            }; 
+            
+            try { 
+                const collectionName = type === 'po' ? "purchaseOrders" : "history"; 
+                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+                
+                if(type === 'po') { 
+                    const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
+                    record.status = existingPO ? (existingPO.status || 'converted') : 'created';
+                    if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
+                }
+                
+                if(type === 'invoice' && editingDocId) {
+                    const existingInv = appData.history.find(h => h.id === editingDocId);
+                    if(existingInv && existingInv.paid) record.paid = existingInv.paid;
+                }
+                
+                const batch = db.batch();
+                for (const [pid, change] of Object.entries(stockChanges)) {
+                    if (change !== 0) {
+                        const productIndex = appData.inventory.findIndex(p => p.id === pid);
+                        if (productIndex > -1) {
+                            let currentStock = appData.inventory[productIndex].inStock || 0;
+                            let newStock = currentStock + change;
+                            appData.inventory[productIndex].inStock = newStock; 
+                            
+                            const productRef = db.collection("inventory").doc(pid);
+                            batch.update(productRef, { inStock: newStock });
+                        }
+                    }
+                }
+                
+                const docRef = db.collection(collectionName).doc(record.id);
+                batch.set(docRef, record);
+                
+                await batch.commit(); 
+                
+                if (editingDocId) { 
+                    const idx = arrayRef.findIndex(h => h.id === editingDocId); 
+                    arrayRef[idx] = record; 
+                } else { 
+                    arrayRef.unshift(record); 
+                    if(type === 'po') { 
+                        appData.lastPoNum++; 
+                        await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
+                    } else { 
+                        appData.lastInvoiceNum++; 
+                        await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
+                    } 
+                } 
+                
+                editingDocId = record.id;
+                
+                let canEditPrev = isAdmin;
+                let canDeletePrev = isAdmin;
+
+                if (type === 'po') {
+                    if (record.status === 'converted') canEditPrev = false;
+                    if (record.payout) {
+                        canEditPrev = false;
+                        canDeletePrev = false;
+                    }
+                } else {
+                    if (record.paid) canEditPrev = false;
+                }
+
+                document.getElementById("btn-edit-preview").style.display = canEditPrev ? 'inline-block' : 'none';
+                document.getElementById("btn-delete-preview").style.display = canDeletePrev ? 'inline-block' : 'none';
+
+                if(type === 'po') { 
+                    renderPOList(); 
+                    if(record.status === 'converted') {
+                        document.getElementById("payout-status-container").style.display = "block";
+                        renderPayoutUI(record);
+                    } else {
+                        document.getElementById("payout-status-container").style.display = "none";
+                    }
+                } else { 
+                    document.getElementById("payout-status-container").style.display = "none";
+                    renderHistoryList(); 
+                }
+                
+                renderProductList(); 
+                switchScreen('screen-preview'); 
+            } catch (error) { 
+                console.error("Save Error:", error); 
+                showCustomAlert("Failed to save to the cloud. Check your network.", "Error", "🔴"); 
+            } finally { 
+                saveBtn.innerText = "💾 Save & Calculate"; 
+                saveBtn.disabled = false; 
+            } 
+        }
+
+        // --- HISTORY LIST RENDERERS ---
+        function renderHistoryList() { 
+            const list = document.getElementById("history-list"); 
+            if(appData.history.length === 0) {
+                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
+                return;
+            }
+            
+            list.innerHTML = appData.history.map(h => {
+                if (h.deleted) {
+                    const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'invoice')">💬 View Reason</button>` : '';
+                    
+                    return `
+                    <div class="list-item history-card" style="opacity: 0.8; border-left-color: #ef4444; background: #f8fafc;">
+                        <div style="flex-grow: 1; padding-left: 8px;">
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
+                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
+                        </div>
+                    </div>`;
+                }
+
+                const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="event.stopPropagation(); markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
+                const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+                
+                return `
+                <div class="list-item history-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'invoice')">
+                    <div style="flex-grow: 1; padding-left: 8px;">
+                        <strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${markPaidBtn}
+                        ${editBtn}
+                    </div>
+                </div>
+                `;
+            }).join(''); 
+        }
+
+        async function markInvoicePaid(invoiceId) {
+            if(!isAdmin) return;
+            try {
+                await db.collection("history").doc(invoiceId).update({ paid: true });
+                const idx = appData.history.findIndex(h => h.id === invoiceId);
+                if (idx > -1) {
+                    appData.history[idx].paid = true;
+                    renderHistoryList(); 
+                }
+            } catch (error) {
+                console.error("Error marking invoice as paid:", error);
+                showCustomAlert("Failed to update payment status.", "Error", "🔴");
+            }
+        }
+
+        function renderPOList() { 
+            const list = document.getElementById("po-list"); 
+            if(appData.purchaseOrders.length === 0) {
+                list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; 
+                return;
+            }
+            
+            list.innerHTML = appData.purchaseOrders.map(h => {
+                if (h.deleted) {
+                    const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'po')">💬 View Reason</button>` : '';
+                    
+                    return `
+                    <div class="list-item po-card" style="opacity: 0.8; border-left-color: #ef4444; background: #f8fafc;">
+                        <div style="flex-grow: 1; padding-left: 8px;">
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
+                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
+                        </div>
+                    </div>`;
+                }
+
+                const statusStr = h.status || 'converted';
+                const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
+                
+                const badges = statusStr === 'converted' ? `<span class="badge bg-primary ms-2">Converted</span> ${isPaid}` : '';
+                
+                let convertBtn = '';
+                let deleteBtn = '';
+                
+                if (statusStr === 'created' && isAdmin) {
+                    convertBtn = `<button class="btn btn-sm shadow-sm me-2 fw-bold" style="background-color: #38bdf8; color: white; border: none;" onclick="event.stopPropagation(); convertPO('${h.id}')">Created</button>`;
+                    deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
+                }
+                
+                if (statusStr === 'converted' && isAdmin && !h.payout) {
+                    deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm ms-2" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
+                }
+                
+                const editBtn = (isAdmin && statusStr === 'created') ? `<button class="btn btn-light action-btn border shadow-sm me-2" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : '';
+                
+                return `
+                <div class="list-item po-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'po')">
+                    <div style="flex-grow: 1; padding-left: 8px;">
+                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${badges}<br>
+                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${convertBtn}
+                        ${editBtn}
+                        ${deleteBtn}
+                    </div>
+                </div>`;
+            }).join(''); 
+        }
+
+        function convertPO(poId) {
+            if(!isAdmin) return;
+            showCustomConfirm("Mark this Purchase Order as Received? This will securely update your inventory stock and cannot be undone.", async function() {
+                try {
+                    const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId);
+                    if(poIndex === -1) return;
+                    const po = appData.purchaseOrders[poIndex];
+                    
+                    const batch = db.batch();
+                    
+                    po.cart.forEach(item => {
+                        const prodIdx = appData.inventory.findIndex(p => p.id === item.id);
+                        if (prodIdx > -1) {
+                            let newStock = (appData.inventory[prodIdx].inStock || 0) + item.qty;
+                            appData.inventory[prodIdx].inStock = newStock;
+                            batch.update(db.collection("inventory").doc(item.id), { inStock: newStock });
+                        }
+                    });
+
+                    batch.update(db.collection("purchaseOrders").doc(poId), { status: 'converted' });
+                    appData.purchaseOrders[poIndex].status = 'converted';
+
+                    await batch.commit();
+
+                    showCustomAlert("Purchase Order converted successfully. Inventory updated.", "Success", "✅");
+                    renderPOList();
+                    renderProductList();
+                } catch (err) {
+                    console.error(err);
+                    showCustomAlert("Failed to convert Purchase Order.", "Error", "🔴");
+                }
+            }, "Yes, Convert");
+        }
+
+        function viewOldDocument(id, type) {
+            currentDocType = type; 
+            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
+            const doc = arrayRef.find(h => h.id === id); 
+            if (!doc) return;
+            
+            editingDocId = doc.id; 
+            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; 
+            tempDocDate = doc.date;
+            
+            if (type === 'po') {
+                document.getElementById("po-vendor-select").value = doc.customerId; 
+                document.getElementById("po-builder-title").innerText = "Edit PO"; 
+                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`;
+                renderCartUI('po');
+            } else {
+                document.getElementById("customer-select").value = doc.customerId; 
+                document.getElementById("builder-title").innerText = "Edit Invoice"; 
+                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`;
+                renderCartUI('invoice');
+            }
+            
+            const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
+            
+            const { html } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
+            document.getElementById("invoice-content").innerHTML = html;
+            
+            let canEdit = isAdmin;
+            let canDelete = isAdmin;
+
+            if (type === 'po') { 
+                const statusStr = doc.status || 'converted';
+                
+                if (statusStr === 'converted') {
+                    document.getElementById("payout-status-container").style.display = "block"; 
+                    renderPayoutUI(doc); 
+                    canEdit = false; 
+                } else {
+                    document.getElementById("payout-status-container").style.display = "none"; 
+                    canEdit = true; 
+                }
+                
+                if (doc.payout) {
+                    canEdit = false;
+                    canDelete = false;
+                }
+            } else { 
+                document.getElementById("payout-status-container").style.display = "none"; 
+                if (doc.paid) canEdit = false;
+            }
+            
+            document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
+            document.getElementById("btn-delete-preview").style.display = canDelete ? 'inline-block' : 'none';
+            
+            switchScreen('screen-preview');
+        }
+
+        function loadOldDocumentForEdit(id, type) {
+            if(!isAdmin) return;
+            currentDocType = type; 
+            const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history; 
+            const doc = arrayRef.find(h => h.id === id); 
+            if (!doc) return; 
+            
+            editingDocId = doc.id; 
+            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; 
+            tempDocDate = doc.date; 
+            
+            if(type === 'po') { 
+                const isConverted = doc.status === 'converted';
+                const poParsedD = new Date(doc.date);
+                document.getElementById("po-date-input").value = !isNaN(poParsedD) ? getLocalYMD(poParsedD) : getLocalYMD(new Date());
+
+                document.getElementById("po-vendor-select").value = doc.customerId; 
+                document.getElementById("po-vendor-select").disabled = isConverted; 
+                document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
+                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; 
+                
+                document.getElementById("btn-delete-po").style.display = "block";
+                document.getElementById("po-add-item-panel").style.display = isConverted ? "none" : "block";
+                document.getElementById("btn-save-po").style.display = isConverted ? "none" : "block";
+                
+                renderCartUI('po'); 
+                switchScreen('screen-po-builder'); 
+            } else { 
+                const invParsedD = new Date(doc.date);
+                document.getElementById("inv-date-input").value = !isNaN(invParsedD) ? getLocalYMD(invParsedD) : getLocalYMD(new Date());
+
+                document.getElementById("customer-select").value = doc.customerId; 
+                document.getElementById("builder-title").innerText = "Edit Invoice"; 
+                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
+                document.getElementById("btn-delete-invoice").style.display = "block";
+                renderCartUI('invoice'); 
+                switchScreen('screen-builder'); 
+            }
+        }
+
+        function promptDeleteFromPreview() {
+            if (currentDocType === 'po') {
+                promptDeletePO(editingDocId);
+            } else {
+                promptDeleteInvoice(editingDocId);
+            }
+        }
+
+        function promptDeletePO(id = null) {
+            const targetId = id || editingDocId;
+            if(!isAdmin || !targetId) return;
+            
+            const po = appData.purchaseOrders.find(p => p.id === targetId);
+            if(!po) return;
+            
+            let msg = "Are you sure you want to delete this Purchase Order? Please provide a reason.";
+            if(po.status === 'converted') {
+                msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory. Please provide a reason.";
+            }
+            
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "po";
+            document.getElementById("delete-reason-text").innerText = msg;
+            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-reason-modal").style.display = "flex";
+        }
+
+        async function executeDeletePO(targetId, reason) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-text').innerText = "Deleting PO...";
+
+            try {
+                const batch = db.batch();
+                const poIndex = appData.purchaseOrders.findIndex(p => p.id === targetId);
+                const po = appData.purchaseOrders[poIndex];
+
+                if (po.status === 'converted') {
+                    po.cart.forEach(item => {
+                        const productIndex = appData.inventory.findIndex(p => p.id === item.id);
+                        if (productIndex > -1) {
+                            let newStock = (appData.inventory[productIndex].inStock || 0) - item.qty; 
+                            appData.inventory[productIndex].inStock = newStock;
+                            const productRef = db.collection("inventory").doc(item.id);
+                            batch.update(productRef, { inStock: newStock });
+                        }
+                    });
+                }
+
+                const docRef = db.collection("purchaseOrders").doc(targetId);
+                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
+
+                await batch.commit();
+
+                if (poIndex > -1) {
+                    appData.purchaseOrders[poIndex].deleted = true;
+                    appData.purchaseOrders[poIndex].cart = [];
+                    appData.purchaseOrders[poIndex].totalAmount = 0;
+                    appData.purchaseOrders[poIndex].deleteReason = reason;
+                }
+
+                renderProductList();
+                renderPOList();
+                switchScreen('screen-po-history');
+            } catch (error) {
+                console.error("Delete Error:", error);
+                showCustomAlert("Failed to delete Purchase Order.", "Error", "🔴");
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        function promptDeleteInvoice(id = null) {
+            const targetId = id || editingDocId;
+            if(!isAdmin || !targetId) return;
+            
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "invoice";
+            document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this invoice? The items will be returned to inventory. Please provide a reason.";
+            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-reason-modal").style.display = "flex";
+        }
+
+        async function executeDeleteInvoice(targetId, reason) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-text').innerText = "Deleting Invoice...";
+
+            try {
+                const batch = db.batch();
+                const invIndex = appData.history.findIndex(p => p.id === targetId);
+                const inv = appData.history[invIndex];
+                
+                inv.cart.forEach(item => {
+                    const productIndex = appData.inventory.findIndex(p => p.id === item.id);
+                    if (productIndex > -1) {
+                        let newStock = (appData.inventory[productIndex].inStock || 0) + item.qty;
+                        appData.inventory[productIndex].inStock = newStock;
+                        const productRef = db.collection("inventory").doc(item.id);
+                        batch.update(productRef, { inStock: newStock });
+                    }
+                });
+
+                const docRef = db.collection("history").doc(targetId);
+                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
+
+                await batch.commit();
+
+                if (invIndex > -1) {
+                    appData.history[invIndex].deleted = true;
+                    appData.history[invIndex].cart = [];
+                    appData.history[invIndex].totalAmount = 0;
+                    appData.history[invIndex].deleteReason = reason;
+                }
+
+                renderProductList();
+                renderHistoryList();
+                switchScreen('screen-history');
+            } catch (error) {
+                console.error("Delete Error:", error);
+                showCustomAlert("Failed to delete invoice.", "Error", "🔴");
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        function editCurrentDocument() { 
+            if(!isAdmin) return;
+            if(currentDocType === 'po') {
+                document.getElementById("btn-delete-po").style.display = "block";
+                switchScreen('screen-po-builder'); 
+            } else {
+                document.getElementById("btn-delete-invoice").style.display = "block";
+                switchScreen('screen-builder'); 
+            }
+        }
+
+        // --- PAYOUT RECORDING & IN-APP VIEWER LOGIC ---
+        function renderPayoutUI(poDoc) {
+            const container = document.getElementById("payout-details-display");
+            
+            if (poDoc.payout) {
+                container.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center text-success mb-2">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="fw-bold fs-5">Payment Locked</span>
+                    </div>
+                    <div class="text-start bg-light p-3 rounded-3 mt-3 mx-auto" style="max-width: 300px; font-size: 13px;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Date:</span> <strong>${poDoc.payout.date}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Ref No:</span> <strong>${poDoc.payout.ref}</strong>
+                        </div>
+                        ${poDoc.payout.img ? `<button onclick="openReceiptViewer('${poDoc.id}')" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</button>` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
+                    ${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}
+                `;
+            }
+        }
+
+        function openPayoutModal(poId) { 
+            if(!isAdmin) return;
+            document.getElementById("payout-po-id").value = poId; 
+            document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
+            document.getElementById("payout-ref").value = ""; 
+            document.getElementById("payout-amount").value = ""; 
+            document.getElementById("payout-image").value = ""; 
+            document.getElementById("payout-modal").style.display = "flex"; 
+        }
+
+        function closePayoutModal() { 
+            document.getElementById("payout-modal").style.display = "none"; 
+        }
+
+        function openReceiptViewer(poId) { 
+            const po = appData.purchaseOrders.find(p => p.id === poId);
+            if(po && po.payout && po.payout.img) {
+                document.getElementById('receipt-viewer-img').src = po.payout.img;
+                document.getElementById('receipt-viewer-modal').style.display = 'flex';
+            }
+        }
+
+        function closeReceiptViewer() { 
+            document.getElementById('receipt-viewer-modal').style.display = 'none'; 
+            document.getElementById('receipt-viewer-img').src = ''; 
+        }
+
+        async function savePayout() {
+            if(!isAdmin) return;
+            const poId = document.getElementById("payout-po-id").value; 
+            const date = document.getElementById("payout-date").value; 
+            const ref = document.getElementById("payout-ref").value; 
+            const amount = document.getElementById("payout-amount").value; 
+            const fileInput = document.getElementById("payout-image");
+            
+            if(!date || !amount) return showCustomAlert("Date and Amount are required.");
+            
+            const btn = document.getElementById("btn-save-payout"); 
+            btn.innerText = "Processing..."; 
+            btn.disabled = true;
+            
+            let base64Image = null;
+            
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                base64Image = await new Promise((resolve) => { 
+                    const reader = new FileReader(); 
+                    reader.readAsDataURL(file); 
+                    reader.onload = e => { 
+                        const img = new Image(); 
+                        img.src = e.target.result; 
+                        img.onload = () => { 
+                            const canvas = document.createElement('canvas'); 
+                            const MAX_WIDTH = 600; 
+                            const scale = MAX_WIDTH / img.width; 
+                            canvas.width = MAX_WIDTH; 
+                            canvas.height = img.height * scale; 
+                            const ctx = canvas.getContext('2d'); 
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+                            resolve(canvas.toDataURL('image/jpeg', 0.5)); 
+                        } 
+                    }; 
+                });
+            }
+            
+            const payoutData = { date: date, ref: ref || "N/A", amount: amount, img: base64Image };
+            
+            try { 
+                await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData }); 
+                
+                const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId); 
+                if(poIndex > -1) { 
+                    appData.purchaseOrders[poIndex].payout = payoutData; 
+                    renderPayoutUI(appData.purchaseOrders[poIndex]); 
+                    renderPOList(); 
+                } 
+                
+                closePayoutModal(); 
+            } catch (err) { 
+                console.error(err); 
+                showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); 
+            } finally { 
+                btn.innerText = "Confirm & Lock Payment"; 
+                btn.disabled = false; 
+            }
+        }
+
+        // --- UTILITIES ---
+        function numberToWords(amount) { 
+            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
+            
+            function convert(num) { 
+                if (num < 20) return words[num]; 
+                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
+                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
+                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
+                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
+                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
+            } 
+            
+            let rupees = Math.floor(amount);
+            let paise = Math.round((amount - rupees) * 100); 
+            
+            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
+        }
+        
+        function downloadPDF() { 
+            document.getElementById('app-controls').style.display = 'none'; 
+            
+            const payoutBox = document.getElementById('payout-status-container'); 
+            const payoutWasVisible = payoutBox.style.display === 'block'; 
+            payoutBox.style.display = 'none'; 
+            
+            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
+            scrollWrappers.forEach(tw => { 
+                tw.style.overflowX = 'visible'; 
+                tw.scrollLeft = 0;
+            });
+            
+            const element = document.getElementById('invoice-content'); 
+            const oldMargin = element.style.margin;
+            
+            element.style.margin = '0';
+            element.style.width = '800px';
+            element.style.minWidth = '800px';
+            
+            const opt = { 
+                margin: 0, 
+                filename: `${tempDocNumber}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            }; 
+            
+            html2pdf().set(opt).from(element).save().then(() => { 
+                document.getElementById('app-controls').style.display = 'block'; 
+                if(payoutWasVisible) payoutBox.style.display = 'block'; 
+                
+                element.style.margin = oldMargin;
+                element.style.width = '100%';
+                element.style.minWidth = '750px';
+                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
+            }); 
+        }
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
