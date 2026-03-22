@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NellaiNaturals - ERP Edition</title>
+    <title>Sri Totatri POS - ERP Edition</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b2a5c">
@@ -1443,9 +1443,6 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             
-            // Hide payment UI during preview creation, it gets shown after save if converted
-            document.getElementById("payout-status-container").style.display = "none";
-            
             if (type === 'po') {
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
@@ -1574,6 +1571,26 @@
                     } 
                 } 
                 
+                // 🌟 FIX: Immediately assign the newly generated ID to the active session 🌟
+                editingDocId = record.id;
+                
+                // 🌟 FIX: Instantly calculate if buttons should be shown 🌟
+                let canEditPrev = isAdmin;
+                let canDeletePrev = isAdmin;
+
+                if (type === 'po') {
+                    if (record.status === 'converted') canEditPrev = false;
+                    if (record.payout) {
+                        canEditPrev = false;
+                        canDeletePrev = false;
+                    }
+                } else {
+                    if (record.paid) canEditPrev = false;
+                }
+
+                document.getElementById("btn-edit-preview").style.display = canEditPrev ? 'inline-block' : 'none';
+                document.getElementById("btn-delete-preview").style.display = canDeletePrev ? 'inline-block' : 'none';
+
                 if(type === 'po') { 
                     renderPOList(); 
                     if(record.status === 'converted') {
@@ -1583,6 +1600,7 @@
                         document.getElementById("payout-status-container").style.display = "none";
                     }
                 } else { 
+                    document.getElementById("payout-status-container").style.display = "none";
                     renderHistoryList(); 
                 }
                 
@@ -1832,6 +1850,7 @@
             const gBox = document.getElementById("grand-box"); 
             
             let canEdit = isAdmin;
+            let canDelete = isAdmin;
 
             if (type === 'po') { 
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
@@ -1852,7 +1871,10 @@
                     canEdit = true; 
                 }
                 
-                if (doc.payout) canEdit = false;
+                if (doc.payout) {
+                    canEdit = false;
+                    canDelete = false;
+                }
             } else { 
                 document.getElementById("doc-type-title").innerText = "INVOICE"; 
                 document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
@@ -1861,11 +1883,12 @@
                 wave.classList.remove('wave-po'); 
                 gBox.classList.remove('grand-po'); 
                 document.getElementById("payout-status-container").style.display = "none"; 
+                
                 if (doc.paid) canEdit = false;
             }
             
             document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
-            document.getElementById("btn-delete-preview").style.display = isAdmin && !doc.payout ? 'inline-block' : 'none';
+            document.getElementById("btn-delete-preview").style.display = canDelete ? 'inline-block' : 'none';
             
             document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
             document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
