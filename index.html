@@ -221,7 +221,7 @@
         /* 🌟 DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
         .invoice-page {
             width: 800px;
-            height: 1122px; /* Perfect A4 Proportion */
+            height: 1122px; 
             margin: 0 auto 25px auto; 
             background: #fff; 
             position: relative; 
@@ -233,7 +233,6 @@
             box-sizing: border-box;
         }
         
-        /* THIS CLASS IS APPLIED DURING EXPORT TO REMOVE SHADOWS & BLANK PAGES */
         .pdf-mode .invoice-page {
             margin: 0 !important;
             box-shadow: none !important;
@@ -260,7 +259,6 @@
         
         .wave-po { background-color: #d97706 !important; }
         
-        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -292,7 +290,6 @@
             flex-direction: column;
         }
 
-        /* CUSTOM PADDING CLASSES FOR TABLE ROWS */
         .py-1-custom { padding-top: 6px !important; padding-bottom: 6px !important; }
         .py-2-custom { padding-top: 12px !important; padding-bottom: 12px !important; }
         .py-3-custom { padding-top: 22px !important; padding-bottom: 22px !important; }
@@ -352,6 +349,8 @@
         
         .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
         
+        .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
+
         #loading-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); 
@@ -421,6 +420,32 @@
                 <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeCustomConfirm()">Cancel</button>
                 <button class="btn btn-danger w-50 fw-bold shadow-sm" id="custom-confirm-btn">Confirm</button>
             </div>
+        </div>
+    </div>
+
+    <div id="delete-reason-modal" class="custom-modal-overlay" style="z-index: 10006;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">🗑️</div>
+            <h5 class="fw-bold mb-3 text-danger" id="delete-reason-title">Delete Document</h5>
+            <p class="text-muted mb-3 font-13" id="delete-reason-text"></p>
+            <textarea id="delete-reason-input" class="form-control mb-4" rows="3" placeholder="Enter reason for deletion..."></textarea>
+            <input type="hidden" id="delete-target-id">
+            <input type="hidden" id="delete-target-type">
+            <div class="d-flex gap-2">
+                <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="closeDeleteReasonModal()">Cancel</button>
+                <button class="btn btn-danger w-50 fw-bold shadow-sm" onclick="confirmDeleteWithReason()">Confirm Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-reason-modal" class="custom-modal-overlay" style="z-index: 10006;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">💬</div>
+            <h5 class="fw-bold mb-3" style="color: #0b2a5c;">Deletion Reason</h5>
+            <div class="p-3 bg-light rounded-3 text-start mb-4 border" style="border-color: #e2e8f0 !important;">
+                <p class="mb-0 text-dark fw-medium font-13" id="view-reason-text" style="white-space: pre-wrap;"></p>
+            </div>
+            <button class="btn btn-primary w-100 shadow-sm fw-bold" onclick="closeViewReasonModal()">Close</button>
         </div>
     </div>
 
@@ -706,7 +731,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -804,6 +829,42 @@
         function closeCustomConfirm() {
             document.getElementById("custom-confirm-modal").style.display = "none";
             confirmCallback = null; 
+        }
+
+        // --- 🌟 NEW: DELETE REASON LOGIC 🌟 ---
+        function closeDeleteReasonModal() {
+            document.getElementById("delete-reason-modal").style.display = "none";
+        }
+        
+        function confirmDeleteWithReason() {
+            const reason = document.getElementById("delete-reason-input").value.trim();
+            if(!reason) {
+                showCustomAlert("Please enter a reason for deletion.", "Required", "⚠️");
+                return;
+            }
+            const targetId = document.getElementById("delete-target-id").value;
+            const type = document.getElementById("delete-target-type").value;
+            
+            closeDeleteReasonModal();
+            
+            if (type === 'invoice') {
+                executeDeleteInvoice(targetId, reason);
+            } else if (type === 'po') {
+                executeDeletePO(targetId, reason);
+            }
+        }
+        
+        function showDeleteReason(id, type) {
+            let doc;
+            if (type === 'invoice') doc = appData.history.find(x => x.id === id);
+            else if (type === 'po') doc = appData.purchaseOrders.find(x => x.id === id);
+            
+            document.getElementById("view-reason-text").innerText = doc && doc.deleteReason ? doc.deleteReason : "No reason provided.";
+            document.getElementById("view-reason-modal").style.display = "flex";
+        }
+
+        function closeViewReasonModal() {
+            document.getElementById("view-reason-modal").style.display = "none";
         }
 
         // --- AUTHENTICATION & APP EXIT TRAP ---
@@ -1315,13 +1376,13 @@
             const roundedGst = Math.round(totalGst);
 
             let chunks = [];
-            const ITEMS_PER_PAGE = 18; // Perfect count to fit safely in 1120px height
+            const ITEMS_PER_PAGE = 18; 
             
             for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) {
                 chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
             }
 
-            if (chunks.length === 0) chunks.push([]); // Fallback for empty
+            if (chunks.length === 0) chunks.push([]); 
 
             let html = '';
             const headerClass = type === 'po' ? 'th-po' : '';
@@ -1341,7 +1402,6 @@
                     let baseAmt = item.qty * item.price; 
                     let gstAmt = baseAmt * (item.gstPercent / 100); 
                     
-                    // Smart Dynamic Padding
                     let padClass = cart.length <= 5 ? 'py-3-custom' : (cart.length <= 12 ? 'py-2-custom' : 'py-1-custom');
 
                     tbody += `<tr>
@@ -1411,7 +1471,7 @@
                         </div>
 
                         <div class="border rounded-3 overflow-hidden ${isLast ? '' : 'mb-4'}" style="border-color:#cbd5e1!important;">
-                            <table class="table custom-table mb-0">
+                            <table class="table custom-table mb-0 ${cart.length > 5 ? 'table-sm' : ''}">
                                 <thead>
                                     <tr>
                                         <th width="5%" class="${headerClass}">#</th>
@@ -1461,7 +1521,6 @@
             
             const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
             
-            // GENERATE HTML BEFORE SAVING
             const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
             document.getElementById("invoice-content").innerHTML = html;
             
@@ -1557,7 +1616,6 @@
                     } 
                 } 
                 
-                // 🌟 FIX: INSTANTLY ASSIGN NEW ID AND SHOW BUTTONS 🌟
                 editingDocId = record.id;
                 
                 let canEditPrev = isAdmin;
@@ -1610,10 +1668,12 @@
             
             list.innerHTML = appData.history.map(h => {
                 if (h.deleted) {
+                    const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'invoice')">💬 View Reason</button>` : '';
+                    
                     return `
-                    <div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
+                    <div class="list-item history-card" style="opacity: 0.8; border-left-color: #ef4444; background: #f8fafc;">
                         <div style="flex-grow: 1; padding-left: 8px;">
-                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span><br>
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
                             <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                             <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
                         </div>
@@ -1664,10 +1724,12 @@
             
             list.innerHTML = appData.purchaseOrders.map(h => {
                 if (h.deleted) {
+                    const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'po')">💬 View Reason</button>` : '';
+                    
                     return `
-                    <div class="list-item po-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
+                    <div class="list-item po-card" style="opacity: 0.8; border-left-color: #ef4444; background: #f8fafc;">
                         <div style="flex-grow: 1; padding-left: 8px;">
-                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span><br>
+                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
                             <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                             <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
                         </div>
@@ -1857,14 +1919,19 @@
             const po = appData.purchaseOrders.find(p => p.id === targetId);
             if(!po) return;
             
-            let msg = "Are you sure you want to delete this Purchase Order?";
+            let msg = "Are you sure you want to delete this Purchase Order? Please provide a reason.";
             if(po.status === 'converted') {
-                msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory.";
+                msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory. Please provide a reason.";
             }
-            showCustomConfirm(msg, () => executeDeletePO(targetId), "Yes, Delete");
+            
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "po";
+            document.getElementById("delete-reason-text").innerText = msg;
+            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
-        async function executeDeletePO(targetId) {
+        async function executeDeletePO(targetId, reason) {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = "Deleting PO...";
 
@@ -1886,7 +1953,7 @@
                 }
 
                 const docRef = db.collection("purchaseOrders").doc(targetId);
-                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
+                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
 
                 await batch.commit();
 
@@ -1894,6 +1961,7 @@
                     appData.purchaseOrders[poIndex].deleted = true;
                     appData.purchaseOrders[poIndex].cart = [];
                     appData.purchaseOrders[poIndex].totalAmount = 0;
+                    appData.purchaseOrders[poIndex].deleteReason = reason;
                 }
 
                 renderProductList();
@@ -1910,10 +1978,15 @@
         function promptDeleteInvoice(id = null) {
             const targetId = id || editingDocId;
             if(!isAdmin || !targetId) return;
-            showCustomConfirm("Are you sure you want to delete this invoice? The items will be returned to inventory.", () => executeDeleteInvoice(targetId), "Yes, Delete");
+            
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "invoice";
+            document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this invoice? The items will be returned to inventory. Please provide a reason.";
+            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
-        async function executeDeleteInvoice(targetId) {
+        async function executeDeleteInvoice(targetId, reason) {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = "Deleting Invoice...";
 
@@ -1933,7 +2006,7 @@
                 });
 
                 const docRef = db.collection("history").doc(targetId);
-                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0 }); 
+                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
 
                 await batch.commit();
 
@@ -1941,6 +2014,7 @@
                     appData.history[invIndex].deleted = true;
                     appData.history[invIndex].cart = [];
                     appData.history[invIndex].totalAmount = 0;
+                    appData.history[invIndex].deleteReason = reason;
                 }
 
                 renderProductList();
@@ -2119,21 +2193,28 @@
             });
             
             const element = document.getElementById('invoice-content'); 
-            element.classList.add('pdf-mode'); // 🌟 IMPORTANT: Strip shadows for PDF rendering 🌟
+            const oldMargin = element.style.margin;
+            
+            element.style.margin = '0';
+            element.style.width = '800px';
+            element.style.minWidth = '800px';
             
             const opt = { 
                 margin: 0, 
                 filename: `${tempDocNumber}.pdf`, 
                 image: { type: 'jpeg', quality: 0.98 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
-                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
             }; 
             
             html2pdf().set(opt).from(element).save().then(() => { 
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
                 
-                element.classList.remove('pdf-mode'); // Restore shadows
+                element.style.margin = oldMargin;
+                element.style.width = '100%';
+                element.style.minWidth = '750px';
                 scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
