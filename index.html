@@ -16,7 +16,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     
@@ -210,7 +210,7 @@
             animation: slideUp 0.3s ease-out;
         }
 
-        /* MOBILE INVOICE SCROLL WRAPPER */
+        /* 🌟 NEW DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
         .invoice-scroll-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -218,18 +218,17 @@
             padding: 20px 10px;
         }
 
-        /* INVOICE/PO PREVIEW */
-        .invoice-box { 
-            width: 100%;
-            max-width: 800px; 
-            min-width: 750px; 
+        .invoice-page {
+            width: 800px;
+            min-height: 1122px; 
             margin: 0 auto; 
             background: #fff; 
             position: relative; 
             overflow: hidden; 
-            min-height: 1122px; 
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
-            border-radius: 8px; 
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
         }
         
         .wave-top { 
@@ -246,7 +245,6 @@
         
         .wave-po { background-color: #d97706 !important; }
         
-        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -257,42 +255,6 @@
             justify-content: center; 
             align-items: center; 
             gap: 15px;
-        }
-        
-        .invoice-header-title { 
-            white-space: nowrap; 
-            font-size: 22px; 
-            font-weight: 800; 
-            margin: 0; 
-            color: #ffffff; 
-            letter-spacing: 0.5px; 
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
-        }
-        
-        .content-wrapper { 
-            position: relative; 
-            z-index: 10; 
-            padding: 160px 8% 80px 8%; 
-        }
-        
-        .logo-placeholder { 
-            width: 50px; 
-            height: 50px; 
-            background-color: #f7d047; 
-            clip-path: polygon(25% 0%, 75% 0%, 75% 100%, 25% 100%); 
-            transform: rotate(45deg); 
-            margin: 0; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-        }
-
-        .table-scroll-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        .custom-table {
-            min-width: 600px; 
         }
         
         .custom-table th { 
@@ -309,15 +271,10 @@
         
         .custom-table td { 
             font-size: 13px; 
-            padding: 12px 8px; 
             border-bottom: 1px solid #e2e8f0; 
             color: #334155; 
         }
         
-        .totals-section {
-            page-break-inside: avoid; 
-        }
-
         .totals-box { 
             border: 1px solid #cbd5e1; 
             font-size: 13px; 
@@ -347,7 +304,7 @@
         
         .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
         
-        .html2pdf__page-break { page-break-before: always; }
+        .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
 
         #loading-overlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -421,7 +378,7 @@
         </div>
     </div>
 
-    <div id="screen-login" class="screen panel" style="margin-top: 15vh; border-top: 6px solid #0b2a5c;">
+    <div id="screen-login" class="screen panel" style="margin-top: 10vh; border-top: 6px solid #0b2a5c;">
         <div class="text-center mb-5">
             <img src="NNlogo-removebg-preview.png" alt="NellaiNaturals Logo" style="width: 120px; height: auto; margin-bottom: 20px;">
             <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
@@ -654,62 +611,8 @@
         </div>
 
         <div class="invoice-scroll-wrapper">
-            <div class="invoice-box" id="invoice-content">
-                <div class="wave-top" id="doc-wave"></div>
-                <div class="invoice-header-wrapper-abs">
-                    <h2 class="invoice-header-title">SRI TOTATRI AGRO FOODS PVT LTD</h2>
-                    <img src="NNlogo-removebg-preview.png" alt="Logo" class="flex-shrink-0" style="width: 70px; height: auto;">
+            <div id="invoice-content">
                 </div>
-                <div class="content-wrapper">
-                    <h1 class="display-6 mb-2" id="doc-type-title" style="letter-spacing: 2px; color: #0b2a5c; font-weight: 800;">INVOICE</h1>
-                    <div class="font-13 mb-4 text-muted">
-                        <p class="mb-1" id="inv-number">Number: </p>
-                        <p class="mb-1" id="inv-date">Date: </p>
-                    </div>
-                    <div class="row mb-4">
-                        <div class="col-6">
-                            <h3 class="h6 border-bottom pb-2 fw-bold text-uppercase" id="bill-to-label" style="color: #0b2a5c; border-color:#cbd5e1!important;">Bill To</h3>
-                            <div class="font-13 lh-lg mt-2" id="bill-to"></div>
-                        </div>
-                        <div class="col-6">
-                            <h3 class="h6 border-bottom pb-2 fw-bold text-uppercase" id="bill-from-label" style="color: #0b2a5c; border-color:#cbd5e1!important;">Bill From</h3>
-                            <div class="font-13 lh-lg mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
-                        </div>
-                    </div>
-                    
-                    <div id="invoice-tables-container"></div>
-                    
-                    <div class="row totals-section pt-3">
-                        <div class="col-7 pe-md-4">
-                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: #0b2a5c;" id="amount-words-label">Amount in Words</h4>
-                            <p class="font-13 mb-4 text-capitalize fw-medium" id="amount-in-words"></p>
-                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: #0b2a5c;" id="terms-label">Terms & Conditions</h4>
-                            <p class="font-13 mb-0 text-muted">Thanks for doing business with us.</p>
-                        </div>
-                        <div class="col-5">
-                            <div class="totals-box mb-2">
-                                <div class="totals-row">
-                                    <span>Sub Total:</span> 
-                                    <span id="sub-total">₹0.00</span>
-                                </div>
-                                <div id="tax-rows-container"></div>
-                                <div class="totals-row">
-                                    <span>Total GST</span> 
-                                    <span id="total-gst">₹0.00</span>
-                                </div>
-                                <div class="totals-row text-muted" style="font-size: 11px; border-top: 1px dashed #cbd5e1;">
-                                    <span>Round Off</span> 
-                                    <span id="round-off">₹0.00</span>
-                                </div>
-                            </div>
-                            <div class="grand-total-box" id="grand-box">
-                                <span>TOTAL</span> 
-                                <span id="grand-total">₹0.00</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -927,7 +830,6 @@
             document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none';
-            document.getElementById('btn-edit-preview').style.display = isAdmin ? 'inline-block' : 'none';
         }
 
         function login() { 
@@ -1351,6 +1253,140 @@
             `).join(''); 
         }
 
+        // 🌟 NEW DYNAMIC HTML RENDER ENGINE FOR A4 PDF 🌟
+        function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
+            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
+            cart.forEach((item) => { 
+                let baseAmt = item.qty * item.price; 
+                let gstAmt = baseAmt * (item.gstPercent / 100); 
+                subTotal += baseAmt; 
+                totalGst += gstAmt; 
+                mainGstRate = item.gstPercent; 
+            }); 
+            const exactGrandTotal = subTotal + totalGst; 
+            const roundedGrandTotal = Math.round(exactGrandTotal); 
+            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
+            const roundedGst = Math.round(totalGst);
+
+            let chunks = [];
+            if (cart.length <= 12) {
+                chunks.push(cart);
+            } else {
+                for (let i = 0; i < cart.length; i += 10) {
+                    chunks.push(cart.slice(i, i + 10));
+                }
+            }
+
+            let html = '';
+            const headerClass = type === 'po' ? 'th-po' : '';
+            const waveClass = type === 'po' ? 'wave-po' : '';
+            const titleColor = type === 'po' ? '#d97706' : '#0b2a5c';
+            const titleText = type === 'po' ? 'PURCHASE ORDER' : 'INVOICE';
+            const billToLabel = type === 'po' ? 'VENDOR' : 'BILL TO';
+            const billFromLabel = type === 'po' ? 'PURCHASER' : 'BILL FROM';
+
+            chunks.forEach((chunk, cIdx) => {
+                let isLast = cIdx === chunks.length - 1;
+                let pageBreak = cIdx > 0 ? 'html2pdf__page-break' : '';
+                
+                let tbody = '';
+                chunk.forEach((item, idx) => {
+                    let actualIdx = (cart.length <= 12) ? idx : (cIdx * 10) + idx;
+                    let baseAmt = item.qty * item.price; 
+                    let gstAmt = baseAmt * (item.gstPercent / 100); 
+                    let padClass = cart.length <= 5 ? 'py-3' : 'py-2';
+
+                    tbody += `<tr>
+                        <td class="${padClass}">${actualIdx + 1}</td>
+                        <td class="${padClass} fw-medium">${item.name}</td>
+                        <td class="${padClass} text-center">${item.qty}</td>
+                        <td class="${padClass} text-end">₹${item.price.toFixed(2)}</td>
+                        <td class="${padClass} text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td>
+                        <td class="${padClass} text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td>
+                    </tr>`;
+                });
+
+                let taxRows = '';
+                if (SELLER_STATE === buyer.stateCode) { 
+                    taxRows = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
+                               <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; 
+                } else { 
+                    taxRows = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; 
+                }
+
+                let totalsHTML = isLast ? `
+                    <div class="row totals-section pt-4 mt-auto">
+                        <div class="col-7 pe-md-4">
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: ${titleColor};">Amount in Words</h4>
+                            <p class="font-13 mb-4 text-capitalize fw-medium">${numberToWords(roundedGrandTotal)}</p>
+                            <h4 class="h6 fw-bold mb-2 text-uppercase" style="color: ${titleColor};">Terms & Conditions</h4>
+                            <p class="font-13 mb-0 text-muted">Thanks for doing business with us.</p>
+                        </div>
+                        <div class="col-5">
+                            <div class="totals-box mb-2">
+                                <div class="totals-row"><span>Sub Total:</span> <span>₹${subTotal.toFixed(2)}</span></div>
+                                ${taxRows}
+                                <div class="totals-row"><span>Total GST</span> <span>₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})</span></div>
+                                <div class="totals-row text-muted" style="font-size: 11px; border-top: 1px dashed #cbd5e1;"><span>Round Off</span> <span>${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}</span></div>
+                            </div>
+                            <div class="grand-total-box ${type === 'po' ? 'grand-po' : ''}">
+                                <span>TOTAL</span> <span>₹${roundedGrandTotal.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
+                html += `
+                <div class="invoice-page ${pageBreak}">
+                    <div class="wave-top ${waveClass}"></div>
+                    <div class="invoice-header-wrapper-abs">
+                        <img src="NNlogo-removebg-preview.png" alt="Logo" class="flex-shrink-0" style="height: 45px; width: auto; margin-right: 15px;">
+                        <h2 class="invoice-header-title text-white m-0" style="font-size:24px;">SRI TOTATRI AGRO FOODS PVT LTD</h2>
+                    </div>
+                    <div class="content-wrapper d-flex flex-column" style="padding: 130px 8% 40px 8%; flex-grow: 1; height: 100%;">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3" style="border-color:#cbd5e1!important;">
+                            <h1 class="m-0" style="letter-spacing: 1px; color: ${titleColor}; font-weight: 900; font-size: 32px; line-height: 1;">${titleText}</h1>
+                            <div class="text-muted font-13">Number: <strong class="text-dark">${docNum}</strong></div>
+                            <div class="text-muted font-13">Date: <strong class="text-dark">${docDate}</strong></div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <h3 class="h6 pb-2 fw-bold text-uppercase" style="color: ${titleColor}; border-bottom: 1px solid #cbd5e1;">${billToLabel}</h3>
+                                <div class="font-13 lh-base mt-2"><span class="fw-bold" style="font-size: 14px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span></div>
+                            </div>
+                            <div class="col-6">
+                                <h3 class="h6 pb-2 fw-bold text-uppercase" style="color: ${titleColor}; border-bottom: 1px solid #cbd5e1;">${billFromLabel}</h3>
+                                <div class="font-13 lh-base mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-3 overflow-hidden ${isLast ? '' : 'mb-4'}" style="border-color:#cbd5e1!important;">
+                            <table class="table custom-table mb-0 ${cart.length > 5 ? 'table-sm' : ''}">
+                                <thead>
+                                    <tr>
+                                        <th width="5%" class="${headerClass}">#</th>
+                                        <th width="35%" class="${headerClass}">Description</th>
+                                        <th width="10%" class="text-center ${headerClass}">Qty</th>
+                                        <th width="15%" class="text-end ${headerClass}">Price</th>
+                                        <th width="15%" class="text-end ${headerClass}">GST</th>
+                                        <th width="20%" class="text-end ${headerClass}">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tbody}</tbody>
+                            </table>
+                        </div>
+
+                        ${totalsHTML}
+                    </div>
+                </div>
+                `;
+            });
+            
+            return { html, roundedGrandTotal };
+        }
+
         async function generatePreview(type) { 
             if(!isAdmin) return;
             currentDocType = type; 
@@ -1375,112 +1411,11 @@
             saveBtn.innerText = "⏳ Processing..."; 
             saveBtn.disabled = true; 
             
-            const buyer = appData.customers.find(c => c.id === custId); 
-            const tablesContainer = document.getElementById("invoice-tables-container"); 
-            tablesContainer.innerHTML = ""; 
+            const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
             
-            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
-            
-            currentCart.forEach((item) => { 
-                let baseAmt = item.qty * item.price; 
-                let gstAmt = baseAmt * (item.gstPercent / 100); 
-                subTotal += baseAmt; 
-                totalGst += gstAmt; 
-                mainGstRate = item.gstPercent; 
-            }); 
-            
-            const headerClass = type === 'po' ? 'th-po' : '';
-            const tableHeader = `
-                <thead>
-                    <tr>
-                        <th width="5%" class="${headerClass}">#</th>
-                        <th width="35%" class="${headerClass}">Description</th>
-                        <th width="10%" class="text-center ${headerClass}">Qty</th>
-                        <th width="15%" class="text-end ${headerClass}">Price</th>
-                        <th width="15%" class="text-end ${headerClass}">GST</th>
-                        <th width="20%" class="text-end ${headerClass}">Amount</th>
-                    </tr>
-                </thead>
-            `;
-
-            if (currentCart.length <= 12) {
-                let rowsHtml = "";
-                currentCart.forEach((item, index) => {
-                    let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
-                    rowsHtml += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
-                });
-                tablesContainer.innerHTML = `
-                    <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
-                        <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
-                    </div>
-                `;
-            } else {
-                for (let i = 0; i < currentCart.length; i += 10) {
-                    let chunk = currentCart.slice(i, i + 10);
-                    let rowsHtml = "";
-                    chunk.forEach((item, idx) => {
-                        let actualIndex = i + idx;
-                        let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
-                        rowsHtml += `<tr><td>${actualIndex + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
-                    });
-                    
-                    let isLastChunk = (i + 10 >= currentCart.length);
-                    let pageBreak = !isLastChunk ? `<div class="html2pdf__page-break"></div><div style="height: 30px;"></div>` : '';
-                    
-                    tablesContainer.innerHTML += `
-                        <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
-                            <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
-                        </div>${pageBreak}
-                    `;
-                }
-            }
-            
-            const exactGrandTotal = subTotal + totalGst; 
-            const roundedGrandTotal = Math.round(exactGrandTotal); 
-            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
-            const roundedGst = Math.round(totalGst);
-
-            const wave = document.getElementById("doc-wave"); 
-            const gBox = document.getElementById("grand-box"); 
-            
-            // Hide payment UI during preview creation, it gets shown after save if converted
-            document.getElementById("payout-status-container").style.display = "none";
-            
-            if (type === 'po') {
-                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
-                document.getElementById("doc-type-title").style.color = "#d97706"; 
-                document.getElementById("bill-to-label").innerText = "Vendor"; 
-                document.getElementById("bill-from-label").innerText = "Purchaser";
-                wave.classList.add('wave-po'); gBox.classList.add('grand-po'); 
-            } else {
-                document.getElementById("doc-type-title").innerText = "INVOICE"; 
-                document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
-                document.getElementById("bill-to-label").innerText = "Bill To"; 
-                document.getElementById("bill-from-label").innerText = "Bill From";
-                wave.classList.remove('wave-po'); gBox.classList.remove('grand-po'); 
-            }
-            
-            document.getElementById("inv-number").innerHTML = `Number: <strong>${tempDocNumber}</strong>`; 
-            document.getElementById("inv-date").innerHTML = `Date: <strong>${tempDocDate}</strong>`; 
-            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
-            
-            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
-            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
-            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; 
-            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
-            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal); 
-            
-            const taxContainer = document.getElementById("tax-rows-container"); 
-            if (SELLER_STATE === buyer.stateCode) { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                    <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                `; 
-            } else { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>
-                `; 
-            } 
+            // 🌟 GENERATE THE NEW DYNAMIC HTML 🌟
+            const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
+            document.getElementById("invoice-content").innerHTML = html;
             
             let stockChanges = {};
             
@@ -1574,7 +1509,6 @@
                     } 
                 } 
                 
-                // 🌟 FIX: Instantly capture newly generated ID to render buttons 🌟
                 editingDocId = record.id;
                 
                 let canEditPrev = isAdmin;
@@ -1602,6 +1536,7 @@
                         document.getElementById("payout-status-container").style.display = "none";
                     }
                 } else { 
+                    document.getElementById("payout-status-container").style.display = "none";
                     renderHistoryList(); 
                 }
                 
@@ -1637,12 +1572,12 @@
                 }
 
                 const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
-                const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
-                const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+                const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="event.stopPropagation(); markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
+                const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
                 
                 return `
-                <div class="list-item history-card">
-                    <div style="cursor: pointer; flex-grow: 1; padding-left: 8px;" onclick="viewOldDocument('${h.id}', 'invoice')">
+                <div class="list-item history-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'invoice')">
+                    <div style="flex-grow: 1; padding-left: 8px;">
                         <strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br>
                         <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
                         <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
@@ -1782,85 +1717,16 @@
                 renderCartUI('invoice');
             }
             
-            const tablesContainer = document.getElementById("invoice-tables-container"); 
-            tablesContainer.innerHTML = ""; 
-            
-            let subTotal = 0, totalGst = 0, mainGstRate = 0; 
-            
-            doc.cart.forEach((item) => { 
-                let baseAmt = item.qty * item.price; 
-                let gstAmt = baseAmt * (item.gstPercent / 100); 
-                subTotal += baseAmt; 
-                totalGst += gstAmt; 
-                mainGstRate = item.gstPercent; 
-            }); 
-            
-            const headerClass = type === 'po' ? 'th-po' : '';
-            const tableHeader = `
-                <thead>
-                    <tr>
-                        <th width="5%" class="${headerClass}">#</th>
-                        <th width="35%" class="${headerClass}">Description</th>
-                        <th width="10%" class="text-center ${headerClass}">Qty</th>
-                        <th width="15%" class="text-end ${headerClass}">Price</th>
-                        <th width="15%" class="text-end ${headerClass}">GST</th>
-                        <th width="20%" class="text-end ${headerClass}">Amount</th>
-                    </tr>
-                </thead>
-            `;
-
-            if (doc.cart.length <= 12) {
-                let rowsHtml = "";
-                doc.cart.forEach((item, index) => {
-                    let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
-                    rowsHtml += `<tr><td>${index + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
-                });
-                tablesContainer.innerHTML = `
-                    <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
-                        <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
-                    </div>
-                `;
-            } else {
-                for (let i = 0; i < doc.cart.length; i += 10) {
-                    let chunk = doc.cart.slice(i, i + 10);
-                    let rowsHtml = "";
-                    chunk.forEach((item, idx) => {
-                        let actualIndex = i + idx;
-                        let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100);
-                        rowsHtml += `<tr><td>${actualIndex + 1}</td><td class="fw-medium">${item.name}</td><td class="text-center">${item.qty}</td><td class="text-end">₹${item.price.toFixed(2)}</td><td class="text-end text-muted">₹${gstAmt.toFixed(2)} <span style="font-size:10px;">(${item.gstPercent}%)</span></td><td class="text-end fw-bold" style="color:#0b2a5c;">₹${(baseAmt + gstAmt).toFixed(2)}</td></tr>`;
-                    });
-                    
-                    let isLastChunk = (i + 10 >= doc.cart.length);
-                    let pageBreak = !isLastChunk ? `<div class="html2pdf__page-break"></div><div style="height: 30px;"></div>` : '';
-                    
-                    tablesContainer.innerHTML += `
-                        <div class="table-scroll-wrapper border mb-4 rounded-3" style="border-color:#cbd5e1!important;">
-                            <table class="table custom-table mb-0">${tableHeader}<tbody>${rowsHtml}</tbody></table>
-                        </div>${pageBreak}
-                    `;
-                }
-            }
-            
-            const exactGrandTotal = subTotal + totalGst; 
-            const roundedGrandTotal = Math.round(exactGrandTotal); 
-            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
-            const roundedGst = Math.round(totalGst);
-            
             const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
-            const wave = document.getElementById("doc-wave"); 
-            const gBox = document.getElementById("grand-box"); 
+            
+            // 🌟 RENDER THE NEW DYNAMIC HTML FOR VIEWING 🌟
+            const { html, roundedGrandTotal } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
+            document.getElementById("invoice-content").innerHTML = html;
             
             let canEdit = isAdmin;
             let canDelete = isAdmin;
 
             if (type === 'po') { 
-                document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
-                document.getElementById("doc-type-title").style.color = "#d97706"; 
-                document.getElementById("bill-to-label").innerText = "Vendor"; 
-                document.getElementById("bill-from-label").innerText = "Purchaser"; 
-                wave.classList.add('wave-po'); 
-                gBox.classList.add('grand-po'); 
-                
                 const statusStr = doc.status || 'converted';
                 
                 if (statusStr === 'converted') {
@@ -1877,41 +1743,12 @@
                     canDelete = false;
                 }
             } else { 
-                document.getElementById("doc-type-title").innerText = "INVOICE"; 
-                document.getElementById("doc-type-title").style.color = "#0b2a5c"; 
-                document.getElementById("bill-to-label").innerText = "Bill To"; 
-                document.getElementById("bill-from-label").innerText = "Bill From"; 
-                wave.classList.remove('wave-po'); 
-                gBox.classList.remove('grand-po'); 
                 document.getElementById("payout-status-container").style.display = "none"; 
-                
                 if (doc.paid) canEdit = false;
             }
             
             document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
             document.getElementById("btn-delete-preview").style.display = canDelete ? 'inline-block' : 'none';
-            
-            document.getElementById("inv-number").innerHTML = `Number: <strong>${doc.invoiceNumber}</strong>`; 
-            document.getElementById("inv-date").innerHTML = `Date: <strong>${doc.date}</strong>`; 
-            document.getElementById("bill-to").innerHTML = `<span class="fw-bold" style="font-size: 15px;">${buyer.name}</span><br>${buyer.address}<br><span class="text-muted mt-1 d-block">GST # ${buyer.gstin}</span>`; 
-            
-            document.getElementById("sub-total").innerText = `₹${subTotal.toFixed(2)}`; 
-            document.getElementById("total-gst").innerText = `₹${totalGst.toFixed(2)} (Rounded: ₹${roundedGst})`; 
-            document.getElementById("round-off").innerText = `${roundOffAmt >= 0 ? '+' : ''}₹${roundOffAmt.toFixed(2)}`; 
-            document.getElementById("grand-total").innerText = `₹${roundedGrandTotal.toFixed(2)}`; 
-            document.getElementById("amount-in-words").innerText = numberToWords(roundedGrandTotal);
-            
-            const taxContainer = document.getElementById("tax-rows-container"); 
-            if (SELLER_STATE === buyer.stateCode) { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                    <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                `; 
-            } else { 
-                taxContainer.innerHTML = `
-                    <div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>
-                `; 
-            }
             
             switchScreen('screen-preview');
         }
