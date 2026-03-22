@@ -1443,6 +1443,9 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             
+            // Hide payment UI during preview creation, it gets shown after save if converted
+            document.getElementById("payout-status-container").style.display = "none";
+            
             if (type === 'po') {
                 document.getElementById("doc-type-title").innerText = "PURCHASE ORDER"; 
                 document.getElementById("doc-type-title").style.color = "#d97706"; 
@@ -1571,10 +1574,9 @@
                     } 
                 } 
                 
-                // 🌟 FIX: Immediately assign the newly generated ID to the active session 🌟
+                // 🌟 FIX: Instantly capture newly generated ID to render buttons 🌟
                 editingDocId = record.id;
                 
-                // 🌟 FIX: Instantly calculate if buttons should be shown 🌟
                 let canEditPrev = isAdmin;
                 let canDeletePrev = isAdmin;
 
@@ -1600,7 +1602,6 @@
                         document.getElementById("payout-status-container").style.display = "none";
                     }
                 } else { 
-                    document.getElementById("payout-status-container").style.display = "none";
                     renderHistoryList(); 
                 }
                 
