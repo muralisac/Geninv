@@ -1,9 +1,22 @@
+// js/6-inventory.js
+
 function renderProductList() { 
     const list = document.getElementById("products-list");
     list.innerHTML = appData.inventory.map(p => { 
         let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
         let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
         let stockDisplay = p.inStock ? p.inStock : 0;
+        
+        let deleteBtn = '';
+        if (isAdmin) {
+            if (stockDisplay === 0) {
+                // Allows deletion if stock is exactly 0
+                deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="promptDeleteProduct('${p.id}')">🗑️</button>`;
+            } else {
+                // Shows a faded button that alerts the user if they try to delete an item with active stock
+                deleteBtn = `<button class="btn btn-secondary btn-sm shadow-sm opacity-50" onclick="showCustomAlert('Cannot delete items that have stock remaining. Please adjust the stock to 0 first.', 'Action Blocked', '🔒')">🗑️</button>`;
+            }
+        }
         
         return `
         <div class="list-item">
@@ -12,10 +25,53 @@ function renderProductList() {
                 <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small><br>
                 <span class="badge ${stockDisplay > 0 ? 'bg-success' : 'bg-danger'} mt-1">In Stock: ${stockDisplay}</span>
             </div>
-            ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
+            <div class="d-flex align-items-center gap-2">
+                ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
+                ${deleteBtn}
+            </div>
         </div>`; 
     }).join(''); 
     populateDropdowns(); 
+}
+
+function promptDeleteProduct(id) {
+    if(!isAdmin) return;
+    const product = appData.inventory.find(p => p.id === id);
+    if(!product) return;
+    
+    // Double check security
+    if((product.inStock || 0) > 0) {
+        showCustomAlert("Cannot delete items that have stock remaining.", "Action Blocked", "🔒");
+        return;
+    }
+    
+    showCustomConfirm(
+        `Are you sure you want to permanently delete the inventory item "${product.name}"?`, 
+        () => executeDeleteProduct(id), 
+        "Yes, Delete"
+    );
+}
+
+async function executeDeleteProduct(id) {
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-text').innerText = "Deleting Item...";
+    
+    try {
+        // Delete from Firebase Cloud
+        await db.collection("inventory").doc(id).delete();
+        
+        // Remove from local array
+        appData.inventory = appData.inventory.filter(p => p.id !== id);
+        
+        // Refresh UI
+        renderProductList(); 
+        showCustomAlert("Item successfully deleted from inventory.", "Success", "✅");
+    } catch (error) {
+        console.error("Error deleting product:", error);
+        showCustomAlert("Failed to delete item. Check your network.", "Error", "🔴");
+    } finally {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
 }
 
 function editProduct(id) { 
@@ -77,4 +133,5 @@ async function saveProduct() {
 function cancelProductEdit() { 
     document.getElementById('product-form-container').style.display = 'none'; 
     document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none'; 
-}
+        }
+    
