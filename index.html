@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sri Totatri POS - ERP Edition</title>
+    <title>NellaiNaturals ERP</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0b2a5c">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Totatri ERP">
+    <meta name="apple-mobile-web-app-title" content="NellaiNaturals">
     <link rel="apple-touch-icon" href="logo-192.png">
     <link rel="icon" href="logo-192.png">
     
@@ -55,7 +55,7 @@
             to { transform: translateY(0); opacity: 1; } 
         }
 
-        /* 🌟 NEW: TOP APP BAR & HAMBURGER MENU 🌟 */
+        /* TOP APP BAR & HAMBURGER MENU */
         #app-header {
             position: fixed; 
             top: 0; left: 0; width: 100%; 
@@ -63,7 +63,7 @@
             background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%);
             padding: 15px 20px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            display: none; /* Hidden on login screen */
+            display: none; 
         }
         
         #app-sidebar {
@@ -246,6 +246,7 @@
         
         .wave-po { background-color: #d97706 !important; }
         
+        /* PERFECTLY CENTERED HEADER */
         .invoice-header-wrapper-abs { 
             position: absolute; 
             top: 45px; 
@@ -272,16 +273,6 @@
             position: relative; 
             z-index: 10; 
             padding: 160px 8% 80px 8%; 
-        }
-        
-        .logo-placeholder { 
-            width: 50px; 
-            height: 50px; 
-            background-color: #f7d047; 
-            clip-path: polygon(25% 0%, 75% 0%, 75% 100%, 25% 100%); 
-            transform: rotate(45deg); 
-            margin: 0; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
         }
 
         .table-scroll-wrapper {
@@ -373,7 +364,7 @@
 
     <header id="app-header">
         <div class="d-flex justify-content-between align-items-center w-100">
-            <div class="fw-bold text-white fs-4" style="letter-spacing: 0.5px;">Sri Totatri ERP</div>
+            <div class="fw-bold text-white fs-4" style="letter-spacing: 0.5px;">NellaiNaturals</div>
             <button class="btn text-white fs-1 p-0 lh-1" onclick="toggleMenu()">☰</button>
         </div>
     </header>
@@ -419,8 +410,8 @@
 
     <div id="screen-login" class="screen panel" style="margin-top: 15vh; border-top: 6px solid #0b2a5c;">
         <div class="text-center mb-5">
-            <div class="logo-placeholder mb-4"></div>
-            <h3 class="fw-bold" style="color: #0b2a5c;">Sri Totatri ERP</h3>
+            <img src="NNlogo-removebg-preview.png" alt="NellaiNaturals Logo" style="width: 120px; height: auto; margin-bottom: 20px;">
+            <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
             <p class="text-muted small">Secure Wholesale Management</p>
         </div>
         <div class="mb-3">
@@ -654,7 +645,7 @@
                 <div class="wave-top" id="doc-wave"></div>
                 <div class="invoice-header-wrapper-abs">
                     <h2 class="invoice-header-title">SRI TOTATRI AGRO FOODS PVT LTD</h2>
-                    <div class="logo-placeholder flex-shrink-0"></div>
+                    <img src="NNlogo-removebg-preview.png" alt="Logo" class="flex-shrink-0" style="width: 70px; height: auto;">
                 </div>
                 <div class="content-wrapper">
                     <h1 class="display-6 mb-2" id="doc-type-title" style="letter-spacing: 2px; color: #0b2a5c; font-weight: 800;">INVOICE</h1>
@@ -753,7 +744,7 @@
         // 🔒 ADMIN CONFIGURATION
         // Add your admin email(s) inside this array.
         // ========================================================
-        const ADMIN_EMAILS = ["sundara.murali@gmail.com", "murali@nellainaturals.com"];
+        const ADMIN_EMAILS = ["your.admin.email@gmail.com", "another.admin@gmail.com"];
 
         // --- FIREBASE SETUP ---
         const firebaseConfig = {
@@ -878,7 +869,7 @@
             if (user) {
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
                 
-                document.getElementById('app-header').style.display = 'block'; // NEW HEADER
+                document.getElementById('app-header').style.display = 'block'; 
                 document.getElementById('screen-login').classList.remove('active'); 
                 document.getElementById('loading-overlay').style.display = 'flex';
                 document.getElementById('loading-text').innerText = isAdmin ? "Loading Admin ERP..." : "Loading Read-Only View...";
@@ -888,7 +879,7 @@
                 ensureBackTrap(); 
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('app-header').style.display = 'none'; // HIDE HEADER
+                document.getElementById('app-header').style.display = 'none'; 
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                 document.getElementById('screen-login').classList.add('active');
             }
@@ -899,7 +890,6 @@
 
             window.history.pushState({ page: 'main' }, "");
 
-            // If sidebar is open, close it instead of exiting app
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar.classList.contains('open')) {
                 toggleMenu();
@@ -947,7 +937,6 @@
         }
 
         function promptLogout() {
-            // Close menu before prompting logout
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar.classList.contains('open')) toggleMenu();
             
@@ -1012,7 +1001,6 @@
             
             window.scrollTo({ top: 0, behavior: 'smooth' }); 
             
-            // Auto close menu when a link is selected
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar.classList.contains('open')) toggleMenu();
         }
@@ -1442,7 +1430,6 @@
             const wave = document.getElementById("doc-wave"); 
             const gBox = document.getElementById("grand-box"); 
             
-            // Hide payment UI during preview creation, it gets shown after save if converted
             document.getElementById("payout-status-container").style.display = "none";
             
             if (type === 'po') {
