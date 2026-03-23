@@ -32,362 +32,122 @@
             background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
             font-family: 'Inter', sans-serif; 
             color: #1e293b; 
-            min-height: 100vh;
-            overscroll-behavior-y: contain; 
-            margin: 0;
-        }
-        
-        /* DYNAMIC LAYOUT MODES */
-        body.auth-mode {
             padding-top: 80px; 
             padding-bottom: 40px;
+            min-height: 100vh;
+            overscroll-behavior-y: contain; 
         }
         
-        body.login-mode {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 15px; /* Prevents touching edges on tiny screens */
-        }
-        
-        .screen { 
-            display: none; 
-            opacity: 0; 
-            transition: opacity 0.3s ease-in-out; 
-        }
-        
-        .screen.active { 
-            display: block; 
-            opacity: 1; 
-            animation: slideUp 0.4s ease-out forwards; 
-        }
-        
-        /* EXACT CENTERING FOR LOGIN */
-        #screen-login {
-            margin: 0 !important;
-            width: 100%;
-            max-width: 420px;
-            border-top: 6px solid #0b2a5c !important;
-        }
-        
-        @keyframes slideUp { 
-            from { transform: translateY(15px); opacity: 0; } 
-            to { transform: translateY(0); opacity: 1; } 
-        }
+        .screen { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .screen.active { display: block; opacity: 1; animation: slideUp 0.4s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* TOP APP BAR & HAMBURGER MENU */
         #app-header {
-            position: fixed; 
-            top: 0; left: 0; width: 100%; 
-            z-index: 9000;
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 9000;
             background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%);
-            padding: 15px 20px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            display: none; 
+            padding: 15px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: none; 
         }
         
         #app-sidebar {
-            position: fixed; 
-            top: 0; right: -300px; 
-            width: 280px; max-width: 80vw; height: 100%;
-            background: #fff; z-index: 9999; 
-            box-shadow: -5px 0 25px rgba(0,0,0,0.2);
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            display: flex; flex-direction: column;
+            position: fixed; top: 0; right: -300px; width: 280px; max-width: 80vw; height: 100%;
+            background: #fff; z-index: 9999; box-shadow: -5px 0 25px rgba(0,0,0,0.2);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
         }
         
         #app-sidebar.open { right: 0; }
         
         #sidebar-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15,23,42,0.6); z-index: 9998; 
-            display: none; backdrop-filter: blur(2px);
+            background: rgba(15,23,42,0.6); z-index: 9998; display: none; backdrop-filter: blur(2px);
             opacity: 0; transition: opacity 0.3s ease;
         }
         
         #sidebar-overlay.open { display: block; opacity: 1; }
         
         .nav-btn {
-            background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b;
-            border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600;
-            text-align: left; transition: all 0.2s ease; 
+            background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; border-radius: 12px; 
+            padding: 14px 20px; font-size: 16px; font-weight: 600; text-align: left; transition: all 0.2s ease; 
         }
-        
         .nav-btn:active { transform: scale(0.98); }
-        
-        .nav-btn.active {
-            background: #f7d047; color: #0b2a5c; border-color: #f7d047; 
-            box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3);
-        }
+        .nav-btn.active { background: #f7d047; color: #0b2a5c; border-color: #f7d047; box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3); }
 
         /* UI ELEMENTS */
         .panel { 
-            max-width: 650px; 
-            margin: 15px auto 30px auto; 
-            background: #fff; 
-            padding: 30px; 
-            border-radius: 24px; 
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); 
-            border: 1px solid rgba(255,255,255,0.8); 
+            max-width: 650px; margin: 15px auto 30px auto; background: #fff; padding: 30px; 
+            border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.8); 
         }
         
         .form-control, .form-select { 
-            background-color: #f8fafc; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 12px; 
-            padding: 14px 16px; 
-            font-size: 15px; 
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); 
+            background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; 
+            padding: 14px 16px; font-size: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); 
         }
+        .form-control:focus, .form-select:focus { background-color: #fff; border-color: #0b2a5c; box-shadow: 0 0 0 4px rgba(11,42,92,0.1); }
+        .form-label { font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
         
-        .form-control:focus, .form-select:focus { 
-            background-color: #fff; 
-            border-color: #0b2a5c; 
-            box-shadow: 0 0 0 4px rgba(11,42,92,0.1); 
-        }
+        .btn { border-radius: 12px; font-weight: 600; padding: 12px 20px; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(11,42,92,0.25); }
+        .btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.25); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.25); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
         
-        .form-label { 
-            font-weight: 600; 
-            color: #64748b; 
-            margin-bottom: 6px; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-            font-size: 11px; 
-        }
-        
-        .btn { 
-            border-radius: 12px; 
-            font-weight: 600; 
-            padding: 12px 20px; 
-            transition: all 0.2s; 
-        }
-        
-        .btn-primary { 
-            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); 
-            border: none; 
-            color: white; 
-            box-shadow: 0 4px 12px rgba(11,42,92,0.25); 
-        }
-        
-        .btn-success { 
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
-            border: none; 
-            color: white; 
-            box-shadow: 0 4px 12px rgba(16,185,129,0.25); 
-        }
-        
-        .btn-warning { 
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
-            border: none; 
-            color: white; 
-            box-shadow: 0 4px 12px rgba(245,158,11,0.25); 
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); 
-            border: none; 
-            color: white;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); 
-        }
-        
-        .list-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 16px; 
-            background: #fff; 
-            margin-bottom: 12px; 
-            border-radius: 16px; 
-            border: 1px solid #f1f5f9; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); 
-        }
-        
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #fff; margin-bottom: 12px; border-radius: 16px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); }
         .history-card { border-left: 5px solid #0b2a5c; }
         .po-card { border-left: 5px solid #f59e0b; }
 
         /* CUSTOM MODAL OVERLAYS */
         .custom-modal-overlay {
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
-            background: rgba(15, 23, 42, 0.85); 
-            backdrop-filter: blur(4px);
-            z-index: 9999; 
-            display: none; 
-            justify-content: center; 
-            align-items: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
         }
-        
         .custom-modal-content {
-            background: #fff; 
-            width: 90%; 
-            max-width: 450px; 
-            border-radius: 20px;
-            padding: 25px; 
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-            animation: slideUp 0.3s ease-out;
-        }
-
-        /* MOBILE INVOICE SCROLL WRAPPER */
-        .invoice-scroll-wrapper {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 20px 10px;
+            background: #fff; width: 90%; max-width: 450px; border-radius: 20px;
+            padding: 25px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: slideUp 0.3s ease-out;
         }
 
         /* 🌟 DYNAMIC A4 INVOICE ENGINE CLASSES 🌟 */
-        .invoice-page {
-            width: 800px;
-            height: 1122px; 
-            margin: 0 auto 25px auto; 
-            background: #fff; 
-            position: relative; 
-            overflow: hidden; 
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-        }
-        
-        .pdf-mode .invoice-page {
-            margin: 0 !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            border: none !important;
-            page-break-after: always;
-        }
+        .invoice-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 20px 10px; }
 
-        .pdf-mode .invoice-page:last-child {
-            page-break-after: auto;
+        .invoice-page {
+            width: 800px; height: 1122px; margin: 0 auto 25px auto; background: #fff; 
+            position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+            border-radius: 8px; display: flex; flex-direction: column; box-sizing: border-box;
         }
         
-        .wave-top { 
-            position: absolute; 
-            top: -50px; 
-            left: -10%; 
-            width: 120%; 
-            height: 180px; 
-            background-color: #0b2a5c; 
-            border-radius: 50% / 100% 100% 0 0; 
-            transform: rotate(180deg); 
-            z-index: 0; 
-        }
+        .pdf-mode .invoice-page { margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; border: none !important; page-break-after: always; }
+        .pdf-mode .invoice-page:last-child { page-break-after: auto; }
         
+        .wave-top { position: absolute; top: -50px; left: -10%; width: 120%; height: 180px; background-color: #0b2a5c; border-radius: 50% / 100% 100% 0 0; transform: rotate(180deg); z-index: 0; }
         .wave-po { background-color: #d97706 !important; }
         
-        .invoice-header-wrapper-abs { 
-            position: absolute; 
-            top: 45px; 
-            left: 0; 
-            right: 0; 
-            z-index: 20; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 15px;
-        }
+        .invoice-header-wrapper-abs { position: absolute; top: 45px; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; align-items: center; gap: 15px; }
+        .invoice-header-title { white-space: nowrap; font-size: 22px; font-weight: 800; margin: 0; color: #ffffff; letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
         
-        .invoice-header-title { 
-            white-space: nowrap; 
-            font-size: 22px; 
-            font-weight: 800; 
-            margin: 0; 
-            color: #ffffff; 
-            letter-spacing: 0.5px; 
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
-        }
-        
-        .content-wrapper { 
-            position: relative; 
-            z-index: 10; 
-            padding: 160px 8% 40px 8%; 
-            flex-grow: 1; 
-            display: flex; 
-            flex-direction: column;
-        }
-
+        .content-wrapper { position: relative; z-index: 10; padding: 160px 8% 40px 8%; flex-grow: 1; display: flex; flex-direction: column; }
         .py-1-custom { padding-top: 6px !important; padding-bottom: 6px !important; }
         .py-2-custom { padding-top: 12px !important; padding-bottom: 12px !important; }
         .py-3-custom { padding-top: 22px !important; padding-bottom: 22px !important; }
         
-        .custom-table {
-            min-width: 600px; 
-        }
-        
-        .custom-table th { 
-            background-color: #0b2a5c !important; 
-            color: white !important; 
-            font-size: 11px; 
-            text-transform: uppercase; 
-            font-weight: 600; 
-            border: none; 
-            padding: 12px; 
-        }
-        
+        .custom-table { min-width: 600px; }
+        .custom-table th { background-color: #0b2a5c !important; color: white !important; font-size: 11px; text-transform: uppercase; font-weight: 600; border: none; padding: 12px; }
         .th-po { background-color: #d97706 !important; }
+        .custom-table td { font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #334155; }
         
-        .custom-table td { 
-            font-size: 13px; 
-            border-bottom: 1px solid #e2e8f0; 
-            color: #334155; 
-        }
+        .totals-section { page-break-inside: avoid; }
+        .totals-box { border: 1px solid #cbd5e1; font-size: 13px; border-radius: 8px; overflow: hidden; background: #f8fafc; }
+        .totals-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
         
-        .totals-section {
-            page-break-inside: avoid; 
-        }
-
-        .totals-box { 
-            border: 1px solid #cbd5e1; 
-            font-size: 13px; 
-            border-radius: 8px; 
-            overflow: hidden; 
-            background: #f8fafc; 
-        }
-        
-        .totals-row { 
-            display: flex; 
-            justify-content: space-between; 
-            padding: 8px 12px; 
-            border-bottom: 1px solid #e2e8f0; 
-        }
-        
-        .grand-total-box { 
-            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); 
-            color: white; 
-            padding: 15px 12px; 
-            display: flex; 
-            justify-content: space-between; 
-            font-weight: 800; 
-            font-size: 18px; 
-            border-radius: 8px; 
-            margin-top: 8px; 
-        }
-        
+        .grand-total-box { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); color: white; padding: 15px 12px; display: flex; justify-content: space-between; font-weight: 800; font-size: 18px; border-radius: 8px; margin-top: 8px; }
         .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
-        
         .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
 
-        #loading-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); 
-            z-index: 9999; display: flex; flex-direction: column; justify-content: center; 
-            align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; 
-        }
-        
-        .spinner { 
-            width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); 
-            border-left-color: #0b2a5c; border-radius: 50%; 
-            animation: spin 1s linear infinite; margin-bottom: 15px; 
-        }
-        
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); border-left-color: #0b2a5c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="login-mode">
+<body>
 
     <div id="loading-overlay">
         <div class="spinner"></div>
@@ -469,7 +229,7 @@
         </div>
     </div>
 
-    <div id="screen-login" class="screen panel">
+    <div id="screen-login" class="screen panel" style="margin-top: 5vh; border-top: 6px solid #0b2a5c;">
         <div class="text-center mb-5">
             <img src="NNlogo-removebg-preview.png" alt="NellaiNaturals Logo" style="width: 120px; height: auto; margin-bottom: 20px;">
             <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
@@ -557,7 +317,6 @@
                 <label class="form-label">Product Name</label>
                 <input type="text" id="prod-name" class="form-control">
             </div>
-            
             <div class="row g-3 mb-3">
                 <div class="col-6">
                     <label class="form-label">Wholesale Price (₹)</label>
@@ -568,7 +327,6 @@
                     <input type="number" step="0.01" id="prod-purchase-price" class="form-control" placeholder="Buying Price">
                 </div>
             </div>
-
             <div class="row g-3 mb-4">
                 <div class="col-4">
                     <label class="form-label">GST (%)</label>
@@ -747,11 +505,9 @@
     <script>
         // ========================================================
         // 🔒 ADMIN CONFIGURATION
-        // Add your admin email(s) inside this array.
         // ========================================================
         const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
 
-        // --- FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
             authDomain: "geninv-9583c.firebaseapp.com",
@@ -765,21 +521,55 @@
         const db = firebase.firestore();
         const auth = firebase.auth(); 
 
-        let appData = { 
-            inventory: [], customers: [], history: [], purchaseOrders: [], 
-            lastInvoiceNum: 22, lastPoNum: 5 
-        };
-        
+        let appData = { inventory: [], customers: [], history: [], purchaseOrders: [], lastInvoiceNum: 22, lastPoNum: 5 };
         const SELLER_STATE = 33; 
         
-        let currentCart = []; 
-        let editingDocId = null; 
-        let tempDocNumber = ""; 
-        let tempDocDate = "";
-        let currentDocType = "invoice"; 
-        let isAdmin = false;
+        let currentCart = []; let editingDocId = null; let tempDocNumber = ""; let tempDocDate = "";
+        let currentDocType = "invoice"; let isAdmin = false;
 
-        // --- UTILITIES ---
+        // ========================================================
+        // 🌟 UTILITY FUNCTIONS (MOVED TO TOP TO PREVENT ERRORS)
+        // ========================================================
+        
+        function numberToWords(amount) { 
+            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
+            function convert(num) { 
+                if (num < 20) return words[num]; 
+                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
+                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
+                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
+                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
+                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
+            } 
+            let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); 
+            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
+        }
+
+        function downloadPDF() { 
+            document.getElementById('app-controls').style.display = 'none'; 
+            const payoutBox = document.getElementById('payout-status-container'); 
+            const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
+            
+            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
+            scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
+            
+            const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
+            
+            const opt = { 
+                margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
+                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
+            }; 
+            
+            html2pdf().set(opt).from(element).save().then(() => { 
+                document.getElementById('app-controls').style.display = 'block'; 
+                if(payoutWasVisible) payoutBox.style.display = 'block'; 
+                element.classList.remove('pdf-mode'); 
+                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
+            }); 
+        }
+
         function toggleMenu() {
             const sidebar = document.getElementById('app-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
@@ -865,7 +655,6 @@
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar && sidebar.classList.contains('open')) toggleMenu();
 
-            // Link real Android history to the screen change
             if (pushHistory) {
                 window.history.pushState({ id: screenId }, "", "#" + screenId);
             }
@@ -874,7 +663,6 @@
         window.addEventListener('popstate', (event) => {
             if (exitConfirmed || !auth.currentUser) return;
 
-            // 1. Intercept Back Button for Modals & Sidebars
             let overlayClosed = false;
             const modals = [
                 { id: 'receipt-viewer-modal', closeFn: closeReceiptViewer },
@@ -900,23 +688,17 @@
             }
 
             if (overlayClosed) {
-                // Restore history state because the back button was used just to close a modal
                 window.history.pushState(event.state, "", window.location.hash);
                 return;
             }
 
-            // 2. Handle Screen Navigation
             if (event.state && event.state.id) {
-                // User went back to a previous valid screen
                 switchScreen(event.state.id, false); 
             } else {
-                // Hit the bottom of the history stack (App exit point)
                 showCustomConfirm("Are you sure you want to exit the application?", () => {
                     exitConfirmed = true;
                     window.history.go(-2); 
                 }, "Yes, Exit");
-                
-                // Push dummy state to keep app alive while prompt is showing
                 window.history.pushState({ exitPrompt: true }, "", "#exit");
             }
         });
@@ -926,10 +708,6 @@
             if (user) {
                 isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
                 
-                // RESTORE REGULAR APP PADDING/SPACING
-                document.body.classList.remove('login-mode');
-                document.body.classList.add('auth-mode');
-                
                 document.getElementById('app-header').style.display = 'flex'; 
                 document.getElementById('screen-login').classList.remove('active'); 
                 document.getElementById('loading-overlay').style.display = 'flex';
@@ -938,14 +716,9 @@
                 applyRolePermissions();
                 fetchCloudData();
                 
-                // Initialize the base history anchor for the router
                 exitConfirmed = false;
                 window.history.replaceState({ id: 'screen-history' }, "", "#screen-history");
             } else {
-                // STRIP SPACING SO LOGIN CENTERS PERFECTLY
-                document.body.classList.remove('auth-mode');
-                document.body.classList.add('login-mode');
-                
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('app-header').style.display = 'none'; 
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1010,7 +783,6 @@
 
                 document.getElementById('loading-overlay').style.display = 'none';
                 
-                // Do not push history here, we replaced it in AuthStateChanged
                 switchScreen('screen-history', false); 
                 
                 renderCustomerList(); renderProductList(); renderHistoryList(); renderPOList(); populateDropdowns();
@@ -1857,34 +1629,11 @@
             } catch (err) { showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); } 
             finally { btn.innerText = "Confirm & Lock Payment"; btn.disabled = false; }
         }
-        
-        function downloadPDF() { 
-            document.getElementById('app-controls').style.display = 'none'; 
-            const payoutBox = document.getElementById('payout-status-container'); 
-            const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
-            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
-            scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
-            
-            const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
-            
-            const opt = { 
-                margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
-                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
-            }; 
-            
-            html2pdf().set(opt).from(element).save().then(() => { 
-                document.getElementById('app-controls').style.display = 'block'; 
-                if(payoutWasVisible) payoutBox.style.display = 'block'; 
-                element.classList.remove('pdf-mode'); 
-                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
-            }); 
-        }
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered')).catch(err => console.error('SW failed', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
             });
         }
     </script>
