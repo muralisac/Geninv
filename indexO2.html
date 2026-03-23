@@ -1684,13 +1684,16 @@
             let msg = "Are you sure you want to delete this Purchase Order? Please provide a reason.";
             if(po.status === 'converted') msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory. Please provide a reason.";
             
-            document.getElementById("delete-target-id").value = targetId; document.getElementById("delete-target-type").value = "po";
-            document.getElementById("delete-reason-text").innerText = msg; document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "po";
+            document.getElementById("delete-reason-text").innerText = msg;
+            document.getElementById("delete-reason-input").value = "";
             document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
         async function executeDeletePO(targetId, reason) {
-            document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting PO...";
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-text').innerText = "Deleting PO...";
             try {
                 const batch = db.batch();
                 const poIndex = appData.purchaseOrders.findIndex(p => p.id === targetId);
@@ -1710,10 +1713,12 @@
                 await batch.commit();
 
                 if (poIndex > -1) {
-                    appData.purchaseOrders[poIndex].deleted = true; appData.purchaseOrders[poIndex].cart = [];
-                    appData.purchaseOrders[poIndex].totalAmount = 0; appData.purchaseOrders[poIndex].deleteReason = reason;
+                    appData.purchaseOrders[poIndex].deleted = true;
+                    appData.purchaseOrders[poIndex].cart = [];
+                    appData.purchaseOrders[poIndex].totalAmount = 0;
+                    appData.purchaseOrders[poIndex].deleteReason = reason;
                 }
-                renderProductList(); renderPOList(); switchScreen('screen-po-history', false);
+                renderProductList(); renderPOList(); switchScreen('screen-po-history');
             } catch (error) { showCustomAlert("Failed to delete Purchase Order.", "Error", "🔴"); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
@@ -1721,13 +1726,16 @@
         function promptDeleteInvoice(id = null) {
             const targetId = id || editingDocId;
             if(!isAdmin || !targetId) return;
-            document.getElementById("delete-target-id").value = targetId; document.getElementById("delete-target-type").value = "invoice";
+            document.getElementById("delete-target-id").value = targetId;
+            document.getElementById("delete-target-type").value = "invoice";
             document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this invoice? The items will be returned to inventory. Please provide a reason.";
-            document.getElementById("delete-reason-input").value = ""; document.getElementById("delete-reason-modal").style.display = "flex";
+            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
         async function executeDeleteInvoice(targetId, reason) {
-            document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting Invoice...";
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-text').innerText = "Deleting Invoice...";
             try {
                 const batch = db.batch();
                 const invIndex = appData.history.findIndex(p => p.id === targetId);
@@ -1745,18 +1753,25 @@
                 await batch.commit();
 
                 if (invIndex > -1) {
-                    appData.history[invIndex].deleted = true; appData.history[invIndex].cart = [];
-                    appData.history[invIndex].totalAmount = 0; appData.history[invIndex].deleteReason = reason;
+                    appData.history[invIndex].deleted = true;
+                    appData.history[invIndex].cart = [];
+                    appData.history[invIndex].totalAmount = 0;
+                    appData.history[invIndex].deleteReason = reason;
                 }
-                renderProductList(); renderHistoryList(); switchScreen('screen-history', false);
+                renderProductList(); renderHistoryList(); switchScreen('screen-history');
             } catch (error) { showCustomAlert("Failed to delete invoice.", "Error", "🔴"); } 
             finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
 
         function editCurrentDocument() { 
             if(!isAdmin) return;
-            if(currentDocType === 'po') { document.getElementById("btn-delete-po").style.display = "block"; switchScreen('screen-po-builder'); } 
-            else { document.getElementById("btn-delete-invoice").style.display = "block"; switchScreen('screen-builder'); }
+            if(currentDocType === 'po') {
+                document.getElementById("btn-delete-po").style.display = "block";
+                switchScreen('screen-po-builder'); 
+            } else {
+                document.getElementById("btn-delete-invoice").style.display = "block";
+                switchScreen('screen-builder'); 
+            }
         }
 
         function renderPayoutUI(poDoc) {
@@ -1774,14 +1789,19 @@
                         ${poDoc.payout.img ? `<button onclick="openReceiptViewer('${poDoc.id}')" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</button>` : ''}
                     </div>`;
             } else {
-                container.innerHTML = `<div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}`;
+                container.innerHTML = `
+                    <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
+                    ${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}`;
             }
         }
 
         function openPayoutModal(poId) { 
             if(!isAdmin) return;
-            document.getElementById("payout-po-id").value = poId; document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
-            document.getElementById("payout-ref").value = ""; document.getElementById("payout-amount").value = ""; document.getElementById("payout-image").value = ""; 
+            document.getElementById("payout-po-id").value = poId; 
+            document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
+            document.getElementById("payout-ref").value = ""; 
+            document.getElementById("payout-amount").value = ""; 
+            document.getElementById("payout-image").value = ""; 
             document.getElementById("payout-modal").style.display = "flex"; 
         }
         function closePayoutModal() { document.getElementById("payout-modal").style.display = "none"; }
@@ -1797,8 +1817,10 @@
 
         async function savePayout() {
             if(!isAdmin) return;
-            const poId = document.getElementById("payout-po-id").value; const date = document.getElementById("payout-date").value; 
-            const ref = document.getElementById("payout-ref").value; const amount = document.getElementById("payout-amount").value; 
+            const poId = document.getElementById("payout-po-id").value; 
+            const date = document.getElementById("payout-date").value; 
+            const ref = document.getElementById("payout-ref").value; 
+            const amount = document.getElementById("payout-amount").value; 
             const fileInput = document.getElementById("payout-image");
             
             if(!date || !amount) return showCustomAlert("Date and Amount are required.");
@@ -1824,32 +1846,21 @@
             try { 
                 await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData }); 
                 const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId); 
-                if(poIndex > -1) { appData.purchaseOrders[poIndex].payout = payoutData; renderPayoutUI(appData.purchaseOrders[poIndex]); renderPOList(); } 
+                if(poIndex > -1) { 
+                    appData.purchaseOrders[poIndex].payout = payoutData; 
+                    renderPayoutUI(appData.purchaseOrders[poIndex]); 
+                    renderPOList(); 
+                } 
                 closePayoutModal(); 
             } catch (err) { showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); } 
             finally { btn.innerText = "Confirm & Lock Payment"; btn.disabled = false; }
-        }
-
-        // --- UTILITIES ---
-        function numberToWords(amount) { 
-            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
-            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
-            function convert(num) { 
-                if (num < 20) return words[num]; 
-                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
-                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
-                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
-                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
-                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
-            } 
-            let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); 
-            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
         }
         
         function downloadPDF() { 
             document.getElementById('app-controls').style.display = 'none'; 
             const payoutBox = document.getElementById('payout-status-container'); 
             const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
+            
             const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
             scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
             
@@ -1872,7 +1883,7 @@
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered')).catch(err => console.error('SW failed', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
             });
         }
     </script>
