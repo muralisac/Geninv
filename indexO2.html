@@ -616,7 +616,7 @@
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="cart-count">0 items</span>
         </div>
         <div id="cart-container" class="mb-4"></div>
-        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
+        <button onclick="generatePreview('invoice')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Create Invoice</button>
     </div>
 
     <div id="screen-po-builder" class="screen panel">
@@ -664,7 +664,7 @@
             <span class="badge bg-secondary rounded-pill px-3 py-2" id="po-cart-count">0 items</span>
         </div>
         <div id="po-cart-container" class="mb-4"></div>
-        <button id="btn-save-po" onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Save & Calculate</button>
+        <button id="btn-save-po" onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Create PO</button>
     </div>
 
     <div id="screen-preview" class="screen">
@@ -727,11 +727,9 @@
     <script>
         // ========================================================
         // 🔒 ADMIN CONFIGURATION
-        // Add your admin email(s) inside this array.
         // ========================================================
         const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
 
-        // --- FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
             authDomain: "geninv-9583c.firebaseapp.com",
@@ -745,21 +743,55 @@
         const db = firebase.firestore();
         const auth = firebase.auth(); 
 
-        let appData = { 
-            inventory: [], customers: [], history: [], purchaseOrders: [], 
-            lastInvoiceNum: 22, lastPoNum: 5 
-        };
-        
+        let appData = { inventory: [], customers: [], history: [], purchaseOrders: [], lastInvoiceNum: 22, lastPoNum: 5 };
         const SELLER_STATE = 33; 
         
-        let currentCart = []; 
-        let editingDocId = null; 
-        let tempDocNumber = ""; 
-        let tempDocDate = "";
-        let currentDocType = "invoice"; 
-        let isAdmin = false;
+        let currentCart = []; let editingDocId = null; let tempDocNumber = ""; let tempDocDate = "";
+        let currentDocType = "invoice"; let isAdmin = false;
 
-        // --- UTILITIES ---
+        // ========================================================
+        // 🌟 UTILITY FUNCTIONS (MOVED TO TOP TO PREVENT ERRORS)
+        // ========================================================
+        
+        function numberToWords(amount) { 
+            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
+            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
+            function convert(num) { 
+                if (num < 20) return words[num]; 
+                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
+                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
+                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
+                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
+                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
+            } 
+            let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); 
+            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
+        }
+
+        function downloadPDF() { 
+            document.getElementById('app-controls').style.display = 'none'; 
+            const payoutBox = document.getElementById('payout-status-container'); 
+            const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
+            
+            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
+            scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
+            
+            const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
+            
+            const opt = { 
+                margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
+                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
+            }; 
+            
+            html2pdf().set(opt).from(element).save().then(() => { 
+                document.getElementById('app-controls').style.display = 'block'; 
+                if(payoutWasVisible) payoutBox.style.display = 'block'; 
+                element.classList.remove('pdf-mode'); 
+                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
+            }); 
+        }
+
         function toggleMenu() {
             const sidebar = document.getElementById('app-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
@@ -845,7 +877,6 @@
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar && sidebar.classList.contains('open')) toggleMenu();
 
-            // Link real Android history to the screen change
             if (pushHistory) {
                 window.history.pushState({ id: screenId }, "", "#" + screenId);
             }
@@ -854,7 +885,6 @@
         window.addEventListener('popstate', (event) => {
             if (exitConfirmed || !auth.currentUser) return;
 
-            // 1. Intercept Back Button for Modals & Sidebars
             let overlayClosed = false;
             const modals = [
                 { id: 'receipt-viewer-modal', closeFn: closeReceiptViewer },
@@ -880,23 +910,17 @@
             }
 
             if (overlayClosed) {
-                // Restore history state because the back button was used just to close a modal
                 window.history.pushState(event.state, "", window.location.hash);
                 return;
             }
 
-            // 2. Handle Screen Navigation
             if (event.state && event.state.id) {
-                // User went back to a previous valid screen
                 switchScreen(event.state.id, false); 
             } else {
-                // Hit the bottom of the history stack (App exit point)
                 showCustomConfirm("Are you sure you want to exit the application?", () => {
                     exitConfirmed = true;
                     window.history.go(-2); 
                 }, "Yes, Exit");
-                
-                // Push dummy state to keep app alive while prompt is showing
                 window.history.pushState({ exitPrompt: true }, "", "#exit");
             }
         });
@@ -914,7 +938,6 @@
                 applyRolePermissions();
                 fetchCloudData();
                 
-                // Initialize the base history anchor for the router
                 exitConfirmed = false;
                 window.history.replaceState({ id: 'screen-history' }, "", "#screen-history");
             } else {
@@ -982,7 +1005,6 @@
 
                 document.getElementById('loading-overlay').style.display = 'none';
                 
-                // Do not push history here, we replaced it in AuthStateChanged
                 switchScreen('screen-history', false); 
                 
                 renderCustomerList(); renderProductList(); renderHistoryList(); renderPOList(); populateDropdowns();
@@ -1502,8 +1524,13 @@
                 }
                 
                 renderProductList(); switchScreen('screen-preview'); 
-            } catch (error) { showCustomAlert("Failed to save to the cloud."); } 
-            finally { saveBtn.innerText = "💾 Save & Calculate"; saveBtn.disabled = false; } 
+            } catch (error) { 
+                console.error("Save Error:", error); 
+                showCustomAlert("Failed to save to the cloud.", "Error", "🔴"); 
+            } finally { 
+                saveBtn.innerText = type === 'po' ? "💾 Create PO" : "💾 Create Invoice"; 
+                saveBtn.disabled = false; 
+            } 
         }
 
         // --- HISTORY LIST RENDERERS ---
@@ -1830,49 +1857,10 @@
             finally { btn.innerText = "Confirm & Lock Payment"; btn.disabled = false; }
         }
 
-        // --- UTILITIES ---
-        function numberToWords(amount) { 
-            const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
-            const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
-            function convert(num) { 
-                if (num < 20) return words[num]; 
-                if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
-                if (num < 1000) return words[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " and " + convert(num % 100) : ""); 
-                if (num < 100000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : ""); 
-                if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
-                return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
-            } 
-            let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); 
-            return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
-        }
-        
-        function downloadPDF() { 
-            document.getElementById('app-controls').style.display = 'none'; 
-            const payoutBox = document.getElementById('payout-status-container'); 
-            const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
-            const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
-            scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
-            
-            const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
-            
-            const opt = { 
-                margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
-                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
-            }; 
-            
-            html2pdf().set(opt).from(element).save().then(() => { 
-                document.getElementById('app-controls').style.display = 'block'; 
-                if(payoutWasVisible) payoutBox.style.display = 'block'; 
-                element.classList.remove('pdf-mode'); 
-                scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
-            }); 
-        }
-
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered')).catch(err => console.error('SW failed', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
             });
         }
     </script>
