@@ -577,7 +577,7 @@
                 <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
                 <p class="text-muted small mb-0" id="editing-invoice-label">Drafting document...</p>
             </div>
-            </div>
+        </div>
         
         <div class="row mb-4">
             <div class="col-7">
@@ -625,7 +625,7 @@
                 <h3 class="fw-bold mb-1" style="color: #d97706;" id="po-builder-title">Purchase Order</h3>
                 <p class="text-muted small mb-0" id="po-editing-label">Drafting PO...</p>
             </div>
-            </div>
+        </div>
         
         <div class="row mb-4">
             <div class="col-7">
@@ -746,12 +746,8 @@
         const auth = firebase.auth(); 
 
         let appData = { 
-            inventory: [], 
-            customers: [], 
-            history: [], 
-            purchaseOrders: [], 
-            lastInvoiceNum: 22, 
-            lastPoNum: 5 
+            inventory: [], customers: [], history: [], purchaseOrders: [], 
+            lastInvoiceNum: 22, lastPoNum: 5 
         };
         
         const SELLER_STATE = 33; 
@@ -761,28 +757,22 @@
         let tempDocNumber = ""; 
         let tempDocDate = "";
         let currentDocType = "invoice"; 
-        
         let isAdmin = false;
 
-        // --- MENU TOGGLE LOGIC ---
+        // --- UTILITIES ---
         function toggleMenu() {
             const sidebar = document.getElementById('app-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
-            
             if (sidebar.classList.contains('open')) {
                 sidebar.classList.remove('open');
                 overlay.style.opacity = '0';
                 setTimeout(() => { overlay.style.display = 'none'; }, 300);
             } else {
                 overlay.style.display = 'block';
-                setTimeout(() => { 
-                    overlay.style.opacity = '1'; 
-                    sidebar.classList.add('open');
-                }, 10);
+                setTimeout(() => { overlay.style.opacity = '1'; sidebar.classList.add('open'); }, 10);
             }
         }
 
-        // --- UTILITIES FOR DATES ---
         function getLocalYMD(dateObj) {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -793,23 +783,17 @@
         function createDateFromYMD(ymdStr) {
             if (!ymdStr) return new Date();
             const parts = ymdStr.split('-');
-            if (parts.length === 3) {
-                return new Date(parts[0], parts[1] - 1, parts[2]);
-            }
+            if (parts.length === 3) return new Date(parts[0], parts[1] - 1, parts[2]);
             return new Date();
         }
 
-        // --- CUSTOM ALERTS & CONFIRMS ---
         function showCustomAlert(message, title = "Notice", icon = "⚠️") {
             document.getElementById("custom-alert-message").innerText = message;
             document.getElementById("custom-alert-title").innerText = title;
             document.getElementById("custom-alert-icon").innerText = icon;
             document.getElementById("custom-alert-modal").style.display = "flex";
         }
-
-        function closeCustomAlert() {
-            document.getElementById("custom-alert-modal").style.display = "none";
-        }
+        function closeCustomAlert() { document.getElementById("custom-alert-modal").style.display = "none"; }
 
         let confirmCallback = null;
         function showCustomConfirm(message, callback, btnText = "Yes, Confirm") {
@@ -817,79 +801,61 @@
             confirmCallback = callback;
             document.getElementById("custom-confirm-btn").innerText = btnText;
             document.getElementById("custom-confirm-modal").style.display = "flex";
-            
             document.getElementById("custom-confirm-btn").onclick = function() {
                 if(confirmCallback) confirmCallback(); 
                 closeCustomConfirm();
             };
         }
+        function closeCustomConfirm() { document.getElementById("custom-confirm-modal").style.display = "none"; confirmCallback = null; }
 
-        function closeCustomConfirm() {
-            document.getElementById("custom-confirm-modal").style.display = "none";
-            confirmCallback = null; 
-        }
-
-        // --- 🌟 DELETE REASON LOGIC 🌟 ---
-        function closeDeleteReasonModal() {
-            document.getElementById("delete-reason-modal").style.display = "none";
-        }
-        
+        function closeDeleteReasonModal() { document.getElementById("delete-reason-modal").style.display = "none"; }
         function confirmDeleteWithReason() {
             const reason = document.getElementById("delete-reason-input").value.trim();
-            if(!reason) {
-                showCustomAlert("Please enter a reason for deletion.", "Required", "⚠️");
-                return;
-            }
+            if(!reason) { showCustomAlert("Please enter a reason for deletion.", "Required", "⚠️"); return; }
             const targetId = document.getElementById("delete-target-id").value;
             const type = document.getElementById("delete-target-type").value;
-            
             closeDeleteReasonModal();
-            
-            if (type === 'invoice') {
-                executeDeleteInvoice(targetId, reason);
-            } else if (type === 'po') {
-                executeDeletePO(targetId, reason);
-            }
+            if (type === 'invoice') executeDeleteInvoice(targetId, reason);
+            else if (type === 'po') executeDeletePO(targetId, reason);
         }
         
         function showDeleteReason(id, type) {
             let doc;
             if (type === 'invoice') doc = appData.history.find(x => x.id === id);
             else if (type === 'po') doc = appData.purchaseOrders.find(x => x.id === id);
-            
             document.getElementById("view-reason-text").innerText = doc && doc.deleteReason ? doc.deleteReason : "No reason provided.";
             document.getElementById("view-reason-modal").style.display = "flex";
         }
+        function closeViewReasonModal() { document.getElementById("view-reason-modal").style.display = "none"; }
 
-        function closeViewReasonModal() {
-            document.getElementById("view-reason-modal").style.display = "none";
-        }
-
-        // --- 🌟 BULLETPROOF BACK BUTTON TRAP 🌟 ---
+        // --- 🌟 BULLETPROOF SPA ROUTING (FIXED BACK BUTTON) 🌟 ---
         let exitConfirmed = false;
-        let trapSet = false;
 
-        function setBackTrap() {
-            if (trapSet) return;
-            window.history.pushState({ trap: true }, "");
-            trapSet = true;
+        function switchScreen(screenId, pushHistory = true) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(screenId).classList.add('active');
+            
+            const navBtn = document.getElementById(`nav-${screenId.replace('screen-','')}`);
+            if(navBtn) navBtn.classList.add('active');
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            
+            const sidebar = document.getElementById('app-sidebar');
+            if (sidebar && sidebar.classList.contains('open')) toggleMenu();
+
+            // Link real Android history to the screen change
+            if (pushHistory) {
+                window.history.pushState({ id: screenId }, "", "#" + screenId);
+            }
         }
-
-        // Securely engage trap upon any screen interaction
-        const interactEvents = ['click', 'touchstart'];
-        interactEvents.forEach(evt => {
-            document.addEventListener(evt, () => {
-                if (auth.currentUser && !trapSet) setBackTrap();
-            }, { passive: true });
-        });
 
         window.addEventListener('popstate', (event) => {
             if (exitConfirmed || !auth.currentUser) return;
 
-            // 1. Re-apply the trap immediately
-            window.history.pushState({ trap: true }, "");
-
-            // 2. Check for open modals/sidebar and close them safely
+            // 1. Intercept Back Button for Modals & Sidebars
+            let overlayClosed = false;
             const modals = [
                 { id: 'receipt-viewer-modal', closeFn: closeReceiptViewer },
                 { id: 'delete-reason-modal', closeFn: closeDeleteReasonModal },
@@ -903,35 +869,36 @@
                 const el = document.getElementById(m.id);
                 if (el && (el.style.display === 'flex' || el.style.display === 'block')) {
                     m.closeFn();
-                    return; // Successfully intercepted hardware back button
+                    overlayClosed = true;
                 }
             }
             
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar && sidebar.classList.contains('open')) {
                 toggleMenu();
-                return; // Successfully intercepted hardware back button
+                overlayClosed = true;
             }
 
-            // 3. Handle sub-screens (Preview / Builders) gracefully
-            const activeScreen = document.querySelector('.screen.active');
-            if (activeScreen) {
-                if (activeScreen.id === 'screen-builder' || activeScreen.id === 'screen-preview') {
-                    if(currentDocType === 'po') switchScreen('screen-po-history');
-                    else switchScreen('screen-history');
-                    return;
-                }
-                if (activeScreen.id === 'screen-po-builder') {
-                    switchScreen('screen-po-history');
-                    return;
-                }
+            if (overlayClosed) {
+                // Restore history state because the back button was used just to close a modal
+                window.history.pushState(event.state, "", window.location.hash);
+                return;
             }
 
-            // 4. If at a main screen, prompt exit
-            showCustomConfirm("Are you sure you want to exit the application?", () => {
-                exitConfirmed = true;
-                window.history.go(-2); // Jump out of the browser history trap entirely
-            }, "Yes, Exit");
+            // 2. Handle Screen Navigation
+            if (event.state && event.state.id) {
+                // User went back to a previous valid screen
+                switchScreen(event.state.id, false); 
+            } else {
+                // Hit the bottom of the history stack (App exit point)
+                showCustomConfirm("Are you sure you want to exit the application?", () => {
+                    exitConfirmed = true;
+                    window.history.go(-2); 
+                }, "Yes, Exit");
+                
+                // Push dummy state to keep app alive while prompt is showing
+                window.history.pushState({ exitPrompt: true }, "", "#exit");
+            }
         });
 
         // --- AUTHENTICATION ---
@@ -947,9 +914,9 @@
                 applyRolePermissions();
                 fetchCloudData();
                 
-                // Reset the trap
+                // Initialize the base history anchor for the router
                 exitConfirmed = false;
-                setTimeout(() => { setBackTrap(); }, 500); 
+                window.history.replaceState({ id: 'screen-history' }, "", "#screen-history");
             } else {
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('app-header').style.display = 'none'; 
@@ -969,31 +936,22 @@
             const email = document.getElementById('login-email').value; 
             const pass = document.getElementById('login-password').value; 
             document.getElementById('login-error').innerText = "Authenticating..."; 
-            
-            auth.signInWithEmailAndPassword(email, pass).catch(error => { 
-                document.getElementById('login-error').innerText = error.message; 
-            }); 
+            auth.signInWithEmailAndPassword(email, pass).catch(error => { document.getElementById('login-error').innerText = error.message; }); 
         }
 
         function loginWithGoogle() { 
             document.getElementById('login-error').innerText = "Opening Google Login..."; 
             const provider = new firebase.auth.GoogleAuthProvider(); 
-            
-            auth.signInWithPopup(provider).catch(error => { 
-                document.getElementById('login-error').innerText = "Error: " + error.message; 
-            }); 
+            auth.signInWithPopup(provider).catch(error => { document.getElementById('login-error').innerText = "Error: " + error.message; }); 
         }
 
         function promptLogout() {
             const sidebar = document.getElementById('app-sidebar');
             if (sidebar.classList.contains('open')) toggleMenu();
-            
             showCustomConfirm("Are you sure you want to log out of your account?", logout, "Yes, Logout");
         }
 
-        function logout() { 
-            auth.signOut(); 
-        }
+        function logout() { auth.signOut(); }
 
         // --- CLOUD DATA FETCHING ---
         async function fetchCloudData() {
@@ -1023,13 +981,11 @@
                 });
 
                 document.getElementById('loading-overlay').style.display = 'none';
-                switchScreen('screen-history'); 
                 
-                renderCustomerList(); 
-                renderProductList(); 
-                renderHistoryList(); 
-                renderPOList(); 
-                populateDropdowns();
+                // Do not push history here, we replaced it in AuthStateChanged
+                switchScreen('screen-history', false); 
+                
+                renderCustomerList(); renderProductList(); renderHistoryList(); renderPOList(); populateDropdowns();
             } catch (error) {
                 console.error("Error connecting to Firebase:", error);
                 document.getElementById('loading-text').innerText = "Database error. Please refresh.";
@@ -1037,31 +993,12 @@
             }
         }
 
-        // --- NAVIGATION ---
-        function switchScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            document.getElementById(screenId).classList.add('active');
-            
-            const navBtn = document.getElementById(`nav-${screenId.replace('screen-','')}`);
-            if(navBtn) navBtn.classList.add('active');
-            
-            window.scrollTo({ top: 0, behavior: 'smooth' }); 
-            
-            const sidebar = document.getElementById('app-sidebar');
-            if (sidebar.classList.contains('open')) toggleMenu();
-        }
-
-        // --- 🌟 CUSTOMER DIRECTORY (WITH DELETE) 🌟 ---
+        // --- CUSTOMER DIRECTORY ---
         function renderCustomerList() { 
             const list = document.getElementById("customers-list");
             list.innerHTML = appData.customers.map(c => `
                 <div class="list-item">
-                    <div>
-                        <strong style="color:#0b2a5c;">${c.name}</strong><br>
-                        <small class="text-muted">GST: ${c.gstin}</small>
-                    </div>
+                    <div><strong style="color:#0b2a5c;">${c.name}</strong><br><small class="text-muted">GST: ${c.gstin}</small></div>
                     <div class="d-flex align-items-center gap-2">
                         ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editCustomer('${c.id}')">Edit</button>` : ''}
                         ${isAdmin ? `<button class="btn btn-danger btn-sm shadow-sm" onclick="promptDeleteCustomer('${c.id}')">🗑️</button>` : ''}
@@ -1075,85 +1012,57 @@
             if(!isAdmin) return;
             const customer = appData.customers.find(c => c.id === id);
             if(!customer) return;
-            
-            showCustomConfirm(
-                `Are you sure you want to permanently delete the business contact "${customer.name}"?`, 
-                () => executeDeleteCustomer(id), 
-                "Yes, Delete"
-            );
+            showCustomConfirm(`Are you sure you want to permanently delete "${customer.name}"?`, () => executeDeleteCustomer(id), "Yes, Delete");
         }
 
         async function executeDeleteCustomer(id) {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = "Deleting Contact...";
-            
             try {
                 await db.collection("customers").doc(id).delete();
                 appData.customers = appData.customers.filter(c => c.id !== id);
-                renderCustomerList(); 
-                showCustomAlert("Contact successfully deleted.", "Success", "✅");
-            } catch (error) {
-                console.error("Error deleting contact:", error);
-                showCustomAlert("Failed to delete contact. Check your network.", "Error", "🔴");
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-            }
+                renderCustomerList(); showCustomAlert("Contact successfully deleted.", "Success", "✅");
+            } catch (error) { showCustomAlert("Failed to delete contact.", "Error", "🔴"); } 
+            finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
 
         function editCustomer(id) { 
             if(!isAdmin) return;
             const formContainer = document.getElementById('customer-form-container');
-            formContainer.style.display = 'block'; 
-            document.getElementById('btn-add-customer').style.display = 'none';
+            formContainer.style.display = 'block'; document.getElementById('btn-add-customer').style.display = 'none';
             
             if (id === 'new') { 
-                document.getElementById('cust-id').value = 'new'; 
-                document.getElementById('cust-name').value = ''; 
-                document.getElementById('cust-address').value = ''; 
-                document.getElementById('cust-gstin').value = ''; 
+                document.getElementById('cust-id').value = 'new'; document.getElementById('cust-name').value = ''; 
+                document.getElementById('cust-address').value = ''; document.getElementById('cust-gstin').value = ''; 
                 document.getElementById('cust-state').value = '33'; 
             } else { 
                 const c = appData.customers.find(x => x.id === id); 
-                document.getElementById('cust-id').value = c.id; 
-                document.getElementById('cust-name').value = c.name; 
+                document.getElementById('cust-id').value = c.id; document.getElementById('cust-name').value = c.name; 
                 document.getElementById('cust-address').value = c.address.replace(/<br>/g, '\n'); 
-                document.getElementById('cust-gstin').value = c.gstin; 
-                document.getElementById('cust-state').value = isNaN(c.stateCode) ? "" : c.stateCode; 
+                document.getElementById('cust-gstin').value = c.gstin; document.getElementById('cust-state').value = isNaN(c.stateCode) ? "" : c.stateCode; 
             }
             setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
         }
 
         async function saveCustomer() { 
             if(!isAdmin) return;
-            const id = document.getElementById('cust-id').value; 
-            const name = document.getElementById('cust-name').value; 
+            const id = document.getElementById('cust-id').value; const name = document.getElementById('cust-name').value; 
             const address = document.getElementById('cust-address').value.replace(/\n/g, '<br>'); 
-            const gstin = document.getElementById('cust-gstin').value; 
-            const stateCode = parseInt(document.getElementById('cust-state').value); 
+            const gstin = document.getElementById('cust-gstin').value; const stateCode = parseInt(document.getElementById('cust-state').value); 
             
             if (!name) return showCustomAlert("Please enter a business name."); 
-            
             const c = { id: id === 'new' ? 'c' + Date.now() : id, name, address, gstin, stateCode }; 
             
             await db.collection("customers").doc(c.id).set(c); 
+            if (id === 'new') appData.customers.push(c); 
+            else { const idx = appData.customers.findIndex(x => x.id === id); appData.customers[idx] = c; } 
             
-            if (id === 'new') {
-                appData.customers.push(c); 
-            } else { 
-                const idx = appData.customers.findIndex(x => x.id === id); 
-                appData.customers[idx] = c; 
-            } 
-            
-            cancelCustomerEdit(); 
-            renderCustomerList(); 
+            cancelCustomerEdit(); renderCustomerList(); 
         }
 
-        function cancelCustomerEdit() { 
-            document.getElementById('customer-form-container').style.display = 'none'; 
-            document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; 
-        }
+        function cancelCustomerEdit() { document.getElementById('customer-form-container').style.display = 'none'; document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none'; }
 
-        // --- 🌟 PRODUCT INVENTORY (WITH DELETE) 🌟 ---
+        // --- PRODUCT INVENTORY ---
         function renderProductList() { 
             const list = document.getElementById("products-list");
             list.innerHTML = appData.inventory.map(p => { 
@@ -1163,11 +1072,8 @@
                 
                 let deleteBtn = '';
                 if (isAdmin) {
-                    if (stockDisplay === 0) {
-                        deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="promptDeleteProduct('${p.id}')">🗑️</button>`;
-                    } else {
-                        deleteBtn = `<button class="btn btn-secondary btn-sm shadow-sm opacity-50" onclick="showCustomAlert('Cannot delete items that have stock remaining. Please adjust the stock to 0 first.', 'Action Blocked', '🔒')">🗑️</button>`;
-                    }
+                    if (stockDisplay === 0) deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="promptDeleteProduct('${p.id}')">🗑️</button>`;
+                    else deleteBtn = `<button class="btn btn-secondary btn-sm shadow-sm opacity-50" onclick="showCustomAlert('Cannot delete items that have stock remaining. Please adjust the stock to 0 first.', 'Action Blocked', '🔒')">🗑️</button>`;
                 }
                 
                 return `
@@ -1190,58 +1096,35 @@
             if(!isAdmin) return;
             const product = appData.inventory.find(p => p.id === id);
             if(!product) return;
-            
-            if((product.inStock || 0) > 0) {
-                showCustomAlert("Cannot delete items that have stock remaining.", "Action Blocked", "🔒");
-                return;
-            }
-            
-            showCustomConfirm(
-                `Are you sure you want to permanently delete the inventory item "${product.name}"?`, 
-                () => executeDeleteProduct(id), 
-                "Yes, Delete"
-            );
+            if((product.inStock || 0) > 0) { showCustomAlert("Cannot delete items with stock.", "Blocked", "🔒"); return; }
+            showCustomConfirm(`Are you sure you want to permanently delete "${product.name}"?`, () => executeDeleteProduct(id), "Yes, Delete");
         }
 
         async function executeDeleteProduct(id) {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = "Deleting Item...";
-            
             try {
                 await db.collection("inventory").doc(id).delete();
                 appData.inventory = appData.inventory.filter(p => p.id !== id);
-                renderProductList(); 
-                showCustomAlert("Item successfully deleted from inventory.", "Success", "✅");
-            } catch (error) {
-                console.error("Error deleting product:", error);
-                showCustomAlert("Failed to delete item. Check your network.", "Error", "🔴");
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-            }
+                renderProductList(); showCustomAlert("Item deleted from inventory.", "Success", "✅");
+            } catch (error) { showCustomAlert("Failed to delete item.", "Error", "🔴"); } 
+            finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
 
         function editProduct(id) { 
             if(!isAdmin) return;
             const formContainer = document.getElementById('product-form-container');
-            formContainer.style.display = 'block'; 
-            document.getElementById('btn-add-product').style.display = 'none';
+            formContainer.style.display = 'block'; document.getElementById('btn-add-product').style.display = 'none';
             
             if (id === 'new') { 
-                document.getElementById('prod-id').value = 'new'; 
-                document.getElementById('prod-name').value = ''; 
-                document.getElementById('prod-price').value = ''; 
-                document.getElementById('prod-purchase-price').value = '';
-                document.getElementById('prod-gst').value = '5'; 
-                document.getElementById('prod-moq').value = '1'; 
-                document.getElementById('prod-stock').value = '0';
+                document.getElementById('prod-id').value = 'new'; document.getElementById('prod-name').value = ''; 
+                document.getElementById('prod-price').value = ''; document.getElementById('prod-purchase-price').value = '';
+                document.getElementById('prod-gst').value = '5'; document.getElementById('prod-moq').value = '1'; document.getElementById('prod-stock').value = '0';
             } else { 
                 const p = appData.inventory.find(x => x.id === id); 
-                document.getElementById('prod-id').value = p.id; 
-                document.getElementById('prod-name').value = p.name; 
-                document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; 
-                document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
-                document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
-                document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
+                document.getElementById('prod-id').value = p.id; document.getElementById('prod-name').value = p.name; 
+                document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
+                document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
                 document.getElementById('prod-stock').value = isNaN(p.inStock) ? "0" : p.inStock; 
             } 
             setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
@@ -1249,68 +1132,45 @@
 
         async function saveProduct() { 
             if(!isAdmin) return;
-            const id = document.getElementById('prod-id').value; 
-            const name = document.getElementById('prod-name').value; 
-            const price = parseFloat(document.getElementById('prod-price').value); 
-            const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
-            const gst = parseFloat(document.getElementById('prod-gst').value); 
-            const moq = parseInt(document.getElementById('prod-moq').value); 
+            const id = document.getElementById('prod-id').value; const name = document.getElementById('prod-name').value; 
+            const price = parseFloat(document.getElementById('prod-price').value); const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
+            const gst = parseFloat(document.getElementById('prod-gst').value); const moq = parseInt(document.getElementById('prod-moq').value); 
             const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
             
-            if (!name) return showCustomAlert("Please enter a product name."); 
-            if (isNaN(price) || price <= 0) return showCustomAlert("Please enter a valid wholesale selling price."); 
+            if (!name || isNaN(price) || price <= 0) return showCustomAlert("Please fill all product fields properly."); 
             
             const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock }; 
             if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
             
             await db.collection("inventory").doc(p.id).set(p); 
+            if (id === 'new') appData.inventory.push(p); else { const idx = appData.inventory.findIndex(x => x.id === id); appData.inventory[idx] = p; } 
             
-            if (id === 'new') {
-                appData.inventory.push(p); 
-            } else { 
-                const idx = appData.inventory.findIndex(x => x.id === id); 
-                appData.inventory[idx] = p; 
-            } 
-            
-            cancelProductEdit(); 
-            renderProductList(); 
+            cancelProductEdit(); renderProductList(); 
         }
 
-        function cancelProductEdit() { 
-            document.getElementById('product-form-container').style.display = 'none'; 
-            document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none'; 
-        }
+        function cancelProductEdit() { document.getElementById('product-form-container').style.display = 'none'; document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none'; }
 
         // --- DROPDOWNS ---
         function populateDropdowns() { 
             const custHtml = `<option value="">-- Select --</option>` + appData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            document.getElementById("customer-select").innerHTML = custHtml; 
-            document.getElementById("po-vendor-select").innerHTML = custHtml;
-            
+            document.getElementById("customer-select").innerHTML = custHtml; document.getElementById("po-vendor-select").innerHTML = custHtml;
             const prodHtml = `<option value="">-- Choose Item --</option>` + appData.inventory.map(p => `<option value="${p.id}">${p.name} [Stock: ${p.inStock || 0}]</option>`).join('');
-            document.getElementById("product-select").innerHTML = prodHtml; 
-            document.getElementById("po-product-select").innerHTML = prodHtml;
+            document.getElementById("product-select").innerHTML = prodHtml; document.getElementById("po-product-select").innerHTML = prodHtml;
         }
 
         // --- BUILDER: SALES INVOICE ---
         function openNewInvoice() { 
             if(!isAdmin) return;
-            currentDocType = "invoice"; 
-            editingDocId = null; 
-            currentCart = []; 
-            
+            currentDocType = "invoice"; editingDocId = null; currentCart = []; 
             document.getElementById("customer-select").value = ""; 
             document.getElementById("builder-title").innerText = "New Sales Invoice"; 
             document.getElementById("editing-invoice-label").innerText = "Drafting document..."; 
-            document.getElementById("btn-delete-invoice").style.display = "none";
             
             const d = new Date(); 
             tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
-            
             document.getElementById("inv-date-input").value = getLocalYMD(d);
             
-            renderCartUI('invoice'); 
-            switchScreen('screen-builder'); 
+            renderCartUI('invoice'); switchScreen('screen-builder'); 
         }
 
         function autoFillInvoicePrice() {
@@ -1328,70 +1188,43 @@
             const customPrice = parseFloat(document.getElementById("inv-price-input").value);
             const customGst = parseFloat(document.getElementById("inv-gst-input").value);
             
-            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
-            
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields."); 
             const product = appData.inventory.find(p => p.id === pid); 
-            if (qty < product.moq) return showCustomAlert(`Wholesale Warning: MOQ for ${product.name} is ${product.moq}.`); 
+            if (qty < product.moq) return showCustomAlert(`MOQ for ${product.name} is ${product.moq}.`); 
             
             let availableStock = product.inStock || 0;
-            
             if (editingDocId) {
                 const oldDoc = appData.history.find(h => h.id === editingDocId);
-                if (oldDoc && oldDoc.cart) {
-                    const oldItem = oldDoc.cart.find(i => i.id === pid);
-                    if (oldItem) {
-                        availableStock += oldItem.qty; 
-                    }
-                }
+                if (oldDoc && oldDoc.cart) { const oldItem = oldDoc.cart.find(i => i.id === pid); if (oldItem) availableStock += oldItem.qty; }
             }
-            
             const existing = currentCart.find(item => item.id === pid); 
             const currentCartQty = existing ? existing.qty : 0;
+            if ((currentCartQty + qty) > availableStock) return showCustomAlert("Out of Stock! Place a PO.", "Stock Error", "📦");
             
-            if ((currentCartQty + qty) > availableStock) {
-                return showCustomAlert("Available quantity is less than your need. Place a Purchase order and then create invoice.", "Out of Stock", "📦");
-            }
+            if (existing) { existing.qty += qty; existing.price = customPrice; existing.gstPercent = customGst; } 
+            else currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
             
-            if (existing) {
-                existing.qty += qty; 
-                existing.price = customPrice; 
-                existing.gstPercent = customGst; 
-            } else {
-                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
-            }
-            
-            document.getElementById("qty-input").value = ""; 
-            document.getElementById("inv-price-input").value = ""; 
-            document.getElementById("inv-gst-input").value = ""; 
-            document.getElementById("product-select").value = "";
+            document.getElementById("qty-input").value = ""; document.getElementById("inv-price-input").value = ""; 
+            document.getElementById("inv-gst-input").value = ""; document.getElementById("product-select").value = "";
             renderCartUI('invoice'); 
         }
 
         // --- BUILDER: PURCHASE ORDER ---
         function openNewPO() { 
             if(!isAdmin) return;
-            currentDocType = "po"; 
-            editingDocId = null; 
-            currentCart = []; 
-            
-            document.getElementById("po-vendor-select").value = ""; 
-            document.getElementById("po-vendor-select").disabled = false; 
-            document.getElementById("po-price-input").value = ""; 
-            document.getElementById("po-gst-input").value = ""; 
+            currentDocType = "po"; editingDocId = null; currentCart = []; 
+            document.getElementById("po-vendor-select").value = ""; document.getElementById("po-vendor-select").disabled = false; 
+            document.getElementById("po-price-input").value = ""; document.getElementById("po-gst-input").value = ""; 
             document.getElementById("po-builder-title").innerText = "New Purchase Order"; 
             document.getElementById("po-editing-label").innerText = "Drafting PO..."; 
-            
-            document.getElementById("btn-delete-po").style.display = "none";
             document.getElementById("po-add-item-panel").style.display = "block";
             document.getElementById("btn-save-po").style.display = "block";
             
             const d = new Date(); 
             tempDocNumber = `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastPoNum + 1}`; 
-            
             document.getElementById("po-date-input").value = getLocalYMD(d);
             
-            renderCartUI('po'); 
-            switchScreen('screen-po-builder'); 
+            renderCartUI('po'); switchScreen('screen-po-builder'); 
         }
 
         function autoFillPoPrice() {
@@ -1409,31 +1242,20 @@
             const customPrice = parseFloat(document.getElementById("po-price-input").value);
             const customGst = parseFloat(document.getElementById("po-gst-input").value);
             
-            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields properly."); 
-            
+            if (!pid || !qty || qty <= 0 || isNaN(customPrice) || isNaN(customGst)) return showCustomAlert("Please fill all item fields."); 
             const product = appData.inventory.find(p => p.id === pid); 
             const existing = currentCart.find(item => item.id === pid); 
             
-            if (existing) { 
-                existing.qty += qty; 
-                existing.price = customPrice; 
-                existing.gstPercent = customGst;
-            } else { 
-                currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
-            } 
+            if (existing) { existing.qty += qty; existing.price = customPrice; existing.gstPercent = customGst; } 
+            else currentCart.push({ ...product, qty: qty, price: customPrice, gstPercent: customGst }); 
             
-            document.getElementById("po-qty-input").value = ""; 
-            document.getElementById("po-price-input").value = ""; 
-            document.getElementById("po-gst-input").value = ""; 
-            document.getElementById("po-product-select").value = ""; 
+            document.getElementById("po-qty-input").value = ""; document.getElementById("po-price-input").value = ""; 
+            document.getElementById("po-gst-input").value = ""; document.getElementById("po-product-select").value = ""; 
             renderCartUI('po'); 
         }
 
         // --- SHARED CART & PREVIEW LOGIC ---
-        function removeCartItem(idx, type) { 
-            currentCart.splice(idx, 1); 
-            renderCartUI(type); 
-        }
+        function removeCartItem(idx, type) { currentCart.splice(idx, 1); renderCartUI(type); }
 
         function renderCartUI(type) { 
             const containerId = type === 'po' ? "po-cart-container" : "cart-container"; 
@@ -1447,7 +1269,6 @@
             }
             
             document.getElementById(countId).innerText = `${currentCart.length} items`; 
-            
             if(currentCart.length === 0) { 
                 document.getElementById(containerId).innerHTML = `<div class="text-center p-4 text-muted small border rounded-4 bg-light">Cart is empty.</div>`; 
                 return; 
@@ -1468,46 +1289,28 @@
         function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
             let subTotal = 0, totalGst = 0, mainGstRate = 0; 
             cart.forEach((item) => { 
-                let baseAmt = item.qty * item.price; 
-                let gstAmt = baseAmt * (item.gstPercent / 100); 
-                subTotal += baseAmt; 
-                totalGst += gstAmt; 
-                mainGstRate = item.gstPercent; 
+                let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); 
+                subTotal += baseAmt; totalGst += gstAmt; mainGstRate = item.gstPercent; 
             }); 
-            const exactGrandTotal = subTotal + totalGst; 
-            const roundedGrandTotal = Math.round(exactGrandTotal); 
-            const roundOffAmt = roundedGrandTotal - exactGrandTotal; 
-            const roundedGst = Math.round(totalGst);
+            const exactGrandTotal = subTotal + totalGst; const roundedGrandTotal = Math.round(exactGrandTotal); 
+            const roundOffAmt = roundedGrandTotal - exactGrandTotal; const roundedGst = Math.round(totalGst);
 
-            let chunks = [];
-            const ITEMS_PER_PAGE = 18; 
-            
-            for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) {
-                chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
-            }
-
+            let chunks = []; const ITEMS_PER_PAGE = 18; 
+            for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
             if (chunks.length === 0) chunks.push([]); 
 
             let html = '';
-            const headerClass = type === 'po' ? 'th-po' : '';
-            const waveClass = type === 'po' ? 'wave-po' : '';
-            const titleColor = type === 'po' ? '#d97706' : '#0b2a5c';
-            const titleText = type === 'po' ? 'PURCHASE ORDER' : 'INVOICE';
-            const billToLabel = type === 'po' ? 'VENDOR' : 'BILL TO';
-            const billFromLabel = type === 'po' ? 'PURCHASER' : 'BILL FROM';
+            const headerClass = type === 'po' ? 'th-po' : ''; const waveClass = type === 'po' ? 'wave-po' : '';
+            const titleColor = type === 'po' ? '#d97706' : '#0b2a5c'; const titleText = type === 'po' ? 'PURCHASE ORDER' : 'INVOICE';
+            const billToLabel = type === 'po' ? 'VENDOR' : 'BILL TO'; const billFromLabel = type === 'po' ? 'PURCHASER' : 'BILL FROM';
 
             chunks.forEach((chunk, cIdx) => {
-                let isLast = cIdx === chunks.length - 1;
-                let pageBreak = cIdx > 0 ? 'page-break' : '';
-                
+                let isLast = cIdx === chunks.length - 1; let pageBreak = cIdx > 0 ? 'page-break' : '';
                 let tbody = '';
                 chunk.forEach((item, idx) => {
                     let actualIdx = (cIdx * ITEMS_PER_PAGE) + idx;
-                    let baseAmt = item.qty * item.price; 
-                    let gstAmt = baseAmt * (item.gstPercent / 100); 
-                    
+                    let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); 
                     let padClass = cart.length <= 5 ? 'py-3-custom' : (cart.length <= 12 ? 'py-2-custom' : 'py-1-custom');
-
                     tbody += `<tr>
                         <td class="${padClass}">${actualIdx + 1}</td>
                         <td class="${padClass} fw-medium">${item.name}</td>
@@ -1519,12 +1322,8 @@
                 });
 
                 let taxRows = '';
-                if (SELLER_STATE === buyer.stateCode) { 
-                    taxRows = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>
-                               <div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; 
-                } else { 
-                    taxRows = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; 
-                }
+                if (SELLER_STATE === buyer.stateCode) taxRows = `<div class="totals-row"><span>SGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div><div class="totals-row"><span>CGST @ ${mainGstRate/2}%</span> <span>₹${(totalGst/2).toFixed(2)}</span></div>`; 
+                else taxRows = `<div class="totals-row"><span>IGST @ ${mainGstRate}%</span> <span>₹${totalGst.toFixed(2)}</span></div>`; 
 
                 let totalsHTML = isLast ? `
                     <div class="row totals-section pt-4 mt-auto">
@@ -1545,8 +1344,7 @@
                                 <span>TOTAL</span> <span>₹${roundedGrandTotal.toFixed(2)}</span>
                             </div>
                         </div>
-                    </div>
-                ` : `<div class="mt-auto text-end text-muted font-13 fw-bold pe-4 pt-4 border-top">Continued on next page...</div>`;
+                    </div>` : `<div class="mt-auto text-end text-muted font-13 fw-bold pe-4 pt-4 border-top">Continued on next page...</div>`;
 
                 html += `
                 <div class="invoice-page ${pageBreak}">
@@ -1556,13 +1354,11 @@
                         <h2 class="invoice-header-title text-white m-0" style="font-size:24px;">SRI TOTATRI AGRO FOODS PVT LTD</h2>
                     </div>
                     <div class="content-wrapper d-flex flex-column" style="padding: 130px 8% 40px 8%; flex-grow: 1; height: 100%;">
-                        
                         <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3" style="border-color:#cbd5e1!important;">
                             <h1 class="m-0" style="letter-spacing: 1px; color: ${titleColor}; font-weight: 900; font-size: 32px; line-height: 1;">${titleText}</h1>
                             <div class="text-muted font-13">Number: <strong class="text-dark">${docNum}</strong></div>
                             <div class="text-muted font-13">Date: <strong class="text-dark">${docDate}</strong></div>
                         </div>
-
                         <div class="row mb-4">
                             <div class="col-6">
                                 <h3 class="h6 pb-2 fw-bold text-uppercase" style="color: ${titleColor}; border-bottom: 1px solid #cbd5e1;">${billToLabel}</h3>
@@ -1573,29 +1369,16 @@
                                 <div class="font-13 lh-base mt-2">Sri Totatri Agro Foods Pvt Ltd<br>5/209 Thazaikulam Rd,<br>Naguneri, Tirunelveli.<br>GST # 33ABICS3082J1Z6</div>
                             </div>
                         </div>
-
                         <div class="border rounded-3 overflow-hidden ${isLast ? '' : 'mb-4'}" style="border-color:#cbd5e1!important;">
                             <table class="table custom-table mb-0 ${cart.length > 5 ? 'table-sm' : ''}">
-                                <thead>
-                                    <tr>
-                                        <th width="5%" class="${headerClass}">#</th>
-                                        <th width="35%" class="${headerClass}">Description</th>
-                                        <th width="10%" class="text-center ${headerClass}">Qty</th>
-                                        <th width="15%" class="text-end ${headerClass}">Price</th>
-                                        <th width="15%" class="text-end ${headerClass}">GST</th>
-                                        <th width="20%" class="text-end ${headerClass}">Amount</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr><th width="5%" class="${headerClass}">#</th><th width="35%" class="${headerClass}">Description</th><th width="10%" class="text-center ${headerClass}">Qty</th><th width="15%" class="text-end ${headerClass}">Price</th><th width="15%" class="text-end ${headerClass}">GST</th><th width="20%" class="text-end ${headerClass}">Amount</th></tr></thead>
                                 <tbody>${tbody}</tbody>
                             </table>
                         </div>
-
                         ${totalsHTML}
                     </div>
-                </div>
-                `;
+                </div>`;
             });
-            
             return { html, roundedGrandTotal };
         }
 
@@ -1611,29 +1394,22 @@
             
             if (type === 'invoice') {
                 const rawD = document.getElementById("inv-date-input").value;
-                const d = createDateFromYMD(rawD);
-                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+                tempDocDate = createDateFromYMD(rawD).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
             } else if (type === 'po') {
                 const rawD = document.getElementById("po-date-input").value;
-                const d = createDateFromYMD(rawD);
-                tempDocDate = d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+                tempDocDate = createDateFromYMD(rawD).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
             }
 
             const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
-            saveBtn.innerText = "⏳ Processing..."; 
-            saveBtn.disabled = true; 
+            saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; 
             
             const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
-            
             const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
             document.getElementById("invoice-content").innerHTML = html;
             
             let stockChanges = {};
-            
             if (editingDocId) {
-                const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
-                const oldDoc = arrayRef.find(h => h.id === editingDocId);
-                
+                const oldDoc = (type === 'po' ? appData.purchaseOrders : appData.history).find(h => h.id === editingDocId);
                 let shouldReverse = type === 'invoice' || (type === 'po' && oldDoc && oldDoc.status === 'converted');
                 if (oldDoc && oldDoc.cart && shouldReverse) {
                     oldDoc.cart.forEach(item => {
@@ -1650,7 +1426,6 @@
             }
             
             let shouldApplyNew = type === 'invoice' || (type === 'po' && isPOConverted);
-
             if(shouldApplyNew) {
                 currentCart.forEach(item => {
                     if (!stockChanges[item.id]) stockChanges[item.id] = 0;
@@ -1660,15 +1435,9 @@
 
             const record = { 
                 id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
-                invoiceNumber: tempDocNumber, 
-                date: tempDocDate, 
-                customerId: buyer.id, 
-                customerName: buyer.name, 
-                cart: JSON.parse(JSON.stringify(currentCart)), 
-                totalAmount: roundedGrandTotal, 
-                paid: false, 
-                deleted: false,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+                invoiceNumber: tempDocNumber, date: tempDocDate, customerId: buyer.id, customerName: buyer.name, 
+                cart: JSON.parse(JSON.stringify(currentCart)), totalAmount: roundedGrandTotal, 
+                paid: false, deleted: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() 
             }; 
             
             try { 
@@ -1680,7 +1449,6 @@
                     record.status = existingPO ? (existingPO.status || 'converted') : 'created';
                     if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
                 }
-                
                 if(type === 'invoice' && editingDocId) {
                     const existingInv = appData.history.find(h => h.id === editingDocId);
                     if(existingInv && existingInv.paid) record.paid = existingInv.paid;
@@ -1691,46 +1459,33 @@
                     if (change !== 0) {
                         const productIndex = appData.inventory.findIndex(p => p.id === pid);
                         if (productIndex > -1) {
-                            let currentStock = appData.inventory[productIndex].inStock || 0;
-                            let newStock = currentStock + change;
+                            let newStock = (appData.inventory[productIndex].inStock || 0) + change;
                             appData.inventory[productIndex].inStock = newStock; 
-                            
-                            const productRef = db.collection("inventory").doc(pid);
-                            batch.update(productRef, { inStock: newStock });
+                            batch.update(db.collection("inventory").doc(pid), { inStock: newStock });
                         }
                     }
                 }
                 
-                const docRef = db.collection(collectionName).doc(record.id);
-                batch.set(docRef, record);
-                
+                batch.set(db.collection(collectionName).doc(record.id), record);
                 await batch.commit(); 
                 
                 if (editingDocId) { 
-                    const idx = arrayRef.findIndex(h => h.id === editingDocId); 
-                    arrayRef[idx] = record; 
+                    const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; 
                 } else { 
                     arrayRef.unshift(record); 
                     if(type === 'po') { 
-                        appData.lastPoNum++; 
-                        await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
+                        appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
                     } else { 
-                        appData.lastInvoiceNum++; 
-                        await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
+                        appData.lastInvoiceNum++; await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
                     } 
                 } 
                 
                 editingDocId = record.id;
                 
-                let canEditPrev = isAdmin;
-                let canDeletePrev = isAdmin;
-
+                let canEditPrev = isAdmin; let canDeletePrev = isAdmin;
                 if (type === 'po') {
                     if (record.status === 'converted') canEditPrev = false;
-                    if (record.payout) {
-                        canEditPrev = false;
-                        canDeletePrev = false;
-                    }
+                    if (record.payout) { canEditPrev = false; canDeletePrev = false; }
                 } else {
                     if (record.paid) canEditPrev = false;
                 }
@@ -1740,26 +1495,15 @@
 
                 if(type === 'po') { 
                     renderPOList(); 
-                    if(record.status === 'converted') {
-                        document.getElementById("payout-status-container").style.display = "block";
-                        renderPayoutUI(record);
-                    } else {
-                        document.getElementById("payout-status-container").style.display = "none";
-                    }
+                    if(record.status === 'converted') { document.getElementById("payout-status-container").style.display = "block"; renderPayoutUI(record); } 
+                    else document.getElementById("payout-status-container").style.display = "none";
                 } else { 
-                    document.getElementById("payout-status-container").style.display = "none";
-                    renderHistoryList(); 
+                    document.getElementById("payout-status-container").style.display = "none"; renderHistoryList(); 
                 }
                 
-                renderProductList(); 
-                switchScreen('screen-preview'); 
-            } catch (error) { 
-                console.error("Save Error:", error); 
-                showCustomAlert("Failed to save to the cloud. Check your network.", "Error", "🔴"); 
-            } finally { 
-                saveBtn.innerText = "💾 Save & Calculate"; 
-                saveBtn.disabled = false; 
-            } 
+                renderProductList(); switchScreen('screen-preview'); 
+            } catch (error) { showCustomAlert("Failed to save to the cloud."); } 
+            finally { saveBtn.innerText = "💾 Save & Calculate"; saveBtn.disabled = false; } 
         }
 
         // --- HISTORY LIST RENDERERS ---
@@ -1769,38 +1513,15 @@
                 list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
                 return;
             }
-            
             list.innerHTML = appData.history.map(h => {
                 if (h.deleted) {
                     const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'invoice')">💬 View Reason</button>` : '';
-                    
-                    return `
-                    <div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
-                        <div style="flex-grow: 1; padding-left: 8px;">
-                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
-                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
-                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
-                        </div>
-                    </div>`;
+                    return `<div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold text-muted small">No items - Voided</div></div></div>`;
                 }
-
                 const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
                 const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="event.stopPropagation(); markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
                 const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
-                
-                return `
-                <div class="list-item history-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'invoice')">
-                    <div style="flex-grow: 1; padding-left: 8px;">
-                        <strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br>
-                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
-                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        ${markPaidBtn}
-                        ${editBtn}
-                    </div>
-                </div>
-                `;
+                return `<div class="list-item history-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'invoice')"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div></div><div class="d-flex align-items-center">${markPaidBtn}${editBtn}</div></div>`;
             }).join(''); 
         }
 
@@ -1809,14 +1530,8 @@
             try {
                 await db.collection("history").doc(invoiceId).update({ paid: true });
                 const idx = appData.history.findIndex(h => h.id === invoiceId);
-                if (idx > -1) {
-                    appData.history[idx].paid = true;
-                    renderHistoryList(); 
-                }
-            } catch (error) {
-                console.error("Error marking invoice as paid:", error);
-                showCustomAlert("Failed to update payment status.", "Error", "🔴");
-            }
+                if (idx > -1) { appData.history[idx].paid = true; renderHistoryList(); }
+            } catch (error) { showCustomAlert("Failed to update payment status.", "Error", "🔴"); }
         }
 
         function renderPOList() { 
@@ -1825,64 +1540,35 @@
                 list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No purchase orders yet.</div>`; 
                 return;
             }
-            
             list.innerHTML = appData.purchaseOrders.map(h => {
                 if (h.deleted) {
                     const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'po')">💬 View Reason</button>` : '';
-                    
-                    return `
-                    <div class="list-item po-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;">
-                        <div style="flex-grow: 1; padding-left: 8px;">
-                            <strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br>
-                            <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
-                            <div class="mt-1 fw-bold text-muted small">No items - Voided</div>
-                        </div>
-                    </div>`;
+                    return `<div class="list-item po-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold text-muted small">No items - Voided</div></div></div>`;
                 }
-
                 const statusStr = h.status || 'converted';
                 const isPaid = h.payout ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
-                
                 const badges = statusStr === 'converted' ? `<span class="badge bg-primary ms-2">Converted</span> ${isPaid}` : '';
-                
-                let convertBtn = '';
-                let deleteBtn = '';
+                let convertBtn = '', deleteBtn = '';
                 
                 if (statusStr === 'created' && isAdmin) {
                     convertBtn = `<button class="btn btn-sm shadow-sm me-2 fw-bold" style="background-color: #38bdf8; color: white; border: none;" onclick="event.stopPropagation(); convertPO('${h.id}')">Created</button>`;
                     deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
                 }
-                
                 if (statusStr === 'converted' && isAdmin && !h.payout) {
                     deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm ms-2" onclick="event.stopPropagation(); promptDeletePO('${h.id}')">🗑️</button>`;
                 }
-                
                 const editBtn = (isAdmin && statusStr === 'created') ? `<button class="btn btn-light action-btn border shadow-sm me-2" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'po')">Edit</button>` : '';
-                
-                return `
-                <div class="list-item po-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'po')">
-                    <div style="flex-grow: 1; padding-left: 8px;">
-                        <strong style="color:#d97706;">${h.invoiceNumber}</strong> ${badges}<br>
-                        <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
-                        <div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        ${convertBtn}
-                        ${editBtn}
-                        ${deleteBtn}
-                    </div>
-                </div>`;
+                return `<div class="list-item po-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'po')"><div style="flex-grow: 1; padding-left: 8px;"><strong style="color:#d97706;">${h.invoiceNumber}</strong> ${badges}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div></div><div class="d-flex align-items-center">${convertBtn}${editBtn}${deleteBtn}</div></div>`;
             }).join(''); 
         }
 
         function convertPO(poId) {
             if(!isAdmin) return;
-            showCustomConfirm("Mark this Purchase Order as Received? This will securely update your inventory stock and cannot be undone.", async function() {
+            showCustomConfirm("Mark this Purchase Order as Received? This will update your inventory stock.", async function() {
                 try {
                     const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId);
                     if(poIndex === -1) return;
                     const po = appData.purchaseOrders[poIndex];
-                    
                     const batch = db.batch();
                     
                     po.cart.forEach(item => {
@@ -1896,16 +1582,11 @@
 
                     batch.update(db.collection("purchaseOrders").doc(poId), { status: 'converted' });
                     appData.purchaseOrders[poIndex].status = 'converted';
-
                     await batch.commit();
 
                     showCustomAlert("Purchase Order converted successfully. Inventory updated.", "Success", "✅");
-                    renderPOList();
-                    renderProductList();
-                } catch (err) {
-                    console.error(err);
-                    showCustomAlert("Failed to convert Purchase Order.", "Error", "🔴");
-                }
+                    renderPOList(); renderProductList();
+                } catch (err) { showCustomAlert("Failed to convert Purchase Order.", "Error", "🔴"); }
             }, "Yes, Convert");
         }
 
@@ -1923,39 +1604,28 @@
             if (type === 'po') {
                 document.getElementById("po-vendor-select").value = doc.customerId; 
                 document.getElementById("po-builder-title").innerText = "Edit PO"; 
-                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`;
                 renderCartUI('po');
             } else {
                 document.getElementById("customer-select").value = doc.customerId; 
                 document.getElementById("builder-title").innerText = "Edit Invoice"; 
-                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`;
                 renderCartUI('invoice');
             }
             
             const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
-            
             const { html } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
             document.getElementById("invoice-content").innerHTML = html;
             
-            let canEdit = isAdmin;
-            let canDelete = isAdmin;
+            let canEdit = isAdmin; let canDelete = isAdmin;
 
             if (type === 'po') { 
                 const statusStr = doc.status || 'converted';
-                
                 if (statusStr === 'converted') {
                     document.getElementById("payout-status-container").style.display = "block"; 
-                    renderPayoutUI(doc); 
-                    canEdit = false; 
+                    renderPayoutUI(doc); canEdit = false; 
                 } else {
-                    document.getElementById("payout-status-container").style.display = "none"; 
-                    canEdit = true; 
+                    document.getElementById("payout-status-container").style.display = "none"; canEdit = true; 
                 }
-                
-                if (doc.payout) {
-                    canEdit = false;
-                    canDelete = false;
-                }
+                if (doc.payout) { canEdit = false; canDelete = false; }
             } else { 
                 document.getElementById("payout-status-container").style.display = "none"; 
                 if (doc.paid) canEdit = false;
@@ -1974,10 +1644,8 @@
             const doc = arrayRef.find(h => h.id === id); 
             if (!doc) return; 
             
-            editingDocId = doc.id; 
-            currentCart = JSON.parse(JSON.stringify(doc.cart)); 
-            tempDocNumber = doc.invoiceNumber; 
-            tempDocDate = doc.date; 
+            editingDocId = doc.id; currentCart = JSON.parse(JSON.stringify(doc.cart)); 
+            tempDocNumber = doc.invoiceNumber; tempDocDate = doc.date; 
             
             if(type === 'po') { 
                 const isConverted = doc.status === 'converted';
@@ -1987,58 +1655,43 @@
                 document.getElementById("po-vendor-select").value = doc.customerId; 
                 document.getElementById("po-vendor-select").disabled = isConverted; 
                 document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
-                document.getElementById("po-editing-label").innerText = `Modifying: ${tempDocNumber}`; 
-                
                 document.getElementById("btn-delete-po").style.display = "block";
                 document.getElementById("po-add-item-panel").style.display = isConverted ? "none" : "block";
                 document.getElementById("btn-save-po").style.display = isConverted ? "none" : "block";
                 
-                renderCartUI('po'); 
-                switchScreen('screen-po-builder'); 
+                renderCartUI('po'); switchScreen('screen-po-builder'); 
             } else { 
                 const invParsedD = new Date(doc.date);
                 document.getElementById("inv-date-input").value = !isNaN(invParsedD) ? getLocalYMD(invParsedD) : getLocalYMD(new Date());
 
                 document.getElementById("customer-select").value = doc.customerId; 
                 document.getElementById("builder-title").innerText = "Edit Invoice"; 
-                document.getElementById("editing-invoice-label").innerText = `Modifying: ${tempDocNumber}`; 
                 document.getElementById("btn-delete-invoice").style.display = "block";
-                renderCartUI('invoice'); 
-                switchScreen('screen-builder'); 
+                renderCartUI('invoice'); switchScreen('screen-builder'); 
             }
         }
 
         function promptDeleteFromPreview() {
-            if (currentDocType === 'po') {
-                promptDeletePO(editingDocId);
-            } else {
-                promptDeleteInvoice(editingDocId);
-            }
+            if (currentDocType === 'po') promptDeletePO(editingDocId);
+            else promptDeleteInvoice(editingDocId);
         }
 
         function promptDeletePO(id = null) {
             const targetId = id || editingDocId;
             if(!isAdmin || !targetId) return;
-            
             const po = appData.purchaseOrders.find(p => p.id === targetId);
             if(!po) return;
             
             let msg = "Are you sure you want to delete this Purchase Order? Please provide a reason.";
-            if(po.status === 'converted') {
-                msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory. Please provide a reason.";
-            }
+            if(po.status === 'converted') msg = "Are you sure you want to delete this Converted Purchase Order? The received items will be safely deducted from your inventory. Please provide a reason.";
             
-            document.getElementById("delete-target-id").value = targetId;
-            document.getElementById("delete-target-type").value = "po";
-            document.getElementById("delete-reason-text").innerText = msg;
-            document.getElementById("delete-reason-input").value = "";
+            document.getElementById("delete-target-id").value = targetId; document.getElementById("delete-target-type").value = "po";
+            document.getElementById("delete-reason-text").innerText = msg; document.getElementById("delete-reason-input").value = "";
             document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
         async function executeDeletePO(targetId, reason) {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "Deleting PO...";
-
+            document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting PO...";
             try {
                 const batch = db.batch();
                 const poIndex = appData.purchaseOrders.findIndex(p => p.id === targetId);
@@ -2050,50 +1703,32 @@
                         if (productIndex > -1) {
                             let newStock = (appData.inventory[productIndex].inStock || 0) - item.qty; 
                             appData.inventory[productIndex].inStock = newStock;
-                            const productRef = db.collection("inventory").doc(item.id);
-                            batch.update(productRef, { inStock: newStock });
+                            batch.update(db.collection("inventory").doc(item.id), { inStock: newStock });
                         }
                     });
                 }
-
-                const docRef = db.collection("purchaseOrders").doc(targetId);
-                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
-
+                batch.update(db.collection("purchaseOrders").doc(targetId), { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
                 await batch.commit();
 
                 if (poIndex > -1) {
-                    appData.purchaseOrders[poIndex].deleted = true;
-                    appData.purchaseOrders[poIndex].cart = [];
-                    appData.purchaseOrders[poIndex].totalAmount = 0;
-                    appData.purchaseOrders[poIndex].deleteReason = reason;
+                    appData.purchaseOrders[poIndex].deleted = true; appData.purchaseOrders[poIndex].cart = [];
+                    appData.purchaseOrders[poIndex].totalAmount = 0; appData.purchaseOrders[poIndex].deleteReason = reason;
                 }
-
-                renderProductList();
-                renderPOList();
-                switchScreen('screen-po-history');
-            } catch (error) {
-                console.error("Delete Error:", error);
-                showCustomAlert("Failed to delete Purchase Order.", "Error", "🔴");
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-            }
+                renderProductList(); renderPOList(); switchScreen('screen-po-history', false);
+            } catch (error) { showCustomAlert("Failed to delete Purchase Order.", "Error", "🔴"); } 
+            finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
 
         function promptDeleteInvoice(id = null) {
             const targetId = id || editingDocId;
             if(!isAdmin || !targetId) return;
-            
-            document.getElementById("delete-target-id").value = targetId;
-            document.getElementById("delete-target-type").value = "invoice";
+            document.getElementById("delete-target-id").value = targetId; document.getElementById("delete-target-type").value = "invoice";
             document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this invoice? The items will be returned to inventory. Please provide a reason.";
-            document.getElementById("delete-reason-input").value = "";
-            document.getElementById("delete-reason-modal").style.display = "flex";
+            document.getElementById("delete-reason-input").value = ""; document.getElementById("delete-reason-modal").style.display = "flex";
         }
 
         async function executeDeleteInvoice(targetId, reason) {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = "Deleting Invoice...";
-
+            document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting Invoice...";
             try {
                 const batch = db.batch();
                 const invIndex = appData.history.findIndex(p => p.id === targetId);
@@ -2104,91 +1739,56 @@
                     if (productIndex > -1) {
                         let newStock = (appData.inventory[productIndex].inStock || 0) + item.qty;
                         appData.inventory[productIndex].inStock = newStock;
-                        const productRef = db.collection("inventory").doc(item.id);
-                        batch.update(productRef, { inStock: newStock });
+                        batch.update(db.collection("inventory").doc(item.id), { inStock: newStock });
                     }
                 });
 
-                const docRef = db.collection("history").doc(targetId);
-                batch.update(docRef, { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
-
+                batch.update(db.collection("history").doc(targetId), { deleted: true, cart: [], totalAmount: 0, deleteReason: reason }); 
                 await batch.commit();
 
                 if (invIndex > -1) {
-                    appData.history[invIndex].deleted = true;
-                    appData.history[invIndex].cart = [];
-                    appData.history[invIndex].totalAmount = 0;
-                    appData.history[invIndex].deleteReason = reason;
+                    appData.history[invIndex].deleted = true; appData.history[invIndex].cart = [];
+                    appData.history[invIndex].totalAmount = 0; appData.history[invIndex].deleteReason = reason;
                 }
-
-                renderProductList();
-                renderHistoryList();
-                switchScreen('screen-history');
-            } catch (error) {
-                console.error("Delete Error:", error);
-                showCustomAlert("Failed to delete invoice.", "Error", "🔴");
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-            }
+                renderProductList(); renderHistoryList(); switchScreen('screen-history', false);
+            } catch (error) { showCustomAlert("Failed to delete invoice.", "Error", "🔴"); } 
+            finally { document.getElementById('loading-overlay').style.display = 'none'; }
         }
 
         function editCurrentDocument() { 
             if(!isAdmin) return;
-            if(currentDocType === 'po') {
-                document.getElementById("btn-delete-po").style.display = "block";
-                switchScreen('screen-po-builder'); 
-            } else {
-                document.getElementById("btn-delete-invoice").style.display = "block";
-                switchScreen('screen-builder'); 
-            }
+            if(currentDocType === 'po') { document.getElementById("btn-delete-po").style.display = "block"; switchScreen('screen-po-builder'); } 
+            else { document.getElementById("btn-delete-invoice").style.display = "block"; switchScreen('screen-builder'); }
         }
 
         // --- PAYOUT RECORDING & IN-APP VIEWER LOGIC ---
         function renderPayoutUI(poDoc) {
             const container = document.getElementById("payout-details-display");
-            
             if (poDoc.payout) {
                 container.innerHTML = `
                     <div class="d-flex align-items-center justify-content-center text-success mb-2">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="me-2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <span class="fw-bold fs-5">Payment Locked</span>
                     </div>
                     <div class="text-start bg-light p-3 rounded-3 mt-3 mx-auto" style="max-width: 300px; font-size: 13px;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Date:</span> <strong>${poDoc.payout.date}</strong>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Ref No:</span> <strong>${poDoc.payout.ref}</strong>
-                        </div>
+                        <div class="d-flex justify-content-between mb-1"><span>Amount:</span> <strong style="color:#0b2a5c">₹${poDoc.payout.amount}</strong></div>
+                        <div class="d-flex justify-content-between mb-1"><span>Date:</span> <strong>${poDoc.payout.date}</strong></div>
+                        <div class="d-flex justify-content-between mb-2"><span>Ref No:</span> <strong>${poDoc.payout.ref}</strong></div>
                         ${poDoc.payout.img ? `<button onclick="openReceiptViewer('${poDoc.id}')" class="btn btn-sm btn-outline-primary w-100 mt-2">🖼️ View Receipt Image</button>` : ''}
-                    </div>
-                `;
+                    </div>`;
             } else {
-                container.innerHTML = `
-                    <div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>
-                    ${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}
-                `;
+                container.innerHTML = `<div class="text-danger fw-bold mb-3 mt-2">❌ Payment Pending</div>${isAdmin ? `<button class="btn btn-warning fw-bold px-4" onclick="openPayoutModal('${poDoc.id}')">💳 Record Payout Now</button>` : ''}`;
             }
         }
 
         function openPayoutModal(poId) { 
             if(!isAdmin) return;
-            document.getElementById("payout-po-id").value = poId; 
-            document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
-            document.getElementById("payout-ref").value = ""; 
-            document.getElementById("payout-amount").value = ""; 
-            document.getElementById("payout-image").value = ""; 
+            document.getElementById("payout-po-id").value = poId; document.getElementById("payout-date").value = new Date().toISOString().split('T')[0]; 
+            document.getElementById("payout-ref").value = ""; document.getElementById("payout-amount").value = ""; document.getElementById("payout-image").value = ""; 
             document.getElementById("payout-modal").style.display = "flex"; 
         }
 
-        function closePayoutModal() { 
-            document.getElementById("payout-modal").style.display = "none"; 
-        }
+        function closePayoutModal() { document.getElementById("payout-modal").style.display = "none"; }
 
         function openReceiptViewer(poId) { 
             const po = appData.purchaseOrders.find(p => p.id === poId);
@@ -2198,43 +1798,28 @@
             }
         }
 
-        function closeReceiptViewer() { 
-            document.getElementById('receipt-viewer-modal').style.display = 'none'; 
-            document.getElementById('receipt-viewer-img').src = ''; 
-        }
+        function closeReceiptViewer() { document.getElementById('receipt-viewer-modal').style.display = 'none'; document.getElementById('receipt-viewer-img').src = ''; }
 
         async function savePayout() {
             if(!isAdmin) return;
-            const poId = document.getElementById("payout-po-id").value; 
-            const date = document.getElementById("payout-date").value; 
-            const ref = document.getElementById("payout-ref").value; 
-            const amount = document.getElementById("payout-amount").value; 
+            const poId = document.getElementById("payout-po-id").value; const date = document.getElementById("payout-date").value; 
+            const ref = document.getElementById("payout-ref").value; const amount = document.getElementById("payout-amount").value; 
             const fileInput = document.getElementById("payout-image");
             
             if(!date || !amount) return showCustomAlert("Date and Amount are required.");
-            
-            const btn = document.getElementById("btn-save-payout"); 
-            btn.innerText = "Processing..."; 
-            btn.disabled = true;
+            const btn = document.getElementById("btn-save-payout"); btn.innerText = "Processing..."; btn.disabled = true;
             
             let base64Image = null;
-            
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
                 base64Image = await new Promise((resolve) => { 
-                    const reader = new FileReader(); 
-                    reader.readAsDataURL(file); 
+                    const reader = new FileReader(); reader.readAsDataURL(file); 
                     reader.onload = e => { 
-                        const img = new Image(); 
-                        img.src = e.target.result; 
+                        const img = new Image(); img.src = e.target.result; 
                         img.onload = () => { 
-                            const canvas = document.createElement('canvas'); 
-                            const MAX_WIDTH = 600; 
-                            const scale = MAX_WIDTH / img.width; 
-                            canvas.width = MAX_WIDTH; 
-                            canvas.height = img.height * scale; 
-                            const ctx = canvas.getContext('2d'); 
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+                            const canvas = document.createElement('canvas'); const MAX_WIDTH = 600; 
+                            const scale = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = img.height * scale; 
+                            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
                             resolve(canvas.toDataURL('image/jpeg', 0.5)); 
                         } 
                     }; 
@@ -2242,32 +1827,19 @@
             }
             
             const payoutData = { date: date, ref: ref || "N/A", amount: amount, img: base64Image };
-            
             try { 
                 await db.collection("purchaseOrders").doc(poId).update({ payout: payoutData }); 
-                
                 const poIndex = appData.purchaseOrders.findIndex(p => p.id === poId); 
-                if(poIndex > -1) { 
-                    appData.purchaseOrders[poIndex].payout = payoutData; 
-                    renderPayoutUI(appData.purchaseOrders[poIndex]); 
-                    renderPOList(); 
-                } 
-                
+                if(poIndex > -1) { appData.purchaseOrders[poIndex].payout = payoutData; renderPayoutUI(appData.purchaseOrders[poIndex]); renderPOList(); } 
                 closePayoutModal(); 
-            } catch (err) { 
-                console.error(err); 
-                showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); 
-            } finally { 
-                btn.innerText = "Confirm & Lock Payment"; 
-                btn.disabled = false; 
-            }
+            } catch (err) { showCustomAlert("Failed to save payment to cloud.", "Error", "🔴"); } 
+            finally { btn.innerText = "Confirm & Lock Payment"; btn.disabled = false; }
         }
 
         // --- UTILITIES ---
         function numberToWords(amount) { 
             const words = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]; 
             const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]; 
-            
             function convert(num) { 
                 if (num < 20) return words[num]; 
                 if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + words[num % 10] : ""); 
@@ -2276,49 +1848,29 @@
                 if (num < 10000000) return convert(Math.floor(num / 100000)) + " Lakh" + (num % 100000 !== 0 ? " " + convert(num % 100000) : ""); 
                 return convert(Math.floor(num / 10000000)) + " Crore" + (num % 10000000 !== 0 ? " " + convert(num % 10000000) : ""); 
             } 
-            
-            let rupees = Math.floor(amount);
-            let paise = Math.round((amount - rupees) * 100); 
-            
+            let rupees = Math.floor(amount); let paise = Math.round((amount - rupees) * 100); 
             return (rupees === 0 ? "Zero" : convert(rupees)) + " Rupees" + (paise === 0 ? "" : " and " + convert(paise) + " paise") + " only."; 
         }
         
         function downloadPDF() { 
             document.getElementById('app-controls').style.display = 'none'; 
-            
             const payoutBox = document.getElementById('payout-status-container'); 
-            const payoutWasVisible = payoutBox.style.display === 'block'; 
-            payoutBox.style.display = 'none'; 
-            
+            const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
             const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
-            scrollWrappers.forEach(tw => { 
-                tw.style.overflowX = 'visible'; 
-                tw.scrollLeft = 0;
-            });
+            scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
             
-            const element = document.getElementById('invoice-content'); 
-            const oldMargin = element.style.margin;
-            
-            element.style.margin = '0';
-            element.style.width = '800px';
-            element.style.minWidth = '800px';
+            const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
             
             const opt = { 
-                margin: 0, 
-                filename: `${tempDocNumber}.pdf`, 
-                image: { type: 'jpeg', quality: 0.98 }, 
+                margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
                 html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
             }; 
             
             html2pdf().set(opt).from(element).save().then(() => { 
                 document.getElementById('app-controls').style.display = 'block'; 
                 if(payoutWasVisible) payoutBox.style.display = 'block'; 
-                
-                element.style.margin = oldMargin;
-                element.style.width = '100%';
-                element.style.minWidth = '750px';
+                element.classList.remove('pdf-mode'); 
                 scrollWrappers.forEach(tw => { tw.style.overflowX = 'auto'; });
             }); 
         }
@@ -2326,9 +1878,7 @@
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered', reg))
-                    .catch(err => console.error('Service Worker registration failed', err));
+                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW registered')).catch(err => console.error('SW failed', err));
             });
         }
     </script>
