@@ -1,5 +1,5 @@
 // ⚠️ ADMIN EMAIL
-const ADMIN_EMAILS = ["your.admin.email@gmail.com"];
+const ADMIN_EMAILS = ["sundara.murali@gmail.com"];
 
 const firebaseConfig = {
     apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
