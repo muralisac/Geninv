@@ -278,6 +278,7 @@ function loadOldDocumentForEdit(id, type) {
         document.getElementById("po-vendor-select").disabled = isConverted; 
         document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
         
+        // Removed phantom reference to btn-delete-po here
         document.getElementById("po-add-item-panel").style.display = isConverted ? "none" : "block";
         document.getElementById("btn-save-po").style.display = isConverted ? "none" : "block";
         renderCartUI('po'); switchScreen('screen-po-builder'); 
@@ -287,6 +288,7 @@ function loadOldDocumentForEdit(id, type) {
 
         document.getElementById("customer-select").value = doc.customerId; 
         document.getElementById("builder-title").innerText = "Edit Invoice"; 
+        // Removed phantom reference to btn-delete-invoice here
         renderCartUI('invoice'); switchScreen('screen-builder'); 
     }
 }
