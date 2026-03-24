@@ -278,7 +278,6 @@ function loadOldDocumentForEdit(id, type) {
         document.getElementById("po-vendor-select").disabled = isConverted; 
         document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
         
-        document.getElementById("btn-delete-po").style.display = "block";
         document.getElementById("po-add-item-panel").style.display = isConverted ? "none" : "block";
         document.getElementById("btn-save-po").style.display = isConverted ? "none" : "block";
         renderCartUI('po'); switchScreen('screen-po-builder'); 
@@ -288,7 +287,6 @@ function loadOldDocumentForEdit(id, type) {
 
         document.getElementById("customer-select").value = doc.customerId; 
         document.getElementById("builder-title").innerText = "Edit Invoice"; 
-        document.getElementById("btn-delete-invoice").style.display = "block";
         renderCartUI('invoice'); switchScreen('screen-builder'); 
     }
 }
@@ -377,8 +375,8 @@ async function executeDeleteInvoice(targetId, reason) {
 
 function editCurrentDocument() { 
     if(!isAdmin) return;
-    if(currentDocType === 'po') { document.getElementById("btn-delete-po").style.display = "block"; switchScreen('screen-po-builder'); } 
-    else { document.getElementById("btn-delete-invoice").style.display = "block"; switchScreen('screen-builder'); }
+    if(currentDocType === 'po') { switchScreen('screen-po-builder'); } 
+    else { switchScreen('screen-builder'); }
 }
 
 function renderPayoutUI(poDoc) {
