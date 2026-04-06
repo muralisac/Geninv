@@ -24,7 +24,9 @@ function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
     const exactGrandTotal = subTotal + totalGst; const roundedGrandTotal = Math.round(exactGrandTotal); 
     const roundOffAmt = roundedGrandTotal - exactGrandTotal; const roundedGst = Math.round(totalGst);
 
-    let chunks = []; const ITEMS_PER_PAGE = 18; 
+    let chunks = []; 
+    // 🌟 CHANGED: Strict maximum of 10 items per page
+    const ITEMS_PER_PAGE = 10; 
     for (let i = 0; i < cart.length; i += ITEMS_PER_PAGE) chunks.push(cart.slice(i, i + ITEMS_PER_PAGE));
     if (chunks.length === 0) chunks.push([]); 
 
@@ -39,7 +41,9 @@ function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
         chunk.forEach((item, idx) => {
             let actualIdx = (cIdx * ITEMS_PER_PAGE) + idx;
             let baseAmt = item.qty * item.price; let gstAmt = baseAmt * (item.gstPercent / 100); 
-            let padClass = cart.length <= 5 ? 'py-3-custom' : (cart.length <= 12 ? 'py-2-custom' : 'py-1-custom');
+            // 🌟 CHANGED: Dynamic padding guarantees 10 items fit perfectly
+            let padClass = chunk.length <= 5 ? 'py-2-custom' : 'py-1-custom';
+            
             tbody += `<tr>
                 <td class="${padClass}">${actualIdx + 1}</td>
                 <td class="${padClass} fw-medium">${item.name}</td>
@@ -114,19 +118,15 @@ function renderInvoiceHTML(cart, type, buyer, docNum, docDate) {
 function downloadPDF() { 
     document.getElementById('app-controls').style.display = 'none'; 
     const payoutBox = document.getElementById('payout-status-container'); 
-    const payoutWasVisible = payoutBox.style.display === 'block'; 
-    payoutBox.style.display = 'none'; 
+    const payoutWasVisible = payoutBox.style.display === 'block'; payoutBox.style.display = 'none'; 
     
     const scrollWrappers = document.querySelectorAll('.table-scroll-wrapper, .invoice-scroll-wrapper');
     scrollWrappers.forEach(tw => { tw.style.overflowX = 'visible'; tw.scrollLeft = 0; });
     
-    const element = document.getElementById('invoice-content'); 
-    element.classList.add('pdf-mode'); 
+    const element = document.getElementById('invoice-content'); element.classList.add('pdf-mode'); 
     
     const opt = { 
-        margin: 0, 
-        filename: `${tempDocNumber}.pdf`, 
-        image: { type: 'jpeg', quality: 0.98 }, 
+        margin: 0, filename: `${tempDocNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, 
         html2canvas: { scale: 2, useCORS: true, windowWidth: 800, width: 800, scrollX: 0, scrollY: 0 }, 
         jsPDF: { unit: 'px', format: [800, 1122], orientation: 'portrait' } 
     }; 
