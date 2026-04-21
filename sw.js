@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nellai-erp-v20';
+const CACHE_NAME = 'nellai-erp-v22';
 const urlsToCache = [
   './index.html',
   './css/styles.css',
