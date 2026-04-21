@@ -2,7 +2,9 @@
 
 auth.onAuthStateChanged(user => {
     if (user) {
-        isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+        const userEmail = user.email.toLowerCase();
+        isAdmin = ADMIN_EMAILS.includes(userEmail);
+        isStockiest = STOCKIEST_EMAILS.includes(userEmail);
         
         document.body.classList.remove('login-mode'); 
         document.body.classList.add('auth-mode');
@@ -10,13 +12,16 @@ auth.onAuthStateChanged(user => {
         document.getElementById('app-header').style.display = 'flex'; 
         document.getElementById('screen-login').classList.remove('active'); 
         document.getElementById('loading-overlay').style.display = 'flex';
-        document.getElementById('loading-text').innerText = isAdmin ? "Loading Admin ERP..." : "Loading Read-Only View...";
+        
+        // Dynamic Loading Message
+        if (isAdmin) document.getElementById('loading-text').innerText = "Loading Admin ERP...";
+        else if (isStockiest) document.getElementById('loading-text').innerText = "Loading Stockiest Portal...";
+        else document.getElementById('loading-text').innerText = "Loading Read-Only View...";
         
         applyRolePermissions();
         fetchCloudData();
         
         exitConfirmed = false;
-        // Note: The history trap is now dynamically armed in utils.js upon the user's first physical touch.
     } else {
         document.body.classList.remove('auth-mode'); 
         document.body.classList.add('login-mode');
@@ -29,10 +34,17 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRolePermissions() {
+    // Standard Admin Permissions
     document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none';
+    
+    // 🌟 NEW: Bookkeeping is only visible to Admins OR the designated Stockiest
+    const navBookkeeping = document.getElementById('nav-bookkeeping');
+    if (navBookkeeping) {
+        navBookkeeping.style.display = (isAdmin || isStockiest) ? 'block' : 'none';
+    }
 }
 
 function login() { 
@@ -55,7 +67,7 @@ function promptLogout() {
 }
 
 function logout() { 
-    historyPadded = false; // Reset the trap flag on logout
+    historyPadded = false; 
     auth.signOut(); 
 }
 

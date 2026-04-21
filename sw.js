@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nellai-erp-v16';
+const CACHE_NAME = 'nellai-erp-v20';
 const urlsToCache = [
   './index.html',
   './css/styles.css',
@@ -10,6 +10,7 @@ const urlsToCache = [
   './js/6-cart-builder.js',
   './js/7-pdf-engine.js',
   './js/8-history-payouts.js',
+  './js/9-bookkeeping.js',
   './manifest.json',
   './NNlogo-removebg-preview.png',
   './logo-192.png'
@@ -24,7 +25,6 @@ self.addEventListener('activate', e => {
     e.waitUntil(self.clients.claim());
 });
 
-// Network-first strategy to ensure you always get the latest code updates
 self.addEventListener('fetch', e => {
     e.respondWith(
         fetch(e.request).catch(() => caches.match(e.request))

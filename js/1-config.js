@@ -1,5 +1,11 @@
-// ⚠️ ADMIN EMAIL
-const ADMIN_EMAILS = ["sundara.murali@gmail.com"];
+// js/1-config.js
+
+// ========================================================
+// 🔒 ROLE & ACCESS CONFIGURATION
+// Easily update Admin and Stockiest emails here
+// ========================================================
+const ADMIN_EMAILS = ["sundara.murali@gmail.com", "another.admin@gmail.com"];
+const STOCKIEST_EMAILS = ["magmganeshan@gmail.com","emailnellainaturals@gmail.com"]; 
 
 const firebaseConfig = {
     apiKey: "AIzaSyDXjWRxYh0zHENw_9zHH9pjHUlKxhy-QVU",
@@ -18,4 +24,6 @@ let appData = { inventory: [], customers: [], history: [], purchaseOrders: [], l
 const SELLER_STATE = 33; 
 
 let currentCart = []; let editingDocId = null; let tempDocNumber = ""; let tempDocDate = "";
-let currentDocType = "invoice"; let isAdmin = false;
+let currentDocType = "invoice"; 
+let isAdmin = false; 
+let isStockiest = false; // New global security flag
