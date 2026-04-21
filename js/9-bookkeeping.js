@@ -55,12 +55,29 @@ function renderAuditUI() {
     const btnSubmit = document.getElementById("btn-submit-audit");
     const adminActions = document.getElementById("admin-audit-actions");
 
-    const isLocked = currentAuditData.status === 'submitted';
+    // Lock inputs if it is submitted or fully approved
+    const isLocked = currentAuditData.status === 'submitted' || currentAuditData.status === 'approved';
     
+    // Dynamically inject the Admin Approval and Return buttons
+    adminActions.innerHTML = `
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning flex-grow-1 fw-bold shadow-sm" onclick="returnAuditToStockiest()">↩️ Return for Correction</button>
+            <button class="btn btn-success flex-grow-1 fw-bold shadow-sm" onclick="approveAudit()">✅ Approve & Sync Stock</button>
+        </div>
+    `;
+
     // Handle UI States based on Submission Status and Admin Role
-    if (currentAuditData.status === 'submitted') {
+    if (currentAuditData.status === 'approved') {
         statusBanner.className = "alert alert-success fw-bold";
-        statusBanner.innerText = "🔒 Audit Submitted & Locked";
+        statusBanner.innerText = "✅ Audit Approved & Inventory Synced";
+        statusBanner.style.display = "block";
+        
+        btnSave.style.display = "none";
+        btnSubmit.style.display = "none";
+        adminActions.style.display = "none";
+    } else if (currentAuditData.status === 'submitted') {
+        statusBanner.className = "alert alert-info fw-bold";
+        statusBanner.innerText = "🔒 Audit Submitted - Waiting for Admin Approval";
         statusBanner.style.display = "block";
         
         btnSave.style.display = "none";
@@ -97,7 +114,7 @@ function renderAuditUI() {
                 </div>
                 <div class="col-6">
                     <label class="form-label mb-1" style="font-size:10px; color:#d97706;">Physical Count</label>
-                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Stock In Store" value="${item.physicalStock}" ${isLocked ? 'disabled' : ''}>
+                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Count" value="${item.physicalStock}" ${isLocked ? 'disabled' : ''}>
                 </div>
             </div>
             <div>
@@ -177,4 +194,51 @@ async function returnAuditToStockiest() {
             document.getElementById('loading-overlay').style.display = 'none';
         }
     }, "Yes, Return it");
+}
+
+// 🌟 NEW FUNCTION: Approve Audit and Update Master Inventory
+async function approveAudit() {
+    if (!isAdmin) return;
+    
+    showCustomConfirm("Are you sure you want to approve this audit? This will permanently update your main inventory stock levels to match the physical count.", async () => {
+        document.getElementById('loading-overlay').style.display = 'flex';
+        document.getElementById('loading-text').innerText = "Approving & Syncing Inventory...";
+        
+        try {
+            // A Firebase "Batch" ensures either ALL inventory updates succeed, or none of them do.
+            const batch = db.batch();
+            
+            currentAuditData.items.forEach(auditItem => {
+                // Update Cloud Inventory
+                const prodRef = db.collection("inventory").doc(auditItem.id);
+                batch.update(prodRef, { inStock: auditItem.physicalStock });
+                
+                // Keep Local Data Synced Instantly
+                const localProdIdx = appData.inventory.findIndex(p => p.id === auditItem.id);
+                if (localProdIdx > -1) {
+                    appData.inventory[localProdIdx].inStock = auditItem.physicalStock;
+                }
+            });
+            
+            // Mark Audit as Approved
+            currentAuditData.status = 'approved';
+            const auditRef = db.collection("bookkeeping").doc(currentAuditDate);
+            batch.update(auditRef, { status: 'approved' });
+            
+            await batch.commit();
+            
+            // Rerender the background lists so the UI reflects the new stock
+            renderProductList();
+            
+            showCustomAlert("Audit approved! All inventory stock levels have been successfully synced.", "Success", "✅");
+            renderAuditUI();
+            
+        } catch(e) {
+            console.error("Approval Error:", e);
+            currentAuditData.status = 'submitted'; // Revert to previous state if failure
+            showCustomAlert("Failed to approve audit and sync stock.", "Error", "🔴");
+        } finally {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    }, "Yes, Approve & Sync");
 }
