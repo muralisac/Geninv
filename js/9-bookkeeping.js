@@ -97,7 +97,7 @@ function renderAuditUI() {
                 </div>
                 <div class="col-6">
                     <label class="form-label mb-1" style="font-size:10px; color:#d97706;">Physical Count</label>
-                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Count" value="${item.physicalStock}" ${isLocked ? 'disabled' : ''}>
+                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Stock In Store" value="${item.physicalStock}" ${isLocked ? 'disabled' : ''}>
                 </div>
             </div>
             <div>
