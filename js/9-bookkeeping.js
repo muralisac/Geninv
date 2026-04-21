@@ -5,7 +5,12 @@ let currentAuditData = null;
 
 function openBookkeepingScreen() {
     const d = new Date();
-    document.getElementById('audit-date').value = getLocalYMD(d);
+    const todayStr = getLocalYMD(d);
+    
+    const dateInput = document.getElementById('audit-date');
+    dateInput.max = todayStr; // 🌟 Block Future Dates in the calendar picker
+    dateInput.value = todayStr;
+    
     loadAuditForDate();
     switchScreen('screen-bookkeeping');
 }
@@ -13,6 +18,15 @@ function openBookkeepingScreen() {
 function loadAuditForDate() {
     const dateVal = document.getElementById('audit-date').value;
     if(!dateVal) return;
+    
+    // Fallback safety: Prevent future dates via manual entry
+    const todayStr = getLocalYMD(new Date());
+    if (dateVal > todayStr) {
+        showCustomAlert("Future book keeping is not allowed.", "Invalid Date", "⚠️");
+        document.getElementById('audit-date').value = todayStr;
+        return loadAuditForDate();
+    }
+    
     currentAuditDate = dateVal;
     
     document.getElementById('loading-overlay').style.display = 'flex';
@@ -21,8 +35,6 @@ function loadAuditForDate() {
     db.collection("bookkeeping").doc(dateVal).get().then(doc => {
         if(doc.exists) {
             currentAuditData = doc.data();
-            
-            // Backward compatibility for old audits that only had 'comment'
             currentAuditData.items = currentAuditData.items.map(item => ({
                 ...item,
                 historicComments: item.historicComments || item.comment || "",
@@ -62,36 +74,85 @@ function renderAuditUI() {
     const btnSubmit = document.getElementById("btn-submit-audit");
     const adminActions = document.getElementById("admin-audit-actions");
 
-    // ROLE-BASED LOGIC
-    // Stockiest can act if it's draft or returned
-    const isStockiestActing = isStockiest && (currentAuditData.status === 'draft' || currentAuditData.status === 'returned');
-    // Admin can act ONLY if it's submitted
-    const isAdminActing = isAdmin && currentAuditData.status === 'submitted';
+    const todayStr = getLocalYMD(new Date());
+    const isPastDate = currentAuditDate < todayStr;
 
-    // Top Status Banner & Button Visibility
-    if (currentAuditData.status === 'approved') {
-        statusBanner.className = "alert alert-success fw-bold";
-        statusBanner.innerText = "✅ Audit Approved & Inventory Synced";
-        statusBanner.style.display = "block";
-        btnSave.style.display = "none"; btnSubmit.style.display = "none"; adminActions.style.display = "none";
-    } else if (currentAuditData.status === 'submitted') {
-        statusBanner.className = "alert alert-info fw-bold";
-        statusBanner.innerText = "🔒 Audit Submitted - Waiting for Admin Approval";
-        statusBanner.style.display = "block";
-        btnSave.style.display = "none"; btnSubmit.style.display = "none"; 
-        adminActions.style.display = isAdminActing ? "block" : "none";
-    } else if (currentAuditData.status === 'returned') {
-        statusBanner.className = "alert alert-warning fw-bold";
-        statusBanner.innerText = "⚠️ Audit Returned by Admin - Corrections Needed";
-        statusBanner.style.display = "block";
-        btnSave.style.display = isStockiestActing ? "block" : "none"; 
-        btnSubmit.style.display = isStockiestActing ? "block" : "none";
+    // 🌟 ROLE & TIME-BASED LOGIC
+    // If it's a past date, NO ONE can act. It is completely frozen.
+    const isStockiestActing = !isPastDate && isStockiest && (currentAuditData.status === 'draft' || currentAuditData.status === 'returned');
+    const isAdminActing = !isPastDate && isAdmin && currentAuditData.status === 'submitted';
+    
+    // Inputs are locked if it is a past date, or if the form is submitted/approved.
+    const isLocked = isPastDate || currentAuditData.status === 'submitted' || currentAuditData.status === 'approved';
+
+    // Extract submit time for message logic (fallback to current time if missing)
+    let submitHour = 0;
+    if (currentAuditData.submitTime) {
+        submitHour = new Date(currentAuditData.submitTime).getHours();
+    }
+
+    // 🌟 BANNER MESSAGING LOGIC
+    statusBanner.style.display = "block"; // Always show a banner unless it's a blank draft today
+
+    if (isPastDate) {
+        // --- PAST DATES (FROZEN VIEWS) ---
+        btnSave.style.display = "none"; 
+        btnSubmit.style.display = "none"; 
         adminActions.style.display = "none";
+
+        if (currentAuditData.status === 'draft' || currentAuditData.status === 'returned') {
+            statusBanner.className = "alert alert-danger fw-bold";
+            statusBanner.innerText = "❌ Daily stock was not audited";
+        } else if (currentAuditData.status === 'submitted') {
+            statusBanner.className = "alert alert-warning fw-bold";
+            if (submitHour >= 21) {
+                statusBanner.innerText = "⚠️ Book keeping submitted after 9PM and Admin did not act on it";
+            } else {
+                statusBanner.innerText = "⚠️ Admin did not act on the Book Keeping";
+            }
+        } else if (currentAuditData.status === 'approved') {
+            statusBanner.className = "alert alert-success fw-bold";
+            if (submitHour >= 21) {
+                statusBanner.innerText = "✅ Book Keeping submitted after 9PM, Audit approved and Inventory Synced";
+            } else {
+                statusBanner.innerText = "✅ Audit Approved & Inventory Synced";
+            }
+        }
     } else {
-        statusBanner.style.display = "none";
-        btnSave.style.display = isStockiestActing ? "block" : "none"; 
-        btnSubmit.style.display = isStockiestActing ? "block" : "none";
-        adminActions.style.display = "none";
+        // --- CURRENT DATE (ACTIVE VIEWS) ---
+        if (currentAuditData.status === 'approved') {
+            statusBanner.className = "alert alert-success fw-bold";
+            if (submitHour >= 21) {
+                statusBanner.innerText = "✅ Book Keeping submitted after 9PM and Admin approved it";
+            } else {
+                statusBanner.innerText = "✅ Audit Approved & Inventory Synced";
+            }
+            btnSave.style.display = "none"; btnSubmit.style.display = "none"; adminActions.style.display = "none";
+        } 
+        else if (currentAuditData.status === 'submitted') {
+            statusBanner.className = "alert alert-info fw-bold";
+            if (submitHour >= 21) {
+                statusBanner.innerText = "⚠️ Book keeping submitted after 9PM. Waiting for Admin approval.";
+            } else {
+                statusBanner.innerText = "🔒 Audit Submitted - Waiting for Admin Approval";
+            }
+            btnSave.style.display = "none"; btnSubmit.style.display = "none"; 
+            adminActions.style.display = isAdminActing ? "block" : "none";
+        } 
+        else if (currentAuditData.status === 'returned') {
+            statusBanner.className = "alert alert-warning fw-bold";
+            statusBanner.innerText = "⚠️ Audit Returned by Admin - Corrections Needed";
+            btnSave.style.display = isStockiestActing ? "block" : "none"; 
+            btnSubmit.style.display = isStockiestActing ? "block" : "none";
+            adminActions.style.display = "none";
+        } 
+        else {
+            // It's a fresh Draft today
+            statusBanner.style.display = "none";
+            btnSave.style.display = isStockiestActing ? "block" : "none"; 
+            btnSubmit.style.display = isStockiestActing ? "block" : "none";
+            adminActions.style.display = "none";
+        }
     }
 
     // Inject Admin Buttons
@@ -103,7 +164,7 @@ function renderAuditUI() {
     `;
 
     if (currentAuditData.items.length === 0) {
-        container.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No active inventory items found to audit today.</div>`;
+        container.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No active inventory items found to audit.</div>`;
         return;
     }
 
@@ -111,17 +172,14 @@ function renderAuditUI() {
     container.innerHTML = currentAuditData.items.map((item, idx) => {
         let commentsHTML = "";
         
-        // Locked Historic Comments
         if (item.historicComments) {
             commentsHTML += `<div class="p-2 mt-2 bg-white border rounded text-dark small font-monospace shadow-sm" style="white-space: pre-wrap; font-size: 12px; border-left: 4px solid #64748b !important;">${item.historicComments}</div>`;
         }
 
-        // Editable Draft Comment (Only for Stockiest acting)
         if (isStockiestActing) {
             commentsHTML += `<textarea id="audit-comment-${idx}" class="form-control mt-2 font-13" rows="2" placeholder="Stockiest Notes: Enter discrepancy reason...">${item.draftComment || ""}</textarea>`;
         }
         
-        // Editable Admin Comment (Only for Admin acting)
         if (isAdminActing) {
             commentsHTML += `<textarea id="audit-admin-comment-${idx}" class="form-control border-warning mt-2 font-13" rows="2" placeholder="Admin Notes: Enter instructions or remarks..."></textarea>`;
         }
@@ -136,7 +194,7 @@ function renderAuditUI() {
                 </div>
                 <div class="col-6">
                     <label class="form-label mb-1" style="font-size:10px; color:#d97706;">Physical Count</label>
-                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Count" value="${item.physicalStock}" ${isStockiestActing ? '' : 'disabled'}>
+                    <input type="number" id="audit-qty-${idx}" class="form-control text-center fw-bold border-warning" placeholder="Count" value="${item.physicalStock}" ${isLocked ? 'disabled' : ''}>
                 </div>
             </div>
             ${commentsHTML}
@@ -162,7 +220,6 @@ async function saveAudit(targetStatus) {
                 hasErrors = true;
                 errorMsg = "Please enter the physical stock count for all items before submitting the final audit.";
             }
-            // Require a comment (either historic or new draft) if there's a mismatch
             const combinedComments = item.historicComments + item.draftComment;
             if (item.physicalStock !== "" && item.physicalStock !== item.systemStock && combinedComments.trim() === "") {
                 hasErrors = true;
@@ -173,13 +230,15 @@ async function saveAudit(targetStatus) {
 
     if (hasErrors) return showCustomAlert(errorMsg, "Incomplete Data", "⚠️");
 
-    // If submitting, append draft comments to the historic locked log with StksT prefix
     if (targetStatus === 'submitted') {
+        // 🌟 Save exact submit time for logic checks
+        currentAuditData.submitTime = new Date().toISOString();
+        
         currentAuditData.items.forEach(item => {
             if (item.draftComment) {
                 const prefix = item.historicComments ? "\n" : "";
                 item.historicComments += `${prefix}StksT: ${item.draftComment}`;
-                item.draftComment = ""; // Clear draft since it is now permanently locked
+                item.draftComment = ""; 
             }
         });
     }
@@ -197,7 +256,7 @@ async function saveAudit(targetStatus) {
     } catch (error) {
         console.error(error);
         showCustomAlert("Failed to save audit to cloud.", "Error", "🔴");
-        if(targetStatus === 'submitted') currentAuditData.status = 'draft'; // Revert state on failure
+        if(targetStatus === 'submitted') currentAuditData.status = 'draft'; 
     } finally {
         document.getElementById('loading-overlay').style.display = 'none';
     }
@@ -216,7 +275,6 @@ async function processAdminAction(actionStatus) {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Processing...";
 
-        // Append any Admin comments to the historic log
         currentAuditData.items.forEach((item, idx) => {
             const adminInputEl = document.getElementById(`audit-admin-comment-${idx}`);
             if (adminInputEl && adminInputEl.value.trim() !== "") {
@@ -227,12 +285,16 @@ async function processAdminAction(actionStatus) {
 
         currentAuditData.status = actionStatus;
         currentAuditData.lastUpdated = firebase.firestore.FieldValue.serverTimestamp();
+        
+        // 🌟 Record exactly when the Admin approved it
+        if (actionStatus === 'approved') {
+            currentAuditData.approveTime = new Date().toISOString();
+        }
 
         try {
             const batch = db.batch();
             const auditRef = db.collection("bookkeeping").doc(currentAuditDate);
 
-            // If approving, sync the inventory
             if (actionStatus === 'approved') {
                 currentAuditData.items.forEach(auditItem => {
                     const prodRef = db.collection("inventory").doc(auditItem.id);
@@ -243,7 +305,6 @@ async function processAdminAction(actionStatus) {
                 });
             }
 
-            // Save the audit document
             batch.set(auditRef, currentAuditData);
             await batch.commit();
 
@@ -254,7 +315,7 @@ async function processAdminAction(actionStatus) {
             
         } catch(e) {
             console.error("Admin Action Error:", e);
-            currentAuditData.status = 'submitted'; // Revert state if failure
+            currentAuditData.status = 'submitted'; 
             showCustomAlert(`Failed to ${actionText} audit.`, "Error", "🔴");
         } finally {
             document.getElementById('loading-overlay').style.display = 'none';
