@@ -23,7 +23,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="css/styles.css">
@@ -206,13 +205,36 @@
             <input type="hidden" id="prod-id">
             
             <div class="mb-3">
-                <label class="form-label">Product Name</label>
+                <label class="form-label">Product Name <span class="text-danger">*</span></label>
                 <input type="text" id="prod-name" class="form-control">
             </div>
             
             <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Barcode Value <span class="text-danger">*</span></label>
+                    <div class="input-group mb-2">
+                        <input type="text" id="prod-barcode" class="form-control" oninput="renderBarcodePreview()" placeholder="Scan or enter">
+                        <button class="btn btn-outline-secondary fw-bold bg-white" type="button" onclick="generateRandomCode('barcode')">🎲 Gen</button>
+                    </div>
+                    <div class="text-center bg-white border rounded d-flex justify-content-center align-items-center" style="height: 70px; overflow: hidden;">
+                        <svg id="barcode-preview" style="display:none;"></svg>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label">QR Code Value <span class="text-danger">*</span></label>
+                    <div class="input-group mb-2">
+                        <input type="text" id="prod-qrcode" class="form-control" oninput="renderQRPreview()" placeholder="Scan or enter">
+                        <button class="btn btn-outline-secondary fw-bold bg-white" type="button" onclick="generateRandomCode('qrcode')">🎲 Gen</button>
+                    </div>
+                    <div class="text-center bg-white border rounded d-flex justify-content-center align-items-center" style="height: 70px;" id="qrcode-preview">
+                        <span class="text-muted small">No QR Data</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
                 <div class="col-6">
-                    <label class="form-label">Retail / POS Price (₹)</label>
+                    <label class="form-label">Retail / POS Price (₹) <span class="text-danger">*</span></label>
                     <input type="number" step="0.01" id="prod-price" class="form-control" placeholder="Selling Price">
                 </div>
                 <div class="col-6">
@@ -366,10 +388,7 @@
     </div>
 
     <div id="screen-pos" class="screen" style="max-width: 1000px; margin: 15px auto;">
-        
-        <div class="pos-tabs-container mb-3 d-flex gap-2 px-2 overflow-auto" id="pos-tabs" style="white-space: nowrap;">
-            </div>
-
+        <div class="pos-tabs-container mb-3 d-flex gap-2 px-2 overflow-auto" id="pos-tabs" style="white-space: nowrap;"></div>
         <div class="panel mt-0" style="max-width: 100%;">
             <div class="d-flex justify-content-end align-items-center mb-3 pb-3 border-bottom">
                 <div class="d-flex gap-2">
@@ -378,13 +397,10 @@
                     <button id="btn-pos-checkout" class="btn fw-bold shadow-sm text-white d-none" style="background-color: #800000;" onclick="generatePreview('pos')">🛒 Checkout</button>
                 </div>
             </div>
-
             <div class="row">
                 <div class="col-12 col-lg-8 mb-4">
-                    <div class="row row-cols-2 row-cols-md-3 g-3" id="pos-product-grid">
-                        </div>
+                    <div class="row row-cols-2 row-cols-md-3 g-3" id="pos-product-grid"></div>
                 </div>
-
                 <div class="col-12 col-lg-4">
                     <div class="bg-light border rounded-4 p-3 d-flex flex-column pos-sticky-cart">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -448,9 +464,7 @@
                 <button class="btn-close" onclick="closePayoutModal()"></button>
             </div>
             <p class="small text-muted mb-4">Upload a screenshot of the transaction receipt.</p>
-            
             <input type="hidden" id="payout-po-id">
-            
             <div class="mb-3">
                 <label class="form-label">Transaction Date</label>
                 <input type="date" id="payout-date" class="form-control">
@@ -467,7 +481,6 @@
                 <label class="form-label">Receipt Image</label>
                 <input type="file" id="payout-image" class="form-control" accept="image/*">
             </div>
-            
             <button class="btn btn-success w-100 btn-lg" onclick="savePayout()" id="btn-save-payout">Confirm & Lock Payment</button>
         </div>
     </div>
@@ -491,6 +504,8 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
 
     <script src="js/1-config.js"></script>

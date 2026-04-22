@@ -270,17 +270,19 @@ function onScanFailure(error) {
 function processScannedCode(code) {
     const cleanedCode = code.trim().toLowerCase();
     
-    // Search inventory for matching ID or Name
+    // 🌟 UPGRADED: Now searches the dedicated barcode and qrcode fields!
     const product = appData.inventory.find(p => 
         p.id.toLowerCase() === cleanedCode || 
-        p.name.toLowerCase() === cleanedCode
+        p.name.toLowerCase() === cleanedCode ||
+        (p.barcode && p.barcode.toLowerCase() === cleanedCode) ||
+        (p.qrcode && p.qrcode.toLowerCase() === cleanedCode)
     );
     
     if (product) {
         handlePosItemClick(product.id, null); 
         showCustomAlert(`Successfully scanned and added: ${product.name}`, "Scan Success", "✅");
     } else {
-        showCustomAlert(`Unrecognized barcode: ${code}\n\nThis item is not in your inventory master list.`, "Scan Failed", "❌");
+        showCustomAlert(`Unrecognized code: ${code}\n\nThis code does not match any Barcode or QR Code in your inventory master list.`, "Scan Failed", "❌");
     }
 }
 
