@@ -10,18 +10,17 @@ function openPOSScreen() {
 function renderPOSGrid() {
     const grid = document.getElementById('pos-product-grid');
     
-    // Render all active products for the POS screen
+    // Pass the 'event' parameter into the click handler to capture tap coordinates
     grid.innerHTML = appData.inventory.map(p => {
         const stock = p.inStock || 0;
         const imgSrc = p.images && p.images.length > 0 ? p.images[0] : null;
         
-        // Show image if it exists, otherwise show a stylish initial letter
         const imgHTML = imgSrc 
             ? `<img src="${imgSrc}" class="pos-item-img">`
             : `<div class="pos-item-img">${p.name.charAt(0).toUpperCase()}</div>`;
         
         return `
-        <div class="col" onclick="handlePosItemClick('${p.id}')">
+        <div class="col" onclick="handlePosItemClick('${p.id}', event)">
             <div class="pos-item-card ${stock <= 0 ? 'opacity-50' : ''}">
                 ${imgHTML}
                 <div class="pos-item-details">
@@ -36,19 +35,68 @@ function renderPOSGrid() {
     }).join('');
 }
 
-function handlePosItemClick(pid) {
+function handlePosItemClick(pid, event) {
     const product = appData.inventory.find(x => x.id === pid);
     if ((product.inStock || 0) <= 0) return showCustomAlert("This item is currently out of stock!", "Stock Error", "❌");
 
-    // If no active customer cart exists, force them to create one first
     if (!activePosCartId) {
-        pendingPosItemAdd = product; // Remember what they clicked!
+        pendingPosItemAdd = product; 
         document.getElementById('pos-cust-name').value = "";
         document.getElementById('pos-cust-phone').value = "";
         document.getElementById('pos-customer-modal').style.display = "flex";
     } else {
         addPosItemToActiveCart(product);
+        
+        // 🌟 TRIGGER ANIMATION ON MOBILE (< 992px matches Bootstrap's desktop breakpoint)
+        if (window.innerWidth < 992 && event) {
+            animateItemToCart(product.name, event);
+        }
     }
+}
+
+// 🌟 NEW: FLYING TEXT ANIMATION
+function animateItemToCart(itemName, event) {
+    const cartIcon = document.querySelector('.pos-header-btn');
+    if (!cartIcon || !event) return;
+
+    // Get exact screen coordinates of the tap/click
+    let startX = event.clientX;
+    let startY = event.clientY;
+    if (event.touches && event.touches.length > 0) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+    }
+
+    // Get coordinates of the Cart Icon in the Header
+    const rect = cartIcon.getBoundingClientRect();
+    const endX = rect.left + rect.width / 2;
+    const endY = rect.top + rect.height / 2;
+
+    // Create the flying element
+    const flyingEl = document.createElement('div');
+    flyingEl.className = 'fly-to-cart';
+    flyingEl.innerText = itemName;
+    
+    // Position it at the finger
+    flyingEl.style.left = startX + 'px';
+    flyingEl.style.top = startY + 'px';
+    document.body.appendChild(flyingEl);
+
+    // Force browser to draw it instantly before animating
+    void flyingEl.offsetWidth;
+
+    // Calculate distance to travel
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+
+    // Send it flying while shrinking and fading out
+    flyingEl.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px)) scale(0.1)`;
+    flyingEl.style.opacity = '0';
+
+    // Clean up the DOM after animation finishes (0.6 seconds)
+    setTimeout(() => {
+        flyingEl.remove();
+    }, 600); 
 }
 
 function cancelPOSCustomer() {
@@ -56,7 +104,6 @@ function cancelPOSCustomer() {
     document.getElementById('pos-customer-modal').style.display = "none";
 }
 
-// Start a new cart session
 function confirmPOSCustomer() {
     const name = document.getElementById('pos-cust-name').value.trim() || "Walk-in Customer";
     const phone = document.getElementById('pos-cust-phone').value.trim();
@@ -72,7 +119,6 @@ function confirmPOSCustomer() {
     activePosCartId = newCartId;
     document.getElementById('pos-customer-modal').style.display = "none";
     
-    // Automatically add the item they clicked before the popup appeared
     if (pendingPosItemAdd) {
         addPosItemToActiveCart(pendingPosItemAdd);
         pendingPosItemAdd = null;
@@ -89,7 +135,6 @@ function addPosItemToActiveCart(product) {
     const existing = cartObj.items.find(i => i.id === product.id);
     const currentQty = existing ? existing.qty : 0;
 
-    // Strict Inventory Safeguard
     let availableStock = product.inStock || 0;
     if (currentQty + 1 > availableStock) {
         return showCustomAlert("Cannot add more. Retail limit reached based on available physical stock!", "Stock Limit", "📦");
@@ -133,7 +178,6 @@ function renderPOSTabs() {
     
     if (posCarts.length === 0) {
         container.innerHTML = "";
-        document.getElementById('pos-active-customer').innerText = "Retail POS";
         return;
     }
     
@@ -145,11 +189,6 @@ function renderPOSTabs() {
     
     html += `<div class="pos-tab bg-white text-dark" onclick="createNewPosCart()">➕ New Customer</div>`;
     container.innerHTML = html;
-    
-    const active = posCarts.find(c => c.id === activePosCartId);
-    if(active) {
-        document.getElementById('pos-active-customer').innerText = "Billing: " + active.name;
-    }
 }
 
 function renderPOSCart() {

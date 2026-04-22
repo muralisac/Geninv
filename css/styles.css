@@ -195,4 +195,30 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+}/* --- DESKTOP STICKY CART --- */
+@media (min-width: 992px) {
+    .pos-sticky-cart {
+        position: sticky !important;
+        top: 95px; /* Safely clears the header */
+        height: calc(100vh - 110px);
+    }
+}
+
+/* --- MOBILE ADD-TO-CART ANIMATION --- */
+.fly-to-cart {
+    position: fixed;
+    z-index: 9999;
+    font-weight: 800;
+    background: #800000;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    pointer-events: none;
+    font-size: 13px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-origin: center;
+    white-space: nowrap;
+    /* Centers the element cleanly on the tap coordinate */
+    transform: translate(-50%, -50%); 
 }
