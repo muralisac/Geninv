@@ -99,12 +99,7 @@ function confirmPOSCustomer() {
     const phone = document.getElementById('pos-cust-phone').value.trim();
     
     const newCartId = 'pos-' + Date.now();
-    posCarts.push({
-        id: newCartId,
-        name: name,
-        phone: phone,
-        items: []
-    });
+    posCarts.push({ id: newCartId, name: name, phone: phone, items: [] });
     
     activePosCartId = newCartId;
     document.getElementById('pos-customer-modal').style.display = "none";
@@ -130,11 +125,8 @@ function addPosItemToActiveCart(product) {
         return showCustomAlert("Cannot add more. Retail limit reached based on available physical stock!", "Stock Limit", "📦");
     }
 
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cartObj.items.push({ ...product, qty: 1, price: product.price, gstPercent: product.gstPercent });
-    }
+    if (existing) { existing.qty += 1; } 
+    else { cartObj.items.push({ ...product, qty: 1, price: product.price, gstPercent: product.gstPercent }); }
     
     renderPOSCart();
 }
@@ -163,39 +155,23 @@ function createNewPosCart() {
     document.getElementById('pos-customer-modal').style.display = "flex";
 }
 
-// 🌟 NEW: Prompt the user before deleting a tab
 function promptClosePosCart(cartId, event) {
-    // This stops the click from triggering the "switchPosCart" function underneath it
     if (event) event.stopPropagation();
-    
     const cart = posCarts.find(c => c.id === cartId);
     if (!cart) return;
-
     showCustomConfirm(`Are you sure you want to cancel the bill for "${cart.name}"? This will clear all items in their cart.`, () => executeClosePosCart(cartId), "Yes, Cancel Bill");
 }
 
-// 🌟 NEW: Execute the deletion after confirmation
 function executeClosePosCart(cartId) {
-    // Remove the cart from the array
     posCarts = posCarts.filter(c => c.id !== cartId);
-    
-    // If we just closed the active tab, switch to the first available tab (or null if none exist)
-    if (activePosCartId === cartId) {
-        activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
-    }
-    
+    if (activePosCartId === cartId) activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
     renderPOSTabs();
     renderPOSCart();
 }
 
-// 🌟 UPDATED: Injects the "X" button into the tabs
 function renderPOSTabs() {
     const container = document.getElementById('pos-tabs');
-    
-    if (posCarts.length === 0) {
-        container.innerHTML = "";
-        return;
-    }
+    if (posCarts.length === 0) { container.innerHTML = ""; return; }
     
     let html = posCarts.map(cart => `
         <div class="pos-tab ${cart.id === activePosCartId ? 'active' : ''}" onclick="switchPosCart('${cart.id}')">
@@ -217,22 +193,18 @@ function renderPOSCart() {
     const cartObj = posCarts.find(c => c.id === activePosCartId);
     
     if (!cartObj || cartObj.items.length === 0) {
-        countEl.innerText = "0";
-        totalEl.innerText = "₹0.00";
-        btnCheckout.classList.add('d-none');
+        countEl.innerText = "0"; totalEl.innerText = "₹0.00"; btnCheckout.classList.add('d-none');
         container.innerHTML = `<div class="text-center p-4 text-muted small border rounded-3 bg-white">Cart is empty. Tap an item to add.</div>`;
         return;
     }
 
-    let totalQty = 0;
-    let grandTotal = 0;
+    let totalQty = 0; let grandTotal = 0;
 
     container.innerHTML = cartObj.items.map(item => {
         totalQty += item.qty;
         const baseAmt = item.qty * item.price;
         const gstAmt = baseAmt * (item.gstPercent / 100);
-        const rowTotal = baseAmt + gstAmt;
-        grandTotal += rowTotal;
+        grandTotal += (baseAmt + gstAmt);
 
         return `
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded shadow-sm">
@@ -251,3 +223,92 @@ function renderPOSCart() {
     totalEl.innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
     btnCheckout.classList.remove('d-none');
 }
+
+// ========================================================
+// 🌟 ADVANCED HARDWARE & CAMERA SCANNING ENGINE
+// ========================================================
+
+let html5QrcodeScanner = null;
+
+function initiateBarcodeScan() {
+    const isMobile = window.innerWidth < 992;
+    if (isMobile) {
+        openCameraScanner(); 
+    } else {
+        showCustomAlert("Hardware Scanner Ready!\n\nPlease scan the barcode using your USB or Bluetooth physical scanner. Make sure you haven't clicked inside a text box first.", "Scanner Ready", "📟");
+    }
+}
+
+function initiateQRScan() {
+    openCameraScanner(); 
+}
+
+function openCameraScanner() {
+    document.getElementById('scanner-modal').style.display = 'flex';
+    // Requires HTTPS or localhost to access camera
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+}
+
+function closeCameraScanner() {
+    document.getElementById('scanner-modal').style.display = 'none';
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => console.error("Scanner clear error", err));
+        html5QrcodeScanner = null;
+    }
+}
+
+function onScanSuccess(decodedText) {
+    closeCameraScanner();
+    processScannedCode(decodedText);
+}
+
+function onScanFailure(error) {
+    // Fails quietly every frame it doesn't see a code. Ignored by design.
+}
+
+function processScannedCode(code) {
+    const cleanedCode = code.trim().toLowerCase();
+    
+    // Search inventory for matching ID or Name
+    const product = appData.inventory.find(p => 
+        p.id.toLowerCase() === cleanedCode || 
+        p.name.toLowerCase() === cleanedCode
+    );
+    
+    if (product) {
+        handlePosItemClick(product.id, null); 
+        showCustomAlert(`Successfully scanned and added: ${product.name}`, "Scan Success", "✅");
+    } else {
+        showCustomAlert(`Unrecognized barcode: ${code}\n\nThis item is not in your inventory master list.`, "Scan Failed", "❌");
+    }
+}
+
+// 🌟 BACKGROUND HARDWARE SCANNER LISTENER (KEYBOARD WEDGE)
+let hwBarcodeString = "";
+let hwBarcodeTimeout;
+
+document.addEventListener('keydown', (e) => {
+    const posScreen = document.getElementById('screen-pos');
+    if (!posScreen || !posScreen.classList.contains('active')) return;
+
+    // Ignore keystrokes if the user is typing a customer name or comment
+    const activeTag = document.activeElement.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+    if (e.key === 'Enter') {
+        if (hwBarcodeString.length > 2) {
+            processScannedCode(hwBarcodeString);
+        }
+        hwBarcodeString = "";
+    } else if (e.key.length === 1) { // Standard alphanumeric character
+        hwBarcodeString += e.key;
+        clearTimeout(hwBarcodeTimeout);
+        
+        // Humans type slowly. Scanners type entire strings in ~20ms. 
+        // If 50ms pass without a keystroke, it was a human typing by mistake.
+        hwBarcodeTimeout = setTimeout(() => {
+            hwBarcodeString = ""; 
+        }, 50); 
+    }
+});

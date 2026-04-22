@@ -373,8 +373,8 @@
         <div class="panel mt-0" style="max-width: 100%;">
             <div class="d-flex justify-content-end align-items-center mb-3 pb-3 border-bottom">
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="showCustomAlert('Barcode scanning initialized...', 'Scanner', '📷')">📷 Barcode</button>
-                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="showCustomAlert('QR scanning initialized...', 'Scanner', '📷')">📷 QR</button>
+                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="initiateBarcodeScan()">📷 Barcode</button>
+                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="initiateQRScan()">📷 QR</button>
                     <button id="btn-pos-checkout" class="btn fw-bold shadow-sm text-white d-none" style="background-color: #800000;" onclick="generatePreview('pos')">🛒 Checkout</button>
                 </div>
             </div>
@@ -441,8 +441,57 @@
         </div>
     </div>
 
-    <div id="payout-modal" class="custom-modal-overlay">...</div>
-    <div id="receipt-viewer-modal" class="custom-modal-overlay" onclick="closeReceiptViewer()" style="z-index: 10000;">...</div>
+    <div id="payout-modal" class="custom-modal-overlay">
+        <div class="custom-modal-content">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold m-0" style="color:#0b2a5c;">Record Payment</h4>
+                <button class="btn-close" onclick="closePayoutModal()"></button>
+            </div>
+            <p class="small text-muted mb-4">Upload a screenshot of the transaction receipt.</p>
+            
+            <input type="hidden" id="payout-po-id">
+            
+            <div class="mb-3">
+                <label class="form-label">Transaction Date</label>
+                <input type="date" id="payout-date" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Reference Number (UTR/UPI)</label>
+                <input type="text" id="payout-ref" class="form-control" placeholder="e.g., UPI123456789">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Amount Paid (₹)</label>
+                <input type="number" id="payout-amount" class="form-control" placeholder="0.00">
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Receipt Image</label>
+                <input type="file" id="payout-image" class="form-control" accept="image/*">
+            </div>
+            
+            <button class="btn btn-success w-100 btn-lg" onclick="savePayout()" id="btn-save-payout">Confirm & Lock Payment</button>
+        </div>
+    </div>
+
+    <div id="receipt-viewer-modal" class="custom-modal-overlay" onclick="closeReceiptViewer()" style="z-index: 10000;">
+        <div class="text-center" style="max-width: 95vw; position: relative;" onclick="event.stopPropagation()">
+            <button class="btn-close btn-close-white position-absolute top-0 end-0 m-2" onclick="closeReceiptViewer()" style="z-index: 10001; background-color: rgba(0,0,0,0.6); padding: 10px; border-radius: 50%;"></button>
+            <img id="receipt-viewer-img" src="" alt="Receipt" style="max-width: 100%; max-height: 80vh; border-radius: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+            <button class="btn btn-light mt-4 fw-bold px-4 shadow" onclick="closeReceiptViewer()">Close Image</button>
+        </div>
+    </div>
+
+    <div id="scanner-modal" class="custom-modal-overlay" style="z-index: 10008;">
+        <div class="custom-modal-content text-center" style="max-width: 500px;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold m-0 text-dark">📷 Camera Scanner</h5>
+                <button class="btn-close" onclick="closeCameraScanner()"></button>
+            </div>
+            <div id="reader" style="width: 100%; min-height: 300px; background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #cbd5e1;"></div>
+            <button class="btn btn-danger w-100 mt-3 fw-bold shadow-sm" onclick="closeCameraScanner()">Cancel Scanning</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
 
     <script src="js/1-config.js"></script>
     <script src="js/2-utils.js"></script>
