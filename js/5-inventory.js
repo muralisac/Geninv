@@ -6,6 +6,7 @@ function renderProductList() {
         let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
         let pPriceDisplay = p.purchasePrice ? `| Purch: ₹${p.purchasePrice.toFixed(2)}` : "";
         let stockDisplay = p.inStock ? p.inStock : 0;
+        let imgIndicator = p.images && p.images.length > 0 ? `<span class="badge bg-info mt-1">📸 ${p.images.length} Images</span>` : '';
         
         let deleteBtn = '';
         if (isAdmin) {
@@ -22,6 +23,7 @@ function renderProductList() {
                 <strong style="color:#0b2a5c;">${p.name}</strong><br>
                 <small class="text-muted">Sell: ₹${priceDisplay} ${pPriceDisplay} | GST: ${p.gstPercent}%</small><br>
                 <span class="badge ${stockDisplay > 0 ? 'bg-success' : 'bg-danger'} mt-1">In Stock: ${stockDisplay}</span>
+                ${imgIndicator}
             </div>
             <div class="d-flex align-items-center gap-2">
                 ${isAdmin ? `<button class="btn btn-light action-btn border shadow-sm" onclick="editProduct('${p.id}')">Edit</button>` : ''}
@@ -65,6 +67,9 @@ function editProduct(id) {
     formContainer.style.display = 'block'; 
     document.getElementById('btn-add-product').style.display = 'none';
     
+    // Reset file inputs
+    for(let i=0; i<5; i++) { document.getElementById(`prod-img-${i}`).value = ""; }
+
     if (id === 'new') { 
         document.getElementById('prod-id').value = 'new'; 
         document.getElementById('prod-name').value = ''; 
@@ -86,6 +91,28 @@ function editProduct(id) {
     setTimeout(() => { formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
 }
 
+// 🌟 Ultra-Fast Image Compressor for Firestore
+async function compressImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = e => {
+            const img = new Image();
+            img.src = e.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 500; // Small size for POS grid
+                const scale = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6)); // High compression
+            }
+        };
+    });
+}
+
 async function saveProduct() { 
     if(!isAdmin) return;
     const id = document.getElementById('prod-id').value; 
@@ -97,16 +124,42 @@ async function saveProduct() {
     const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
     
     if (!name || isNaN(price) || price <= 0) return showCustomAlert("Please fill all product fields properly."); 
+
+    document.getElementById('btn-save-product').innerText = "Compressing Images...";
+    document.getElementById('btn-save-product').disabled = true;
+
+    const existingProduct = appData.inventory.find(x => x.id === id);
+    let imagesArray = [];
+
+    // Process up to 5 images
+    for(let i=0; i<5; i++) {
+        let fileInput = document.getElementById(`prod-img-${i}`);
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            let b64 = await compressImage(fileInput.files[0]);
+            imagesArray.push(b64);
+        } else if (existingProduct && existingProduct.images && existingProduct.images[i]) {
+            imagesArray.push(existingProduct.images[i]); // Preserve old image if no new one
+        }
+    }
     
-    const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock }; 
+    const p = { id: id === 'new' ? 'p' + Date.now() : id, name, price, gstPercent: gst, moq, inStock, images: imagesArray }; 
     if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
     
-    await db.collection("inventory").doc(p.id).set(p); 
-    if (id === 'new') appData.inventory.push(p); 
-    else { const idx = appData.inventory.findIndex(x => x.id === id); appData.inventory[idx] = p; } 
-    
-    cancelProductEdit(); 
-    renderProductList(); 
+    document.getElementById('btn-save-product').innerText = "Saving to Cloud...";
+
+    try {
+        await db.collection("inventory").doc(p.id).set(p); 
+        if (id === 'new') appData.inventory.push(p); 
+        else { const idx = appData.inventory.findIndex(x => x.id === id); appData.inventory[idx] = p; } 
+        
+        cancelProductEdit(); 
+        renderProductList(); 
+    } catch(err) {
+        showCustomAlert("Error saving product to cloud.");
+    } finally {
+        document.getElementById('btn-save-product').innerText = "Save to Cloud";
+        document.getElementById('btn-save-product').disabled = false;
+    }
 }
 
 function cancelProductEdit() { 

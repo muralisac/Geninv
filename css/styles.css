@@ -122,3 +122,77 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
 #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; }
 .spinner { width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); border-left-color: #0b2a5c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+/* --- POS STYLES --- */
+.pos-header-btn {
+    background-color: #f7d047;
+    color: #0b2a5c;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+.pos-header-btn:hover { transform: scale(1.05); }
+
+.history-card-pos { border-left: 5px solid #800000 !important; }
+.text-maroon { color: #800000 !important; }
+.bg-maroon { background-color: #800000 !important; color: white; }
+
+.pos-tab {
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.pos-tab.active {
+    background: #800000;
+    color: white;
+    border-color: #800000;
+    box-shadow: 0 4px 10px rgba(128,0,0,0.3);
+}
+
+.pos-item-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.pos-item-card:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 4px rgba(128,0,0,0.1);
+}
+.pos-item-img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    background: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #94a3b8;
+    font-size: 24px;
+}
+.pos-item-details {
+    padding: 12px;
+    text-align: center;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}

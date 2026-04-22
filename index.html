@@ -26,132 +26,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
 
-    <style>
-        /* GLOBAL UI */
-        body { 
-            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); 
-            font-family: 'Inter', sans-serif; 
-            color: #1e293b; 
-            min-height: 100vh;
-            overscroll-behavior-y: contain; 
-            margin: 0;
-        }
-        
-        body.auth-mode { padding-top: 80px; padding-bottom: 40px; }
-        body.login-mode { display: flex; align-items: center; justify-content: center; padding: 15px; }
-
-        .screen { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
-        .screen.active { display: block; opacity: 1; animation: slideUp 0.4s ease-out forwards; }
-
-        #screen-login { margin: 0 !important; width: 100%; max-width: 420px; border-top: 6px solid #0b2a5c !important; }
-
-        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        #app-header {
-            position: fixed; top: 0; left: 0; width: 100%; z-index: 9000;
-            background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%);
-            padding: 15px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: none; 
-        }
-
-        #app-sidebar {
-            position: fixed; top: 0; right: -300px; width: 280px; max-width: 80vw; height: 100%;
-            background: #fff; z-index: 9999; box-shadow: -5px 0 25px rgba(0,0,0,0.2);
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
-        }
-
-        #app-sidebar.open { right: 0; }
-
-        #sidebar-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15,23,42,0.6); z-index: 9998; display: none; backdrop-filter: blur(2px);
-            opacity: 0; transition: opacity 0.3s ease;
-        }
-
-        #sidebar-overlay.open { display: block; opacity: 1; }
-
-        .nav-btn {
-            background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b;
-            border-radius: 12px; padding: 14px 20px; font-size: 16px; font-weight: 600;
-            text-align: left; transition: all 0.2s ease; 
-        }
-
-        .nav-btn:active { transform: scale(0.98); }
-        .nav-btn.active { background: #f7d047; color: #0b2a5c; border-color: #f7d047; box-shadow: 0 4px 10px rgba(247, 208, 71, 0.3); }
-
-        .panel { 
-            max-width: 650px; margin: 15px auto 30px auto; background: #fff; 
-            padding: 30px; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); 
-            border: 1px solid rgba(255,255,255,0.8); 
-        }
-
-        .form-control, .form-select { 
-            background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; 
-            padding: 14px 16px; font-size: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); 
-        }
-
-        .form-control:focus, .form-select:focus { background-color: #fff; border-color: #0b2a5c; box-shadow: 0 0 0 4px rgba(11,42,92,0.1); }
-        .form-label { font-weight: 600; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px; }
-
-        .btn { border-radius: 12px; font-weight: 600; padding: 12px 20px; transition: all 0.2s; }
-        .btn-primary { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(11,42,92,0.25); }
-        .btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.25); }
-        .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.25); }
-        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); border: none; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
-
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #fff; margin-bottom: 12px; border-radius: 16px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); }
-        .history-card { border-left: 5px solid #0b2a5c; }
-        .po-card { border-left: 5px solid #f59e0b; }
-
-        .custom-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
-            z-index: 9999; display: none; justify-content: center; align-items: center;
-        }
-
-        .custom-modal-content {
-            background: #fff; width: 90%; max-width: 450px; border-radius: 20px;
-            padding: 25px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: slideUp 0.3s ease-out;
-        }
-
-        .invoice-scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 20px 10px; }
-
-        .invoice-page {
-            width: 800px; height: 1122px; margin: 0 auto 25px auto; background: #fff; 
-            position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
-            border-radius: 8px; display: flex; flex-direction: column; box-sizing: border-box;
-        }
-        
-        .pdf-mode .invoice-page { margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; border: none !important; page-break-after: always; }
-        .pdf-mode .invoice-page:last-child { page-break-after: auto; }
-        
-        .wave-top { position: absolute; top: -50px; left: -10%; width: 120%; height: 180px; background-color: #0b2a5c; border-radius: 50% / 100% 100% 0 0; transform: rotate(180deg); z-index: 0; }
-        .wave-po { background-color: #d97706 !important; }
-        
-        .invoice-header-wrapper-abs { position: absolute; top: 45px; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; align-items: center; gap: 15px; }
-        .invoice-header-title { white-space: nowrap; font-size: 22px; font-weight: 800; margin: 0; color: #ffffff; letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        
-        .content-wrapper { position: relative; z-index: 10; padding: 160px 8% 40px 8%; flex-grow: 1; display: flex; flex-direction: column; }
-        .py-1-custom { padding-top: 6px !important; padding-bottom: 6px !important; }
-        .py-2-custom { padding-top: 12px !important; padding-bottom: 12px !important; }
-        .py-3-custom { padding-top: 22px !important; padding-bottom: 22px !important; }
-        
-        .custom-table { min-width: 600px; }
-        .custom-table th { background-color: #0b2a5c !important; color: white !important; font-size: 11px; text-transform: uppercase; font-weight: 600; border: none; padding: 12px; }
-        .th-po { background-color: #d97706 !important; }
-        .custom-table td { font-size: 13px; border-bottom: 1px solid #e2e8f0; color: #334155; }
-        
-        .totals-section { page-break-inside: avoid; }
-        .totals-box { border: 1px solid #cbd5e1; font-size: 13px; border-radius: 8px; overflow: hidden; background: #f8fafc; }
-        .totals-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-        
-        .grand-total-box { background: linear-gradient(135deg, #0b2a5c 0%, #1e40af 100%); color: white; padding: 15px 12px; display: flex; justify-content: space-between; font-weight: 800; font-size: 18px; border-radius: 8px; margin-top: 8px; }
-        .grand-po { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
-        .html2pdf__page-break { page-break-before: always; margin-top: 30px; }
-
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(240,244,248,0.95); backdrop-filter: blur(5px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 18px; font-weight: 600; color: #0b2a5c; }
-        .spinner { width: 40px; height: 40px; border: 4px solid rgba(11,42,92,0.1); border-left-color: #0b2a5c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -166,7 +41,13 @@
                 <img src="NNlogo-removebg-preview.png" alt="Logo" style="height: 32px; width: auto; margin-right: 10px;">
                 <div class="fw-bold text-white fs-4" style="letter-spacing: 0.5px;">NellaiNaturals</div>
             </div>
-            <button class="btn text-white fs-1 p-0 lh-1" onclick="toggleMenu()">☰</button>
+            
+            <div class="d-flex align-items-center">
+                <div onclick="openPOSScreen()" class="pos-header-btn me-3" title="Point of Sale">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                </div>
+                <button class="btn text-white fs-1 p-0 lh-1" onclick="toggleMenu()">☰</button>
+            </div>
         </div>
     </header>
 
@@ -177,11 +58,11 @@
             <button class="btn-close" onclick="toggleMenu()"></button>
         </div>
         <div class="d-flex flex-column p-4 gap-3 flex-grow-1 overflow-y-auto">
-            <button onclick="switchScreen('screen-history')" id="nav-history" class="nav-btn active">🧾 Sales Invoices</button>
+            <button onclick="switchScreen('screen-history')" id="nav-history" class="nav-btn active">🧾 Wholesale Invoices</button>
+            <button onclick="openPOSScreen()" id="nav-pos" class="nav-btn" style="color: #800000; border-color: #800000;">🛒 POS Register</button>
             <button onclick="switchScreen('screen-po-history')" id="nav-po-history" class="nav-btn">📦 Purchase Orders</button>
             <button onclick="switchScreen('screen-customers')" id="nav-customers" class="nav-btn">👥 Business Directory</button>
-            <button onclick="switchScreen('screen-products')" id="nav-products" class="nav-btn">🛒 Master Inventory</button>
-            
+            <button onclick="switchScreen('screen-products')" id="nav-products" class="nav-btn">📋 Master Inventory</button>
             <button onclick="openBookkeepingScreen()" id="nav-bookkeeping" class="nav-btn">📊 Book Keeping</button>
             
             <div class="mt-auto pt-4 border-top">
@@ -243,7 +124,6 @@
             <h3 class="fw-bold" style="color: #0b2a5c;">NellaiNaturals</h3>
             <p class="text-muted small">Secure Wholesale Management</p>
         </div>
-        
         <form onsubmit="event.preventDefault(); login();">
             <div class="mb-3">
                 <label class="form-label">Email Address</label>
@@ -255,7 +135,6 @@
             </div>
             <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">Sign In Securely</button>
         </form>
-        
         <div class="d-flex align-items-center my-4">
             <div class="flex-grow-1 border-top" style="border-color: #e2e8f0;"></div>
             <span class="px-3 text-muted small fw-bold">OR</span>
@@ -269,8 +148,8 @@
 
     <div id="screen-history" class="screen panel">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Sales Invoices</h3>
-            <button id="btn-new-sale" class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ New Sale</button>
+            <h3 class="fw-bold m-0" style="color: #0b2a5c;">Sales Records</h3>
+            <button id="btn-new-sale" class="btn btn-sm btn-primary" onclick="openNewInvoice()">+ Wholesale B2B</button>
         </div>
         <div id="history-list"></div>
     </div>
@@ -325,6 +204,7 @@
         <div id="product-form-container" class="bg-light p-4 rounded-4 mb-4" style="display:none; border: 1px solid #e2e8f0;">
             <h5 class="fw-bold mb-3 pb-2 border-bottom">Product Details</h5>
             <input type="hidden" id="prod-id">
+            
             <div class="mb-3">
                 <label class="form-label">Product Name</label>
                 <input type="text" id="prod-name" class="form-control">
@@ -332,7 +212,7 @@
             
             <div class="row g-3 mb-3">
                 <div class="col-6">
-                    <label class="form-label">Wholesale Price (₹)</label>
+                    <label class="form-label">Retail / POS Price (₹)</label>
                     <input type="number" step="0.01" id="prod-price" class="form-control" placeholder="Selling Price">
                 </div>
                 <div class="col-6">
@@ -355,8 +235,20 @@
                     <input type="number" id="prod-stock" class="form-control" placeholder="0">
                 </div>
             </div>
+
+            <div class="mb-4 p-3 bg-white border rounded-3">
+                <label class="form-label mb-2 text-dark">Product Images (Max 5)</label>
+                <div class="row g-2" id="image-upload-slots">
+                    <div class="col-12 col-md-6"><input type="file" id="prod-img-0" accept="image/*" class="form-control form-control-sm"></div>
+                    <div class="col-12 col-md-6"><input type="file" id="prod-img-1" accept="image/*" class="form-control form-control-sm"></div>
+                    <div class="col-12 col-md-6"><input type="file" id="prod-img-2" accept="image/*" class="form-control form-control-sm"></div>
+                    <div class="col-12 col-md-6"><input type="file" id="prod-img-3" accept="image/*" class="form-control form-control-sm"></div>
+                    <div class="col-12 col-md-6"><input type="file" id="prod-img-4" accept="image/*" class="form-control form-control-sm"></div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
-                <button class="btn btn-success flex-grow-1" onclick="saveProduct()">Save to Cloud</button>
+                <button class="btn btn-success flex-grow-1" onclick="saveProduct()" id="btn-save-product">Save to Cloud</button>
                 <button class="btn btn-outline-secondary" style="background: #fff;" onclick="cancelProductEdit()">Cancel</button>
             </div>
         </div>
@@ -368,27 +260,20 @@
             <h3 class="fw-bold m-0" style="color: #0b2a5c;">Daily Stock Audit</h3>
             <input type="date" id="audit-date" class="form-control w-auto" onchange="loadAuditForDate()">
         </div>
-        
         <div id="audit-status-banner" class="alert alert-info fw-bold" style="display:none;"></div>
-
-        <div id="audit-items-container" class="d-flex flex-column gap-3 mb-4">
-            </div>
-
+        <div id="audit-items-container" class="d-flex flex-column gap-3 mb-4"></div>
         <div id="audit-actions" class="d-flex gap-2">
             <button id="btn-save-audit" class="btn btn-outline-primary flex-grow-1 bg-white fw-bold shadow-sm" onclick="saveAudit('draft')">💾 Save Draft</button>
             <button id="btn-submit-audit" class="btn btn-success flex-grow-1 fw-bold shadow-sm" onclick="saveAudit('submitted')">✅ Submit Audit</button>
         </div>
-        
-        <div id="admin-audit-actions" class="mt-3 pt-3 border-top" style="display:none;">
-            <button class="btn btn-warning w-100 fw-bold shadow-sm" onclick="returnAuditToStockiest()">↩️ Return to Stockiest</button>
-        </div>
+        <div id="admin-audit-actions" class="mt-3 pt-3 border-top" style="display:none;"></div>
     </div>
 
     <div id="screen-builder" class="screen panel">
         <div class="d-flex justify-content-between align-items-start mb-4">
             <div>
-                <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Sales Invoice</h3>
-                <p class="text-muted small mb-0" id="editing-invoice-label">Drafting document...</p>
+                <h3 class="fw-bold mb-1" style="color: #0b2a5c;" id="builder-title">Wholesale Invoice</h3>
+                <p class="text-muted small mb-0" id="editing-invoice-label">Drafting B2B document...</p>
             </div>
         </div>
         
@@ -480,6 +365,66 @@
         <button id="btn-save-po" onclick="generatePreview('po')" class="btn btn-success w-100 btn-lg shadow-sm">💾 Create PO</button>
     </div>
 
+    <div id="screen-pos" class="screen" style="max-width: 1000px; margin: 15px auto;">
+        
+        <div class="pos-tabs-container mb-3 d-flex gap-2 px-2 overflow-auto" id="pos-tabs" style="white-space: nowrap;">
+            </div>
+
+        <div class="panel mt-0" style="max-width: 100%;">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                <h3 class="fw-bold m-0" style="color: #800000;" id="pos-active-customer">Retail POS</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="showCustomAlert('Barcode scanning initialized...', 'Scanner', '📷')">📷 Barcode</button>
+                    <button class="btn btn-outline-dark fw-bold shadow-sm" onclick="showCustomAlert('QR scanning initialized...', 'Scanner', '📷')">📷 QR</button>
+                    <button id="btn-pos-checkout" class="btn fw-bold shadow-sm text-white d-none" style="background-color: #800000;" onclick="generatePreview('pos')">🛒 Checkout</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-lg-8 mb-4">
+                    <div class="row row-cols-2 row-cols-md-3 g-3" id="pos-product-grid">
+                        </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="bg-light border rounded-4 p-3 h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold m-0 text-dark">Current Bill</h5>
+                            <span class="badge bg-secondary rounded-pill" id="pos-cart-count">0</span>
+                        </div>
+                        <div id="pos-cart-container" class="flex-grow-1 overflow-auto" style="max-height: 400px;">
+                            <div class="text-center p-4 text-muted small border rounded-3 bg-white">Cart is empty.</div>
+                        </div>
+                        <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center fw-bold fs-5" style="color: #800000;">
+                            <span>Total:</span>
+                            <span id="pos-cart-total">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pos-customer-modal" class="custom-modal-overlay" style="z-index: 10006;">
+        <div class="custom-modal-content text-center">
+            <div class="mb-3 fs-1">🛍️</div>
+            <h5 class="fw-bold mb-3 text-dark">New Customer Bill</h5>
+            <p class="text-muted mb-3 font-13">Enter customer details for this transaction.</p>
+            <div class="mb-3 text-start">
+                <label class="form-label">Customer Name</label>
+                <input type="text" id="pos-cust-name" class="form-control" placeholder="Walk-in Customer">
+            </div>
+            <div class="mb-4 text-start">
+                <label class="form-label">Phone Number (Optional)</label>
+                <input type="tel" id="pos-cust-phone" class="form-control" placeholder="+91">
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-light border w-50 fw-bold shadow-sm" onclick="cancelPOSCustomer()">Cancel</button>
+                <button class="btn w-50 fw-bold shadow-sm text-white" style="background-color: #800000;" onclick="confirmPOSCustomer()">Start Billing</button>
+            </div>
+        </div>
+    </div>
+
     <div id="screen-preview" class="screen">
         <div class="text-center my-4" id="app-controls">
             <button id="btn-delete-preview" onclick="promptDeleteFromPreview()" class="btn btn-danger shadow-sm me-2 px-3" style="display: none;">🗑️ Delete</button>
@@ -493,49 +438,12 @@
         </div>
 
         <div class="invoice-scroll-wrapper">
-            <div id="invoice-content">
-                </div>
+            <div id="invoice-content"></div>
         </div>
     </div>
 
-    <div id="payout-modal" class="custom-modal-overlay">
-        <div class="custom-modal-content">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold m-0" style="color:#0b2a5c;">Record Payment</h4>
-                <button class="btn-close" onclick="closePayoutModal()"></button>
-            </div>
-            <p class="small text-muted mb-4">Upload a screenshot of the transaction receipt.</p>
-            
-            <input type="hidden" id="payout-po-id">
-            
-            <div class="mb-3">
-                <label class="form-label">Transaction Date</label>
-                <input type="date" id="payout-date" class="form-control">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Reference Number (UTR/UPI)</label>
-                <input type="text" id="payout-ref" class="form-control" placeholder="e.g., UPI123456789">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Amount Paid (₹)</label>
-                <input type="number" id="payout-amount" class="form-control" placeholder="0.00">
-            </div>
-            <div class="mb-4">
-                <label class="form-label">Receipt Image</label>
-                <input type="file" id="payout-image" class="form-control" accept="image/*">
-            </div>
-            
-            <button class="btn btn-success w-100 btn-lg" onclick="savePayout()" id="btn-save-payout">Confirm & Lock Payment</button>
-        </div>
-    </div>
-
-    <div id="receipt-viewer-modal" class="custom-modal-overlay" onclick="closeReceiptViewer()" style="z-index: 10000;">
-        <div class="text-center" style="max-width: 95vw; position: relative;" onclick="event.stopPropagation()">
-            <button class="btn-close btn-close-white position-absolute top-0 end-0 m-2" onclick="closeReceiptViewer()" style="z-index: 10001; background-color: rgba(0,0,0,0.6); padding: 10px; border-radius: 50%;"></button>
-            <img id="receipt-viewer-img" src="" alt="Receipt" style="max-width: 100%; max-height: 80vh; border-radius: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
-            <button class="btn btn-light mt-4 fw-bold px-4 shadow" onclick="closeReceiptViewer()">Close Image</button>
-        </div>
-    </div>
+    <div id="payout-modal" class="custom-modal-overlay">...</div>
+    <div id="receipt-viewer-modal" class="custom-modal-overlay" onclick="closeReceiptViewer()" style="z-index: 10000;">...</div>
 
     <script src="js/1-config.js"></script>
     <script src="js/2-utils.js"></script>
@@ -546,6 +454,7 @@
     <script src="js/7-pdf-engine.js"></script>
     <script src="js/8-history-payouts.js"></script>
     <script src="js/9-bookkeeping.js"></script>
+    <script src="js/10-pos.js"></script>
 
     <script>
         if ('serviceWorker' in navigator) {

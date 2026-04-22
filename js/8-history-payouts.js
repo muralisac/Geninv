@@ -1,38 +1,56 @@
 // js/8-history-payouts.js
 
 async function generatePreview(type) { 
-    if(!isAdmin) return;
+    if(!isAdmin && !isStockiest) return;
+    
     currentDocType = type; 
-    const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
-    const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
+    let buyer, btnId, saveBtn;
     
-    const custId = document.getElementById(vendorSelectId).value; 
-    if (!custId) return showCustomAlert("Select a client/vendor."); 
-    if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
-    
-    if (type === 'invoice') {
-        const rawD = document.getElementById("inv-date-input").value;
+    // 🌟 DISTINGUISH BETWEEN RETAIL (POS) AND WHOLESALE
+    if (type === 'pos') {
+        const activeCart = posCarts.find(c => c.id === activePosCartId);
+        if (!activeCart || activeCart.items.length === 0) return showCustomAlert("Cart is empty.");
+        
+        currentCart = activeCart.items;
+        buyer = { id: 'retail', name: activeCart.name, address: activeCart.phone ? "Ph: " + activeCart.phone : "Retail Walk-in", gstin: "URP", stateCode: SELLER_STATE };
+        
+        const d = new Date(); 
+        // Generates the shared sequential NN- number
+        tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
+        tempDocDate = createDateFromYMD(getLocalYMD(d)).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+        
+        btnId = 'btn-pos-checkout';
+        saveBtn = document.getElementById(btnId);
+    } else {
+        const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
+        const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
+        
+        const custId = document.getElementById(vendorSelectId).value; 
+        if (!custId) return showCustomAlert("Select a client/vendor."); 
+        if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
+        
+        buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
+        
+        const rawD = document.getElementById(type === 'po' ? "po-date-input" : "inv-date-input").value;
         tempDocDate = createDateFromYMD(rawD).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
-    } else if (type === 'po') {
-        const rawD = document.getElementById("po-date-input").value;
-        tempDocDate = createDateFromYMD(rawD).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+        
+        btnId = type === 'po' ? '#screen-po-builder .btn-success' : '#screen-builder .btn-success';
+        saveBtn = document.querySelector(btnId);
     }
 
-    const saveBtn = document.querySelector(`${btnContainer} .btn-success`); 
-    saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; 
+    if (saveBtn) { saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; } 
     
-    const buyer = appData.customers.find(c => c.id === custId) || { name: "N/A", address: "N/A", gstin: "N/A", stateCode: SELLER_STATE }; 
     const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
     document.getElementById("invoice-content").innerHTML = html;
     
     let stockChanges = {};
     if (editingDocId) {
         const oldDoc = (type === 'po' ? appData.purchaseOrders : appData.history).find(h => h.id === editingDocId);
-        let shouldReverse = type === 'invoice' || (type === 'po' && oldDoc && oldDoc.status === 'converted');
+        let shouldReverse = (type === 'invoice' || type === 'pos') || (type === 'po' && oldDoc && oldDoc.status === 'converted');
         if (oldDoc && oldDoc.cart && shouldReverse) {
             oldDoc.cart.forEach(item => {
                 if (!stockChanges[item.id]) stockChanges[item.id] = 0;
-                stockChanges[item.id] += (type === 'invoice') ? item.qty : -item.qty;
+                stockChanges[item.id] += (type === 'invoice' || type === 'pos') ? item.qty : -item.qty;
             });
         }
     }
@@ -43,19 +61,26 @@ async function generatePreview(type) {
         if (existingPO && existingPO.status === 'converted') isPOConverted = true;
     }
     
-    let shouldApplyNew = type === 'invoice' || (type === 'po' && isPOConverted);
+    let shouldApplyNew = (type === 'invoice' || type === 'pos') || (type === 'po' && isPOConverted);
     if(shouldApplyNew) {
         currentCart.forEach(item => {
             if (!stockChanges[item.id]) stockChanges[item.id] = 0;
-            stockChanges[item.id] += (type === 'invoice') ? -item.qty : item.qty;
+            stockChanges[item.id] += (type === 'invoice' || type === 'pos') ? -item.qty : item.qty;
         });
     }
 
     const record = { 
         id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
-        invoiceNumber: tempDocNumber, date: tempDocDate, customerId: buyer.id, customerName: buyer.name, 
-        cart: JSON.parse(JSON.stringify(currentCart)), totalAmount: roundedGrandTotal, 
-        paid: false, deleted: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() 
+        docType: type, // Stores 'pos' or 'invoice'
+        invoiceNumber: tempDocNumber, 
+        date: tempDocDate, 
+        customerId: buyer.id, 
+        customerName: buyer.name, 
+        cart: JSON.parse(JSON.stringify(currentCart)), 
+        totalAmount: roundedGrandTotal, 
+        paid: type === 'pos' ? true : false, // POS bills are auto-paid
+        deleted: false, 
+        timestamp: firebase.firestore.FieldValue.serverTimestamp() 
     }; 
     
     try { 
@@ -100,6 +125,14 @@ async function generatePreview(type) {
         
         editingDocId = record.id;
         
+        // 🌟 If POS was saved, close the checkout tab securely
+        if (type === 'pos') {
+            posCarts = posCarts.filter(c => c.id !== activePosCartId);
+            activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
+            renderPOSTabs();
+            renderPOSCart();
+        }
+        
         let canEditPrev = isAdmin; let canDeletePrev = isAdmin;
         if (type === 'po') {
             if (record.status === 'converted') canEditPrev = false;
@@ -124,26 +157,48 @@ async function generatePreview(type) {
         console.error("Save Error:", error); 
         showCustomAlert("Failed to save to the cloud."); 
     } finally { 
-        saveBtn.innerText = type === 'po' ? "💾 Create PO" : "💾 Create Invoice"; 
-        saveBtn.disabled = false; 
+        if (saveBtn) {
+            saveBtn.innerText = type === 'po' ? "💾 Create PO" : (type === 'pos' ? "🛒 Checkout" : "💾 Create Invoice"); 
+            saveBtn.disabled = false; 
+        }
     } 
 }
 
 function renderHistoryList() { 
     const list = document.getElementById("history-list"); 
     if(appData.history.length === 0) {
-        list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales invoices yet.</div>`; 
+        list.innerHTML = `<div class="text-center p-5 text-muted bg-light rounded-4 border">No sales records yet.</div>`; 
         return;
     }
     list.innerHTML = appData.history.map(h => {
+        // 🌟 IDENTIFY RETAIL VS WHOLESALE STYLING
+        const isPos = h.docType === 'pos';
+        const brandColor = isPos ? 'text-maroon' : 'text-primary';
+        const brandBorder = isPos ? 'history-card-pos' : 'history-card';
+        const brandIcon = isPos ? '🛍️ Retail' : '🧾 Wholesale';
+
         if (h.deleted) {
             const reasonBtn = h.deleteReason ? `<button class="btn btn-sm border ms-2 py-0 px-2 shadow-sm" style="font-size: 11px; background: #fff; color: #0b2a5c; border-radius: 6px;" onclick="event.stopPropagation(); showDeleteReason('${h.id}', 'invoice')">💬 View Reason</button>` : '';
-            return `<div class="list-item history-card" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold text-muted small">No items - Voided</div></div></div>`;
+            return `<div class="list-item ${brandBorder}" style="opacity: 0.6; border-left-color: #ef4444; background: #f8fafc;"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-danger text-decoration-line-through">${h.invoiceNumber}</strong> <span class="badge bg-danger ms-2">Deleted</span>${reasonBtn}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold text-muted small">No items - Voided</div></div></div>`;
         }
+        
         const isPaid = h.paid ? '<span class="badge bg-success ms-2">Paid</span>' : '<span class="badge bg-secondary ms-2">Pending</span>';
         const markPaidBtn = (!h.paid && isAdmin) ? `<button class="btn btn-success btn-sm action-btn shadow-sm me-2" onclick="event.stopPropagation(); markInvoicePaid('${h.id}')">💰 Mark Paid</button>` : '';
-        const editBtn = (isAdmin && !h.paid) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
-        return `<div class="list-item history-card" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', 'invoice')"><div style="flex-grow: 1; padding-left: 8px;"><strong class="text-primary">${h.invoiceNumber}</strong> ${isPaid}<br><small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small><div class="mt-1 fw-bold" style="color:#0b2a5c;">₹${h.totalAmount.toFixed(2)}</div></div><div class="d-flex align-items-center">${markPaidBtn}${editBtn}</div></div>`;
+        const editBtn = (isAdmin && !h.paid && !isPos) ? `<button class="btn btn-light action-btn border shadow-sm" onclick="event.stopPropagation(); loadOldDocumentForEdit('${h.id}', 'invoice')">Edit</button>` : '';
+        
+        return `<div class="list-item ${brandBorder}" style="cursor: pointer;" onclick="viewOldDocument('${h.id}', '${h.docType || 'invoice'}')">
+            <div style="flex-grow: 1; padding-left: 8px;">
+                <div class="fw-bold ${brandColor} d-flex align-items-center gap-2" style="font-size: 16px;">
+                    ${h.invoiceNumber} ${isPaid}
+                </div>
+                <div class="mt-1">
+                    <span class="badge bg-light text-dark border me-1">${brandIcon}</span>
+                    <small class="text-muted fw-medium">${h.customerName} &nbsp;&bull;&nbsp; ${h.date}</small>
+                </div>
+                <div class="mt-2 fw-bold" style="color:#0b2a5c; font-size:15px;">₹${h.totalAmount.toFixed(2)}</div>
+            </div>
+            <div class="d-flex align-items-center">${markPaidBtn}${editBtn}</div>
+        </div>`;
     }).join(''); 
 }
 
@@ -223,17 +278,23 @@ function viewOldDocument(id, type) {
     tempDocNumber = doc.invoiceNumber; 
     tempDocDate = doc.date;
     
+    let buyer;
+
     if (type === 'po') {
         document.getElementById("po-vendor-select").value = doc.customerId; 
         document.getElementById("po-builder-title").innerText = "Edit PO"; 
+        buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
         renderCartUI('po');
+    } else if (type === 'pos') {
+        // Render Retail View (Read-Only)
+        buyer = { id: 'retail', name: doc.customerName, address: "Retail Customer", gstin: "URP", stateCode: SELLER_STATE };
     } else {
         document.getElementById("customer-select").value = doc.customerId; 
         document.getElementById("builder-title").innerText = "Edit Invoice"; 
+        buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
         renderCartUI('invoice');
     }
     
-    const buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
     const { html } = renderInvoiceHTML(doc.cart, type, buyer, tempDocNumber, tempDocDate);
     document.getElementById("invoice-content").innerHTML = html;
     
@@ -250,7 +311,7 @@ function viewOldDocument(id, type) {
         if (doc.payout) { canEdit = false; canDelete = false; }
     } else { 
         document.getElementById("payout-status-container").style.display = "none"; 
-        if (doc.paid) canEdit = false;
+        if (doc.paid || type === 'pos') canEdit = false; // Retail POS bills cannot be modified
     }
     
     document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
@@ -278,7 +339,6 @@ function loadOldDocumentForEdit(id, type) {
         document.getElementById("po-vendor-select").disabled = isConverted; 
         document.getElementById("po-builder-title").innerText = isConverted ? "View PO" : "Edit PO"; 
         
-        // Removed phantom reference to btn-delete-po here
         document.getElementById("po-add-item-panel").style.display = isConverted ? "none" : "block";
         document.getElementById("btn-save-po").style.display = isConverted ? "none" : "block";
         renderCartUI('po'); switchScreen('screen-po-builder'); 
@@ -288,7 +348,6 @@ function loadOldDocumentForEdit(id, type) {
 
         document.getElementById("customer-select").value = doc.customerId; 
         document.getElementById("builder-title").innerText = "Edit Invoice"; 
-        // Removed phantom reference to btn-delete-invoice here
         renderCartUI('invoice'); switchScreen('screen-builder'); 
     }
 }
@@ -344,12 +403,12 @@ function promptDeleteInvoice(id = null) {
     const targetId = id || editingDocId;
     if(!isAdmin || !targetId) return;
     document.getElementById("delete-target-id").value = targetId; document.getElementById("delete-target-type").value = "invoice";
-    document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this invoice? The items will be returned to inventory. Please provide a reason.";
+    document.getElementById("delete-reason-text").innerText = "Are you sure you want to delete this record? The items will be returned to inventory. Please provide a reason.";
     document.getElementById("delete-reason-input").value = ""; document.getElementById("delete-reason-modal").style.display = "flex";
 }
 
 async function executeDeleteInvoice(targetId, reason) {
-    document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting Invoice...";
+    document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting Record...";
     try {
         const batch = db.batch();
         const invIndex = appData.history.findIndex(p => p.id === targetId);
@@ -371,7 +430,7 @@ async function executeDeleteInvoice(targetId, reason) {
             appData.history[invIndex].totalAmount = 0; appData.history[invIndex].deleteReason = reason;
         }
         renderProductList(); renderHistoryList(); switchScreen('screen-history', false);
-    } catch (error) { showCustomAlert("Failed to delete invoice.", "Error", "🔴"); } 
+    } catch (error) { showCustomAlert("Failed to delete record.", "Error", "🔴"); } 
     finally { document.getElementById('loading-overlay').style.display = 'none'; }
 }
 

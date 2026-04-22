@@ -24,6 +24,11 @@ let appData = { inventory: [], customers: [], history: [], purchaseOrders: [], l
 const SELLER_STATE = 33; 
 
 let currentCart = []; let editingDocId = null; let tempDocNumber = ""; let tempDocDate = "";
-let currentDocType = "invoice"; 
+let currentDocType = "invoice"; // 'invoice', 'po', or 'pos'
 let isAdmin = false; 
-let isStockiest = false; // New global security flag
+let isStockiest = false;
+
+// 🌟 NEW: POS MULTI-CART STATE
+let posCarts = []; // Array of { id, name, phone, items: [] }
+let activePosCartId = null;
+let pendingPosItemAdd = null; // Remembers what item you clicked before the Customer Name popup
