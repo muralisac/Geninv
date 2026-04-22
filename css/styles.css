@@ -250,3 +250,22 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     background: rgba(255,255,255,0.9);
     color: #800000;
 }
+/* --- POS TOAST NOTIFICATION (Continuous Scanning) --- */
+.pos-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, -20px);
+    background: #10b981; /* Success Green */
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    z-index: 10015; /* Forces it to appear above the camera modal */
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    pointer-events: none;
+    white-space: nowrap;
+}

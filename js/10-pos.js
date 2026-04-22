@@ -43,6 +43,7 @@ function handlePosItemClick(pid, event) {
         document.getElementById('pos-cust-name').value = "";
         document.getElementById('pos-cust-phone').value = "";
         document.getElementById('pos-customer-modal').style.display = "flex";
+        document.getElementById('pos-customer-modal').style.zIndex = "10020"; // Ensure it floats above scanner
     } else {
         addPosItemToActiveCart(product);
         
@@ -52,7 +53,6 @@ function handlePosItemClick(pid, event) {
     }
 }
 
-// 🌟 FLYING TEXT ANIMATION
 function animateItemToCart(itemName, event) {
     const cartIcon = document.querySelector('.pos-header-btn');
     if (!cartIcon || !event) return;
@@ -153,6 +153,7 @@ function createNewPosCart() {
     document.getElementById('pos-cust-name').value = "";
     document.getElementById('pos-cust-phone').value = "";
     document.getElementById('pos-customer-modal').style.display = "flex";
+    document.getElementById('pos-customer-modal').style.zIndex = "10020";
 }
 
 function promptClosePosCart(cartId, event) {
@@ -225,17 +226,46 @@ function renderPOSCart() {
 }
 
 // ========================================================
-// 🌟 ADVANCED HARDWARE & CAMERA SCANNING ENGINE
+// 🌟 ADVANCED CONTINUOUS SCANNING ENGINE
 // ========================================================
 
 let html5QrcodeScanner = null;
+let lastScannedCode = "";
+let lastScanTime = 0;
+
+// 🌟 NEW: Non-Blocking Temporary Toast Message
+function showToastMessage(msg, isError = false) {
+    const existing = document.getElementById('pos-quick-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'pos-quick-toast';
+    toast.className = 'pos-toast';
+    toast.style.backgroundColor = isError ? '#ef4444' : '#10b981';
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    
+    void toast.offsetWidth; 
+    toast.style.opacity = '1';
+    toast.style.transform = 'translate(-50%, 0)';
+
+    setTimeout(() => {
+        if(document.body.contains(toast)) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, -20px)';
+            setTimeout(() => {
+                if(document.body.contains(toast)) toast.remove();
+            }, 300);
+        }
+    }, 3000);
+}
 
 function initiateBarcodeScan() {
     const isMobile = window.innerWidth < 992;
     if (isMobile) {
         openCameraScanner(); 
     } else {
-        showCustomAlert("Hardware Scanner Ready!\n\nPlease scan the barcode using your USB or Bluetooth physical scanner. Make sure you haven't clicked inside a text box first.", "Scanner Ready", "📟");
+        showToastMessage("📟 Hardware Scanner Ready! Start scanning.");
     }
 }
 
@@ -245,7 +275,6 @@ function initiateQRScan() {
 
 function openCameraScanner() {
     document.getElementById('scanner-modal').style.display = 'flex';
-    // Requires HTTPS or localhost to access camera
     html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
     html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 }
@@ -258,8 +287,17 @@ function closeCameraScanner() {
     }
 }
 
+// 🌟 UPDATED: Continuous Scanning Logic with Debounce
 function onScanSuccess(decodedText) {
-    closeCameraScanner();
+    const now = Date.now();
+    // Safety lock: Ignore identical scans within 2 seconds of each other
+    if (decodedText === lastScannedCode && (now - lastScanTime) < 2000) {
+        return; 
+    }
+    
+    lastScannedCode = decodedText;
+    lastScanTime = now;
+
     processScannedCode(decodedText);
 }
 
@@ -267,10 +305,10 @@ function onScanFailure(error) {
     // Fails quietly every frame it doesn't see a code. Ignored by design.
 }
 
+// 🌟 UPDATED: Processes code without closing the camera
 function processScannedCode(code) {
     const cleanedCode = code.trim().toLowerCase();
     
-    // 🌟 UPGRADED: Now searches the dedicated barcode and qrcode fields!
     const product = appData.inventory.find(p => 
         p.id.toLowerCase() === cleanedCode || 
         p.name.toLowerCase() === cleanedCode ||
@@ -279,14 +317,21 @@ function processScannedCode(code) {
     );
     
     if (product) {
-        handlePosItemClick(product.id, null); 
-        showCustomAlert(`Successfully scanned and added: ${product.name}`, "Scan Success", "✅");
+        if (!activePosCartId) {
+            // Force close camera if we need them to type a new customer name
+            closeCameraScanner();
+            handlePosItemClick(product.id, null); 
+            showToastMessage("Please enter customer details to start billing.", true);
+        } else {
+            handlePosItemClick(product.id, null); 
+            showToastMessage(`✅ ${product.name} added to cart!`);
+        }
     } else {
-        showCustomAlert(`Unrecognized code: ${code}\n\nThis code does not match any Barcode or QR Code in your inventory master list.`, "Scan Failed", "❌");
+        showToastMessage(`❌ Unrecognized code: ${code}`, true);
     }
 }
 
-// 🌟 BACKGROUND HARDWARE SCANNER LISTENER (KEYBOARD WEDGE)
+// 🌟 BACKGROUND HARDWARE SCANNER LISTENER
 let hwBarcodeString = "";
 let hwBarcodeTimeout;
 
@@ -294,7 +339,6 @@ document.addEventListener('keydown', (e) => {
     const posScreen = document.getElementById('screen-pos');
     if (!posScreen || !posScreen.classList.contains('active')) return;
 
-    // Ignore keystrokes if the user is typing a customer name or comment
     const activeTag = document.activeElement.tagName;
     if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
 
@@ -303,12 +347,10 @@ document.addEventListener('keydown', (e) => {
             processScannedCode(hwBarcodeString);
         }
         hwBarcodeString = "";
-    } else if (e.key.length === 1) { // Standard alphanumeric character
+    } else if (e.key.length === 1) { 
         hwBarcodeString += e.key;
         clearTimeout(hwBarcodeTimeout);
         
-        // Humans type slowly. Scanners type entire strings in ~20ms. 
-        // If 50ms pass without a keystroke, it was a human typing by mistake.
         hwBarcodeTimeout = setTimeout(() => {
             hwBarcodeString = ""; 
         }, 50); 
