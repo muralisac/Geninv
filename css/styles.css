@@ -216,7 +216,7 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     pointer-events: none;
     font-size: 15px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    transition: all 5.0s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: all 2.0s cubic-bezier(0.25, 1, 0.5, 1);
     transform-origin: center;
     white-space: nowrap;
     /* Centers the element cleanly on the tap coordinate */
