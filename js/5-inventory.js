@@ -5,7 +5,8 @@ let currentViewedProduct = null;
 function renderProductList() { 
     const list = document.getElementById("products-list");
     list.innerHTML = appData.inventory.map(p => { 
-        let priceDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
+        let wspDisplay = isNaN(p.price) ? "Error" : p.price.toFixed(2); 
+        let retailDisplay = p.retailPrice ? p.retailPrice.toFixed(2) : "Set Price"; 
         let stockDisplay = p.inStock ? p.inStock : 0;
         
         let codeIcons = '';
@@ -19,19 +20,17 @@ function renderProductList() {
         let deleteBtn = '';
         if (isAdmin) {
             if (stockDisplay === 0) {
-                // 🌟 event.stopPropagation() stops the click from triggering the viewProduct function underneath
                 deleteBtn = `<button class="btn btn-danger btn-sm shadow-sm" onclick="event.stopPropagation(); promptDeleteProduct('${p.id}')">🗑️</button>`;
             } else {
                 deleteBtn = `<button class="btn btn-secondary btn-sm shadow-sm opacity-50" onclick="event.stopPropagation(); showCustomAlert('Cannot delete items that have stock remaining. Please adjust the stock to 0 first.', 'Action Blocked', '🔒')">🗑️</button>`;
             }
         }
         
-        // 🌟 Make the entire card clickable to view details
         return `
         <div class="list-item" style="cursor: pointer; transition: transform 0.1s;" onclick="viewProduct('${p.id}')" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
             <div>
                 <strong style="color:#0b2a5c;">${p.name}</strong><br>
-                <small class="text-muted">Sell: ₹${priceDisplay} | GST: ${p.gstPercent}%</small><br>
+                <small class="text-muted">WSP: ₹${wspDisplay} | Retail: ₹${retailDisplay} | GST: ${p.gstPercent}%</small><br>
                 <span class="badge ${stockDisplay > 0 ? 'bg-success' : 'bg-danger'} mt-1">In Stock: ${stockDisplay}</span>
                 ${codeIcons}
             </div>
@@ -44,7 +43,6 @@ function renderProductList() {
     populateDropdowns(); 
 }
 
-// 🌟 NEW: View Product Logic
 function viewProduct(id) {
     const p = appData.inventory.find(x => x.id === id);
     if(!p) return;
@@ -52,7 +50,10 @@ function viewProduct(id) {
 
     document.getElementById('view-item-name').innerText = p.name;
     document.getElementById('view-item-purchase').innerText = p.purchasePrice ? `₹${p.purchasePrice.toFixed(2)}` : "N/A"; 
-    document.getElementById('view-item-retail').innerText = `₹${(p.price || 0).toFixed(2)}`;
+    
+    // 🌟 Dual Pricing Display
+    document.getElementById('view-item-wholesale').innerText = `₹${(p.price || 0).toFixed(2)}`;
+    document.getElementById('view-item-retail').innerText = `₹${(p.retailPrice || 0).toFixed(2)}`;
     document.getElementById('view-item-stock').innerText = p.inStock || 0;
 
     const imgEl = document.getElementById('view-item-img');
@@ -67,7 +68,6 @@ function viewProduct(id) {
         noImgEl.style.display = 'block';
     }
 
-    // Render Barcode directly to an image tag for easy downloading
     const barcodeImg = document.getElementById('view-item-barcode-img');
     if (p.barcode && typeof JsBarcode !== 'undefined') {
         try {
@@ -76,7 +76,6 @@ function viewProduct(id) {
         } catch(e) { barcodeImg.style.display = 'none'; }
     } else { barcodeImg.style.display = 'none'; }
 
-    // Render QR Code
     const qrContainer = document.getElementById('view-item-qrcode-div');
     qrContainer.innerHTML = '';
     if (p.qrcode && typeof QRCode !== 'undefined') {
@@ -93,7 +92,6 @@ function closeViewProductModal() {
     currentViewedProduct = null;
 }
 
-// 🌟 NEW: Download Features
 function downloadBarcode() {
     if (!currentViewedProduct || !currentViewedProduct.barcode) return showCustomAlert("No Barcode available to download.");
     const img = document.getElementById('view-item-barcode-img');
@@ -109,7 +107,6 @@ function downloadQRCode() {
     if (!currentViewedProduct || !currentViewedProduct.qrcode) return showCustomAlert("No QR Code available to download.");
     const qrContainer = document.getElementById('view-item-qrcode-div');
     
-    // qrcode.js generates either a canvas or an img depending on the browser
     const img = qrContainer.querySelector('img');
     const canvas = qrContainer.querySelector('canvas');
     
@@ -148,7 +145,6 @@ async function executeDeleteProduct(id) {
     }
 }
 
-// Live Barcode & QR Code Generators for Edit Form
 function renderBarcodePreview() {
     const val = document.getElementById('prod-barcode').value.trim();
     const svg = document.querySelector("#barcode-preview");
@@ -198,6 +194,8 @@ function editProduct(id) {
         document.getElementById('prod-barcode').value = ''; 
         document.getElementById('prod-qrcode').value = ''; 
         document.getElementById('prod-price').value = ''; 
+        // 🌟 New Retail Price Field
+        document.getElementById('prod-retail-price').value = ''; 
         document.getElementById('prod-purchase-price').value = '';
         document.getElementById('prod-gst').value = '5'; 
         document.getElementById('prod-moq').value = '1'; 
@@ -209,6 +207,8 @@ function editProduct(id) {
         document.getElementById('prod-barcode').value = p.barcode || ''; 
         document.getElementById('prod-qrcode').value = p.qrcode || ''; 
         document.getElementById('prod-price').value = isNaN(p.price) ? "" : p.price; 
+        // 🌟 Populate Retail Price
+        document.getElementById('prod-retail-price').value = isNaN(p.retailPrice) ? "" : p.retailPrice; 
         document.getElementById('prod-purchase-price').value = p.purchasePrice ? p.purchasePrice : ""; 
         document.getElementById('prod-gst').value = isNaN(p.gstPercent) ? "5" : p.gstPercent; 
         document.getElementById('prod-moq').value = isNaN(p.moq) ? "1" : p.moq; 
@@ -248,14 +248,19 @@ async function saveProduct() {
     const name = document.getElementById('prod-name').value.trim(); 
     const barcode = document.getElementById('prod-barcode').value.trim(); 
     const qrcode = document.getElementById('prod-qrcode').value.trim(); 
+    
+    // 🌟 Extract Both Prices
     const price = parseFloat(document.getElementById('prod-price').value); 
+    const retailPrice = parseFloat(document.getElementById('prod-retail-price').value); 
+    
     const pPrice = parseFloat(document.getElementById('prod-purchase-price').value); 
     const gst = parseFloat(document.getElementById('prod-gst').value); 
     const moq = parseInt(document.getElementById('prod-moq').value); 
     const inStock = parseInt(document.getElementById('prod-stock').value) || 0;
     
-    if (!name || isNaN(price) || price <= 0 || !barcode || !qrcode) {
-        return showCustomAlert("Please fill all mandatory fields, including the Barcode and QR Code.", "Missing Data", "⚠️"); 
+    // 🌟 Validate Both Prices
+    if (!name || isNaN(price) || price <= 0 || isNaN(retailPrice) || retailPrice <= 0 || !barcode || !qrcode) {
+        return showCustomAlert("Please fill all mandatory fields, including WSP, Retail Price, and Codes.", "Missing Data", "⚠️"); 
     }
 
     document.getElementById('btn-save-product').innerText = "Compressing Images...";
@@ -274,7 +279,14 @@ async function saveProduct() {
         }
     }
     
-    const p = { id: id === 'new' ? 'p' + Date.now() : id, name, barcode, qrcode, price, gstPercent: gst, moq, inStock, images: imagesArray }; 
+    // 🌟 Save Retail Price to Firebase
+    const p = { 
+        id: id === 'new' ? 'p' + Date.now() : id, 
+        name, barcode, qrcode, 
+        price, retailPrice, 
+        gstPercent: gst, moq, inStock, 
+        images: imagesArray 
+    }; 
     if (!isNaN(pPrice)) p.purchasePrice = pPrice; 
     
     document.getElementById('btn-save-product').innerText = "Saving to Cloud...";

@@ -17,6 +17,9 @@ function renderPOSGrid() {
         const imgHTML = imgSrc 
             ? `<img src="${imgSrc}" class="pos-item-img">`
             : `<div class="pos-item-img">${p.name.charAt(0).toUpperCase()}</div>`;
+            
+        // 🌟 Pull the Retail Price for the visual grid (fallback to WSP if old item)
+        const displayPrice = p.retailPrice || p.price || 0;
         
         return `
         <div class="col" onclick="handlePosItemClick('${p.id}', event)">
@@ -25,7 +28,7 @@ function renderPOSGrid() {
                 <div class="pos-item-details">
                     <div class="fw-bold text-dark font-13 lh-sm mb-1">${p.name}</div>
                     <div class="d-flex justify-content-between align-items-center w-100 mt-2">
-                        <span class="text-maroon fw-bold font-13">₹${p.price.toFixed(2)}</span>
+                        <span class="text-maroon fw-bold font-13">₹${displayPrice.toFixed(2)}</span>
                         <span class="badge ${stock > 0 ? 'bg-success' : 'bg-danger'} font-11">${stock > 0 ? stock : 'Out'}</span>
                     </div>
                 </div>
@@ -43,7 +46,7 @@ function handlePosItemClick(pid, event) {
         document.getElementById('pos-cust-name').value = "";
         document.getElementById('pos-cust-phone').value = "";
         document.getElementById('pos-customer-modal').style.display = "flex";
-        document.getElementById('pos-customer-modal').style.zIndex = "10020"; // Ensure it floats above scanner
+        document.getElementById('pos-customer-modal').style.zIndex = "10020";
     } else {
         addPosItemToActiveCart(product);
         
@@ -125,8 +128,13 @@ function addPosItemToActiveCart(product) {
         return showCustomAlert("Cannot add more. Retail limit reached based on available physical stock!", "Stock Limit", "📦");
     }
 
-    if (existing) { existing.qty += 1; } 
-    else { cartObj.items.push({ ...product, qty: 1, price: product.price, gstPercent: product.gstPercent }); }
+    if (existing) { 
+        existing.qty += 1; 
+    } else { 
+        // 🌟 FORCE RETAIL PRICE INTO POS CART
+        const posPrice = product.retailPrice || product.price || 0;
+        cartObj.items.push({ ...product, qty: 1, price: posPrice, gstPercent: product.gstPercent }); 
+    }
     
     renderPOSCart();
 }
@@ -233,7 +241,6 @@ let html5QrcodeScanner = null;
 let lastScannedCode = "";
 let lastScanTime = 0;
 
-// 🌟 NEW: Non-Blocking Temporary Toast Message
 function showToastMessage(msg, isError = false) {
     const existing = document.getElementById('pos-quick-toast');
     if (existing) existing.remove();
@@ -287,10 +294,8 @@ function closeCameraScanner() {
     }
 }
 
-// 🌟 UPDATED: Continuous Scanning Logic with Debounce
 function onScanSuccess(decodedText) {
     const now = Date.now();
-    // Safety lock: Ignore identical scans within 2 seconds of each other
     if (decodedText === lastScannedCode && (now - lastScanTime) < 2000) {
         return; 
     }
@@ -301,11 +306,8 @@ function onScanSuccess(decodedText) {
     processScannedCode(decodedText);
 }
 
-function onScanFailure(error) {
-    // Fails quietly every frame it doesn't see a code. Ignored by design.
-}
+function onScanFailure(error) { }
 
-// 🌟 UPDATED: Processes code without closing the camera
 function processScannedCode(code) {
     const cleanedCode = code.trim().toLowerCase();
     
@@ -318,7 +320,6 @@ function processScannedCode(code) {
     
     if (product) {
         if (!activePosCartId) {
-            // Force close camera if we need them to type a new customer name
             closeCameraScanner();
             handlePosItemClick(product.id, null); 
             showToastMessage("Please enter customer details to start billing.", true);
@@ -331,7 +332,6 @@ function processScannedCode(code) {
     }
 }
 
-// 🌟 BACKGROUND HARDWARE SCANNER LISTENER
 let hwBarcodeString = "";
 let hwBarcodeTimeout;
 

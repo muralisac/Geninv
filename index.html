@@ -233,12 +233,16 @@
             </div>
 
             <div class="row g-3 mb-3">
-                <div class="col-6">
-                    <label class="form-label">Retail / POS Price (₹) <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" id="prod-price" class="form-control" placeholder="Selling Price">
+                <div class="col-12 col-md-4">
+                    <label class="form-label text-primary">Wholesale Price (WSP) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" id="prod-price" class="form-control border-primary" placeholder="B2B Price">
                 </div>
-                <div class="col-6">
-                    <label class="form-label">Purchase Price (₹)</label>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" style="color: #800000;">Retail / POS Price <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" id="prod-retail-price" class="form-control" style="border-color: #800000;" placeholder="B2C Price">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Purchase Price</label>
                     <input type="number" step="0.01" id="prod-purchase-price" class="form-control" placeholder="Buying Price">
                 </div>
             </div>
@@ -504,7 +508,7 @@
         </div>
     </div>
 
-	<div id="item-view-modal" class="custom-modal-overlay" style="z-index: 10010;" onclick="closeViewProductModal()">
+    <div id="item-view-modal" class="custom-modal-overlay" style="z-index: 10010;" onclick="closeViewProductModal()">
         <div class="custom-modal-content text-start" style="max-width: 450px;" onclick="event.stopPropagation()">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold m-0 text-dark" id="view-item-name">Item Name</h5>
@@ -517,19 +521,25 @@
             </div>
             
             <div class="row g-2 mb-3 text-center">
-                <div class="col-4">
+                <div class="col-3">
                     <div class="p-2 bg-light border rounded h-100">
                         <div class="small text-muted mb-1" style="font-size: 10px;">Purchase</div>
                         <div class="fw-bold font-13" id="view-item-purchase">₹0.00</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
+                    <div class="p-2 bg-light border rounded h-100">
+                        <div class="small text-muted mb-1" style="font-size: 10px;">Wholesale (WSP)</div>
+                        <div class="fw-bold text-primary font-13" id="view-item-wholesale">₹0.00</div>
+                    </div>
+                </div>
+                <div class="col-3">
                     <div class="p-2 bg-light border rounded h-100">
                         <div class="small text-muted mb-1" style="font-size: 10px;">Retail (POS)</div>
                         <div class="fw-bold text-maroon font-13" id="view-item-retail">₹0.00</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <div class="p-2 bg-light border rounded h-100">
                         <div class="small text-muted mb-1" style="font-size: 10px;">In Stock</div>
                         <div class="fw-bold fs-5" id="view-item-stock" style="color: #10b981; line-height: 1;">0</div>
@@ -557,7 +567,7 @@
             </div>
         </div>
     </div>
-	
+
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
