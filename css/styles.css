@@ -222,3 +222,31 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     /* Centers the element cleanly on the tap coordinate */
     transform: translate(-50%, -50%); 
 }
+/* --- POS TAB CLOSE BUTTON --- */
+.pos-tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.1);
+    color: inherit;
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.pos-tab-close:hover {
+    background: rgba(220, 38, 38, 0.9); /* Red on hover */
+    color: white;
+    transform: scale(1.1);
+}
+.pos-tab.active .pos-tab-close {
+    background: rgba(255,255,255,0.2);
+}
+.pos-tab.active .pos-tab-close:hover {
+    background: rgba(255,255,255,0.9);
+    color: #800000;
+}

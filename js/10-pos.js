@@ -10,7 +10,6 @@ function openPOSScreen() {
 function renderPOSGrid() {
     const grid = document.getElementById('pos-product-grid');
     
-    // Pass the 'event' parameter into the click handler to capture tap coordinates
     grid.innerHTML = appData.inventory.map(p => {
         const stock = p.inStock || 0;
         const imgSrc = p.images && p.images.length > 0 ? p.images[0] : null;
@@ -47,7 +46,6 @@ function handlePosItemClick(pid, event) {
     } else {
         addPosItemToActiveCart(product);
         
-        // 🌟 TRIGGER ANIMATION ON MOBILE (< 992px matches Bootstrap's desktop breakpoint)
         if (window.innerWidth < 992 && event) {
             animateItemToCart(product.name, event);
         }
@@ -59,7 +57,6 @@ function animateItemToCart(itemName, event) {
     const cartIcon = document.querySelector('.pos-header-btn');
     if (!cartIcon || !event) return;
 
-    // Get exact screen coordinates of the tap/click
     let startX = event.clientX;
     let startY = event.clientY;
     if (event.touches && event.touches.length > 0) {
@@ -67,36 +64,29 @@ function animateItemToCart(itemName, event) {
         startY = event.touches[0].clientY;
     }
 
-    // Get coordinates of the Cart Icon in the Header
     const rect = cartIcon.getBoundingClientRect();
     const endX = rect.left + rect.width / 2;
     const endY = rect.top + rect.height / 2;
 
-    // Create the flying element
     const flyingEl = document.createElement('div');
     flyingEl.className = 'fly-to-cart';
     flyingEl.innerText = itemName;
     
-    // Position it at the finger
     flyingEl.style.left = startX + 'px';
     flyingEl.style.top = startY + 'px';
     document.body.appendChild(flyingEl);
 
-    // Force browser to draw it instantly before animating
     void flyingEl.offsetWidth;
 
-    // Calculate distance to travel
     const deltaX = endX - startX;
     const deltaY = endY - startY;
 
-    // Send it flying while shrinking and fading out
     flyingEl.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px)) scale(0.1)`;
     flyingEl.style.opacity = '0';
 
-    // Clean up the DOM after animation finishes (0.6 seconds)
     setTimeout(() => {
         flyingEl.remove();
-    }, 600); 
+    }, 1200); 
 }
 
 function cancelPOSCustomer() {
@@ -173,18 +163,44 @@ function createNewPosCart() {
     document.getElementById('pos-customer-modal').style.display = "flex";
 }
 
-// 🌟 FIX: Removed references to the deleted HTML Title
+// 🌟 NEW: Prompt the user before deleting a tab
+function promptClosePosCart(cartId, event) {
+    // This stops the click from triggering the "switchPosCart" function underneath it
+    if (event) event.stopPropagation();
+    
+    const cart = posCarts.find(c => c.id === cartId);
+    if (!cart) return;
+
+    showCustomConfirm(`Are you sure you want to cancel the bill for "${cart.name}"? This will clear all items in their cart.`, () => executeClosePosCart(cartId), "Yes, Cancel Bill");
+}
+
+// 🌟 NEW: Execute the deletion after confirmation
+function executeClosePosCart(cartId) {
+    // Remove the cart from the array
+    posCarts = posCarts.filter(c => c.id !== cartId);
+    
+    // If we just closed the active tab, switch to the first available tab (or null if none exist)
+    if (activePosCartId === cartId) {
+        activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
+    }
+    
+    renderPOSTabs();
+    renderPOSCart();
+}
+
+// 🌟 UPDATED: Injects the "X" button into the tabs
 function renderPOSTabs() {
     const container = document.getElementById('pos-tabs');
     
     if (posCarts.length === 0) {
         container.innerHTML = "";
-        return; // Exits safely without trying to update a missing title!
+        return;
     }
     
     let html = posCarts.map(cart => `
         <div class="pos-tab ${cart.id === activePosCartId ? 'active' : ''}" onclick="switchPosCart('${cart.id}')">
             🛍️ ${cart.name}
+            <span class="pos-tab-close" onclick="promptClosePosCart('${cart.id}', event)">✕</span>
         </div>
     `).join('');
     
