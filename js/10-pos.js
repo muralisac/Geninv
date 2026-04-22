@@ -54,7 +54,7 @@ function handlePosItemClick(pid, event) {
     }
 }
 
-// 🌟 NEW: FLYING TEXT ANIMATION
+// 🌟 FLYING TEXT ANIMATION
 function animateItemToCart(itemName, event) {
     const cartIcon = document.querySelector('.pos-header-btn');
     if (!cartIcon || !event) return;
@@ -173,12 +173,13 @@ function createNewPosCart() {
     document.getElementById('pos-customer-modal').style.display = "flex";
 }
 
+// 🌟 FIX: Removed references to the deleted HTML Title
 function renderPOSTabs() {
     const container = document.getElementById('pos-tabs');
     
     if (posCarts.length === 0) {
         container.innerHTML = "";
-        return;
+        return; // Exits safely without trying to update a missing title!
     }
     
     let html = posCarts.map(cart => `
