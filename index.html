@@ -504,6 +504,60 @@
         </div>
     </div>
 
+	<div id="item-view-modal" class="custom-modal-overlay" style="z-index: 10010;" onclick="closeViewProductModal()">
+        <div class="custom-modal-content text-start" style="max-width: 450px;" onclick="event.stopPropagation()">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold m-0 text-dark" id="view-item-name">Item Name</h5>
+                <button class="btn-close" onclick="closeViewProductModal()"></button>
+            </div>
+            
+            <div class="text-center mb-3">
+                <img id="view-item-img" src="" alt="Product" style="max-height: 160px; max-width: 100%; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; margin: 0 auto;">
+                <div id="view-item-no-img" class="p-4 bg-light rounded text-muted font-13 border" style="display:none;">No Image Available</div>
+            </div>
+            
+            <div class="row g-2 mb-3 text-center">
+                <div class="col-4">
+                    <div class="p-2 bg-light border rounded h-100">
+                        <div class="small text-muted mb-1" style="font-size: 10px;">Purchase</div>
+                        <div class="fw-bold font-13" id="view-item-purchase">₹0.00</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 bg-light border rounded h-100">
+                        <div class="small text-muted mb-1" style="font-size: 10px;">Retail (POS)</div>
+                        <div class="fw-bold text-maroon font-13" id="view-item-retail">₹0.00</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 bg-light border rounded h-100">
+                        <div class="small text-muted mb-1" style="font-size: 10px;">In Stock</div>
+                        <div class="fw-bold fs-5" id="view-item-stock" style="color: #10b981; line-height: 1;">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-2">
+                <div class="col-12 col-md-6">
+                    <div class="border rounded p-2 text-center h-100 d-flex flex-column justify-content-between bg-light">
+                        <div class="small text-muted mb-1 fw-bold" style="font-size: 11px;">Barcode</div>
+                        <div class="bg-white d-flex justify-content-center align-items-center mb-2 flex-grow-1 border rounded" style="min-height: 60px;">
+                            <img id="view-item-barcode-img" style="max-width: 100%; max-height: 45px; display: none;">
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark w-100 font-11 fw-bold bg-white shadow-sm" onclick="downloadBarcode()">⬇️ Download</button>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="border rounded p-2 text-center h-100 d-flex flex-column justify-content-between bg-light">
+                        <div class="small text-muted mb-1 fw-bold" style="font-size: 11px;">QR Code</div>
+                        <div id="view-item-qrcode-div" class="bg-white d-flex justify-content-center align-items-center mb-2 flex-grow-1 border rounded" style="min-height: 60px;"></div>
+                        <button class="btn btn-sm btn-outline-dark w-100 font-11 fw-bold bg-white shadow-sm" onclick="downloadQRCode()">⬇️ Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+	
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" crossorigin="anonymous"></script>
