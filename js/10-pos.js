@@ -107,7 +107,7 @@ function animateItemToCart(itemName, event) {
 
 function cancelPOSCustomer() {
     pendingPosItemAdd = null;
-    resumeScannerAfterCustomer = false; // 🌟 Reset the scanner flag if they cancel
+    resumeScannerAfterCustomer = false; 
     document.getElementById('pos-customer-modal').style.display = "none";
 }
 
@@ -129,12 +129,9 @@ function confirmPOSCustomer() {
     renderPOSTabs();
     renderPOSCart();
 
-    // 🌟 BUG FIX: Automatically reopen the scanner if it was interrupted
     if (resumeScannerAfterCustomer) {
-        resumeScannerAfterCustomer = false; // Reset the flag
-        setTimeout(() => {
-            openCameraScanner(); // Pop the scanner right back open!
-        }, 300); // 300ms delay lets the customer modal animate away smoothly first
+        resumeScannerAfterCustomer = false; 
+        setTimeout(() => { openCameraScanner(); }, 300); 
     }
 }
 
@@ -208,16 +205,21 @@ function renderPOSTabs() {
     container.innerHTML = html;
 }
 
+// 🌟 UPDATED: Toggles BOTH checkout buttons depending on cart state
 function renderPOSCart() {
     const container = document.getElementById('pos-cart-container');
     const countEl = document.getElementById('pos-cart-count');
     const totalEl = document.getElementById('pos-cart-total');
+    
     const btnCheckout = document.getElementById('btn-pos-checkout');
+    const btnQc = document.getElementById('btn-pos-qc');
 
     const cartObj = posCarts.find(c => c.id === activePosCartId);
     
     if (!cartObj || cartObj.items.length === 0) {
-        countEl.innerText = "0"; totalEl.innerText = "₹0.00"; btnCheckout.classList.add('d-none');
+        countEl.innerText = "0"; totalEl.innerText = "₹0.00"; 
+        if(btnCheckout) btnCheckout.classList.add('d-none');
+        if(btnQc) btnQc.classList.add('d-none');
         container.innerHTML = `<div class="text-center p-4 text-muted small border rounded-3 bg-white">Cart is empty. Tap an item to add.</div>`;
         return;
     }
@@ -245,7 +247,95 @@ function renderPOSCart() {
 
     countEl.innerText = totalQty;
     totalEl.innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
-    btnCheckout.classList.remove('d-none');
+    
+    if(btnCheckout) btnCheckout.classList.remove('d-none');
+    if(btnQc) btnQc.classList.remove('d-none');
+}
+
+// ========================================================
+// 🌟 NEW: CHECKOUT REVIEW MODAL LOGIC
+// ========================================================
+
+function openCheckoutReview() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj || cartObj.items.length === 0) return showCustomAlert("Cart is empty.");
+    
+    renderCheckoutReviewModal();
+    document.getElementById('pos-checkout-modal').style.display = 'flex';
+}
+
+function closeCheckoutReview() {
+    document.getElementById('pos-checkout-modal').style.display = 'none';
+}
+
+function renderCheckoutReviewModal() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    const container = document.getElementById('review-cart-items');
+    
+    if (!cartObj || cartObj.items.length === 0) {
+        closeCheckoutReview();
+        return;
+    }
+
+    let html = '';
+    let grandTotal = 0;
+
+    cartObj.items.forEach(item => {
+        const baseAmt = item.qty * item.price;
+        const gstAmt = baseAmt * (item.gstPercent / 100);
+        const rowTotal = baseAmt + gstAmt;
+        grandTotal += rowTotal;
+
+        html += `
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white border rounded shadow-sm">
+            <div class="font-13 flex-grow-1">
+                <div class="fw-bold text-dark lh-1 mb-1" style="font-size: 14px;">${item.name}</div>
+                <div class="text-muted" style="font-size:11px;">₹${item.price.toFixed(2)} + ${item.gstPercent}% GST</div>
+                <div class="fw-bold text-maroon mt-1">₹${rowTotal.toFixed(2)}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button class="btn btn-light border fw-bold px-3 py-1 shadow-sm rounded-start" onclick="updateReviewQty('${item.id}', -1)">-</button>
+                <div class="bg-light border-top border-bottom fw-bold px-3 py-1 text-center" style="min-width: 40px;">${item.qty}</div>
+                <button class="btn btn-light border fw-bold px-3 py-1 shadow-sm rounded-end" onclick="updateReviewQty('${item.id}', 1)">+</button>
+                <button class="btn btn-danger px-2 py-1 ms-2 shadow-sm rounded" onclick="updateReviewQty('${item.id}', 'remove')">🗑️</button>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+    document.getElementById('review-grand-total').innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
+}
+
+function updateReviewQty(pid, change) {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj) return;
+    
+    const idx = cartObj.items.findIndex(i => i.id === pid);
+    if (idx === -1) return;
+
+    const product = appData.inventory.find(p => p.id === pid);
+    const physicalStock = product ? (product.inStock || 0) : 0;
+
+    if (change === 'remove') {
+        cartObj.items.splice(idx, 1);
+    } else {
+        const newQty = cartObj.items[idx].qty + change;
+        if (newQty <= 0) {
+            cartObj.items.splice(idx, 1);
+        } else if (newQty > physicalStock) {
+            return showCustomAlert(`Cannot add more. Only ${physicalStock} in stock!`, "Stock Limit", "📦");
+        } else {
+            cartObj.items[idx].qty = newQty;
+        }
+    }
+
+    renderPOSCart(); // Keep the background UI synced
+    renderCheckoutReviewModal(); // Re-render the modal with new numbers
+}
+
+function confirmReviewCheckout() {
+    closeCheckoutReview();
+    generatePreview('pos'); // Proceeds with the standard checkout engine
 }
 
 // ========================================================
@@ -255,8 +345,6 @@ function renderPOSCart() {
 let html5QrcodeScanner = null;
 let lastScannedCode = "";
 let lastScanTime = 0;
-
-// 🌟 NEW STATE FLAG: Remembers if the camera was running
 let resumeScannerAfterCustomer = false; 
 
 function showToastMessage(msg, isError = false) {
@@ -338,9 +426,7 @@ function processScannedCode(code) {
     
     if (product) {
         if (!activePosCartId) {
-            // 🌟 Set the sticky note so the app remembers to reopen the camera
             resumeScannerAfterCustomer = true; 
-            
             closeCameraScanner();
             handlePosItemClick(product.id, null); 
             showToastMessage("Please enter customer details to start billing.", true);
