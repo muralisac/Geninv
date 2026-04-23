@@ -39,8 +39,6 @@ function renderPOSGrid() {
 function handlePosItemClick(pid, event) {
     const product = appData.inventory.find(x => x.id === pid);
     
-    // 🌟 BUG FIX: Cross-Cart Reservation Check
-    // Calculate how many of this product are already sitting inside ALL active POS tabs
     let reservedQty = 0;
     posCarts.forEach(cart => {
         const existingInCart = cart.items.find(i => i.id === product.id);
@@ -51,7 +49,6 @@ function handlePosItemClick(pid, event) {
     
     let physicalStock = product.inStock || 0;
     
-    // Block the scan/click if the reserved amount equals or exceeds the physical stock
     if (reservedQty >= physicalStock) {
         showToastMessage(`❌ Stock limit reached for ${product.name}`, true);
         return showCustomAlert(`You only have ${physicalStock} unit(s) of "${product.name}" in stock, and they are currently reserved in your active checkout tabs!`, "Item Reserved", "📦");
@@ -110,6 +107,7 @@ function animateItemToCart(itemName, event) {
 
 function cancelPOSCustomer() {
     pendingPosItemAdd = null;
+    resumeScannerAfterCustomer = false; // 🌟 Reset the scanner flag if they cancel
     document.getElementById('pos-customer-modal').style.display = "none";
 }
 
@@ -130,6 +128,14 @@ function confirmPOSCustomer() {
     
     renderPOSTabs();
     renderPOSCart();
+
+    // 🌟 BUG FIX: Automatically reopen the scanner if it was interrupted
+    if (resumeScannerAfterCustomer) {
+        resumeScannerAfterCustomer = false; // Reset the flag
+        setTimeout(() => {
+            openCameraScanner(); // Pop the scanner right back open!
+        }, 300); // 300ms delay lets the customer modal animate away smoothly first
+    }
 }
 
 function addPosItemToActiveCart(product) {
@@ -250,6 +256,9 @@ let html5QrcodeScanner = null;
 let lastScannedCode = "";
 let lastScanTime = 0;
 
+// 🌟 NEW STATE FLAG: Remembers if the camera was running
+let resumeScannerAfterCustomer = false; 
+
 function showToastMessage(msg, isError = false) {
     const existing = document.getElementById('pos-quick-toast');
     if (existing) existing.remove();
@@ -329,12 +338,14 @@ function processScannedCode(code) {
     
     if (product) {
         if (!activePosCartId) {
+            // 🌟 Set the sticky note so the app remembers to reopen the camera
+            resumeScannerAfterCustomer = true; 
+            
             closeCameraScanner();
             handlePosItemClick(product.id, null); 
             showToastMessage("Please enter customer details to start billing.", true);
         } else {
             handlePosItemClick(product.id, null); 
-            // Only show success toast if it wasn't blocked by the stock checker
             const activeCartObj = posCarts.find(c => c.id === activePosCartId);
             const isInCart = activeCartObj && activeCartObj.items.some(i => i.id === product.id);
             if(isInCart) showToastMessage(`✅ ${product.name} added to cart!`);
