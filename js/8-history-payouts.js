@@ -6,8 +6,11 @@ async function generatePreview(type) {
     currentDocType = type; 
     let buyer, btnId, saveBtn;
     
-    // 🌟 DISTINGUISH BETWEEN RETAIL (POS) AND WHOLESALE
     if (type === 'pos') {
+        // 🌟 CRITICAL BUG FIX: Force the system to forget any previous document ID.
+        // POS transactions are ALWAYS brand new documents. They never "edit" old ones.
+        editingDocId = null; 
+        
         const activeCart = posCarts.find(c => c.id === activePosCartId);
         if (!activeCart || activeCart.items.length === 0) return showCustomAlert("Cart is empty.");
         
@@ -15,7 +18,6 @@ async function generatePreview(type) {
         buyer = { id: 'retail', name: activeCart.name, address: activeCart.phone ? "Ph: " + activeCart.phone : "Retail Walk-in", gstin: "URP", stateCode: SELLER_STATE };
         
         const d = new Date(); 
-        // Generates the shared sequential NN- number
         tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
         tempDocDate = createDateFromYMD(getLocalYMD(d)).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
         
@@ -71,14 +73,14 @@ async function generatePreview(type) {
 
     const record = { 
         id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
-        docType: type, // Stores 'pos' or 'invoice'
+        docType: type,
         invoiceNumber: tempDocNumber, 
         date: tempDocDate, 
         customerId: buyer.id, 
         customerName: buyer.name, 
         cart: JSON.parse(JSON.stringify(currentCart)), 
         totalAmount: roundedGrandTotal, 
-        paid: type === 'pos' ? true : false, // POS bills are auto-paid
+        paid: type === 'pos' ? true : false, 
         deleted: false, 
         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
     }; 
@@ -116,6 +118,7 @@ async function generatePreview(type) {
             const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; 
         } else { 
             arrayRef.unshift(record); 
+            // This safely increments the master counter because editingDocId is forced to null for POS!
             if(type === 'po') { 
                 appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
             } else { 
@@ -125,7 +128,6 @@ async function generatePreview(type) {
         
         editingDocId = record.id;
         
-        // 🌟 If POS was saved, close the checkout tab securely
         if (type === 'pos') {
             posCarts = posCarts.filter(c => c.id !== activePosCartId);
             activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
@@ -171,7 +173,6 @@ function renderHistoryList() {
         return;
     }
     list.innerHTML = appData.history.map(h => {
-        // 🌟 IDENTIFY RETAIL VS WHOLESALE STYLING
         const isPos = h.docType === 'pos';
         const brandColor = isPos ? 'text-maroon' : 'text-primary';
         const brandBorder = isPos ? 'history-card-pos' : 'history-card';
@@ -286,7 +287,6 @@ function viewOldDocument(id, type) {
         buyer = appData.customers.find(c => c.id === doc.customerId) || { name: doc.customerName, address: "Address Data Unavailable", gstin: "N/A", stateCode: SELLER_STATE };
         renderCartUI('po');
     } else if (type === 'pos') {
-        // Render Retail View (Read-Only)
         buyer = { id: 'retail', name: doc.customerName, address: "Retail Customer", gstin: "URP", stateCode: SELLER_STATE };
     } else {
         document.getElementById("customer-select").value = doc.customerId; 
@@ -311,7 +311,7 @@ function viewOldDocument(id, type) {
         if (doc.payout) { canEdit = false; canDelete = false; }
     } else { 
         document.getElementById("payout-status-container").style.display = "none"; 
-        if (doc.paid || type === 'pos') canEdit = false; // Retail POS bills cannot be modified
+        if (doc.paid || type === 'pos') canEdit = false;
     }
     
     document.getElementById("btn-edit-preview").style.display = canEdit ? 'inline-block' : 'none';
