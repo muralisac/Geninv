@@ -205,7 +205,7 @@ function renderPOSTabs() {
     container.innerHTML = html;
 }
 
-// 🌟 UPDATED: Toggles BOTH checkout buttons depending on cart state
+// 🌟 UPDATED: Uses raw styles to bypass mobile CSS conflicts
 function renderPOSCart() {
     const container = document.getElementById('pos-cart-container');
     const countEl = document.getElementById('pos-cart-count');
@@ -218,8 +218,8 @@ function renderPOSCart() {
     
     if (!cartObj || cartObj.items.length === 0) {
         countEl.innerText = "0"; totalEl.innerText = "₹0.00"; 
-        if(btnCheckout) btnCheckout.classList.add('d-none');
-        if(btnQc) btnQc.classList.add('d-none');
+        if(btnCheckout) btnCheckout.style.display = 'none';
+        if(btnQc) btnQc.style.display = 'none';
         container.innerHTML = `<div class="text-center p-4 text-muted small border rounded-3 bg-white">Cart is empty. Tap an item to add.</div>`;
         return;
     }
@@ -248,8 +248,9 @@ function renderPOSCart() {
     countEl.innerText = totalQty;
     totalEl.innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
     
-    if(btnCheckout) btnCheckout.classList.remove('d-none');
-    if(btnQc) btnQc.classList.remove('d-none');
+    // 🌟 Show the buttons
+    if(btnCheckout) btnCheckout.style.display = 'block';
+    if(btnQc) btnQc.style.display = 'flex';
 }
 
 // ========================================================
