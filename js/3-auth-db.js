@@ -13,7 +13,6 @@ auth.onAuthStateChanged(user => {
         document.getElementById('screen-login').classList.remove('active'); 
         document.getElementById('loading-overlay').style.display = 'flex';
         
-        // Dynamic Loading Message
         if (isAdmin) document.getElementById('loading-text').innerText = "Loading Admin ERP...";
         else if (isStockiest) document.getElementById('loading-text').innerText = "Loading Stockiest Portal...";
         else document.getElementById('loading-text').innerText = "Loading Read-Only View...";
@@ -34,13 +33,11 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRolePermissions() {
-    // Standard Admin Permissions
     document.getElementById('btn-new-sale').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-new-po').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-add-customer').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('btn-add-product').style.display = isAdmin ? 'block' : 'none';
     
-    // 🌟 NEW: Bookkeeping is only visible to Admins OR the designated Stockiest
     const navBookkeeping = document.getElementById('nav-bookkeeping');
     if (navBookkeeping) {
         navBookkeeping.style.display = (isAdmin || isStockiest) ? 'block' : 'none';
@@ -110,5 +107,55 @@ async function fetchCloudData() {
         console.error("Error connecting to Firebase:", error);
         document.getElementById('loading-text').innerText = "Database error. Please refresh.";
         document.querySelector('.spinner').style.display = 'none';
+    }
+}
+
+// 🌟 NEW: Manual Sync/Refresh Logic
+async function manualRefresh() {
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.getElementById('loading-text').innerText = "Syncing with Cloud...";
+    
+    try {
+        const metaDoc = await db.collection("metadata").doc("invoiceData").get();
+        if (metaDoc.exists) { 
+            appData.lastInvoiceNum = metaDoc.data().lastNum || 22; 
+            appData.lastPoNum = metaDoc.data().lastPoNum || 5; 
+        }
+
+        const invSnap = await db.collection("inventory").get(); 
+        appData.inventory = invSnap.docs.map(doc => doc.data());
+        
+        const custSnap = await db.collection("customers").get(); 
+        appData.customers = custSnap.docs.map(doc => doc.data());
+        
+        const histSnap = await db.collection("history").orderBy("timestamp", "desc").get(); 
+        appData.history = histSnap.docs.map(doc => doc.data());
+        
+        const poSnap = await db.collection("purchaseOrders").orderBy("timestamp", "desc").get(); 
+        appData.purchaseOrders = poSnap.docs.map(doc => {
+            let data = doc.data();
+            if (!data.status) data.status = 'converted';
+            return data;
+        });
+
+        // Re-render UI elements silently
+        renderCustomerList(); 
+        renderProductList(); 
+        renderHistoryList(); 
+        renderPOList(); 
+        populateDropdowns();
+        
+        // If user is currently in POS, re-render their grids
+        if (document.getElementById('screen-pos').classList.contains('active')) {
+            renderPOSGrid();
+            renderPOSCart();
+        }
+        
+        document.getElementById('loading-overlay').style.display = 'none';
+        showCustomAlert("App synced successfully. You are looking at the latest data.", "Sync Complete", "✅");
+    } catch (error) {
+        console.error("Sync Error:", error);
+        document.getElementById('loading-overlay').style.display = 'none';
+        showCustomAlert("Failed to sync data. Check your internet connection.", "Sync Error", "🔴");
     }
 }

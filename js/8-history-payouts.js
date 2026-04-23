@@ -38,17 +38,12 @@ async function generatePreview(type) {
         saveBtn = document.querySelector(btnId);
     }
 
-    // =================================================================
-    // 🌟 BUG FIX: FINAL CHECKOUT STOCK VALIDATION GATE 🌟
-    // =================================================================
     if (type === 'pos' || type === 'invoice') {
         let stockErrors = [];
         currentCart.forEach(cartItem => {
             const invItem = appData.inventory.find(p => p.id === cartItem.id);
             let currentAvailable = invItem ? (invItem.inStock || 0) : 0;
 
-            // If an Admin is editing an OLD invoice, give them back the stock they already bought
-            // so they don't get blocked when re-saving the invoice.
             if (editingDocId && type === 'invoice') {
                 const oldDoc = appData.history.find(h => h.id === editingDocId);
                 if (oldDoc && oldDoc.cart) {
@@ -59,7 +54,6 @@ async function generatePreview(type) {
                 }
             }
 
-            // If the cart demands more than physical inventory, flag it!
             if (cartItem.qty > currentAvailable) {
                 stockErrors.push(`- ${cartItem.name} (Need: ${cartItem.qty}, Avail: ${currentAvailable})`);
             }
@@ -69,7 +63,6 @@ async function generatePreview(type) {
             return showCustomAlert(`Checkout blocked! Insufficient physical stock for:\n\n${stockErrors.join('\n')}\n\nPlease adjust the cart before proceeding.`, "Stock Error", "🚫");
         }
     }
-    // =================================================================
 
     if (saveBtn) { saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; } 
     
@@ -401,8 +394,21 @@ function promptDeletePO(id = null) {
 }
 
 async function executeDeletePO(targetId, reason) {
-    document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting PO...";
+    document.getElementById('loading-overlay').style.display = 'flex'; 
+    document.getElementById('loading-text').innerText = "Verifying & Deleting...";
+    
     try {
+        // 🌟 BUG FIX: PRE-FLIGHT SYNC CHECK 🌟
+        // Ensures the document still exists in the cloud before we try to modify it!
+        const cloudDoc = await db.collection("purchaseOrders").doc(targetId).get();
+        if (!cloudDoc.exists || cloudDoc.data().deleted === true) {
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById("delete-reason-modal").style.display = "none";
+            showCustomAlert("This document has already been deleted or modified by another device.", "Sync Conflict", "⚠️");
+            manualRefresh(); // Force the device to pull the true truth from the cloud
+            return;
+        }
+
         const batch = db.batch();
         const poIndex = appData.purchaseOrders.findIndex(p => p.id === targetId);
         const po = appData.purchaseOrders[poIndex];
@@ -424,6 +430,8 @@ async function executeDeletePO(targetId, reason) {
             appData.purchaseOrders[poIndex].deleted = true; appData.purchaseOrders[poIndex].cart = [];
             appData.purchaseOrders[poIndex].totalAmount = 0; appData.purchaseOrders[poIndex].deleteReason = reason;
         }
+        
+        document.getElementById("delete-reason-modal").style.display = "none";
         renderProductList(); renderPOList(); switchScreen('screen-po-history', false);
     } catch (error) { showCustomAlert("Failed to delete Purchase Order.", "Error", "🔴"); } 
     finally { document.getElementById('loading-overlay').style.display = 'none'; }
@@ -438,8 +446,20 @@ function promptDeleteInvoice(id = null) {
 }
 
 async function executeDeleteInvoice(targetId, reason) {
-    document.getElementById('loading-overlay').style.display = 'flex'; document.getElementById('loading-text').innerText = "Deleting Record...";
+    document.getElementById('loading-overlay').style.display = 'flex'; 
+    document.getElementById('loading-text').innerText = "Verifying & Deleting...";
+    
     try {
+        // 🌟 BUG FIX: PRE-FLIGHT SYNC CHECK 🌟
+        const cloudDoc = await db.collection("history").doc(targetId).get();
+        if (!cloudDoc.exists || cloudDoc.data().deleted === true) {
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById("delete-reason-modal").style.display = "none";
+            showCustomAlert("This document has already been deleted or modified by another device.", "Sync Conflict", "⚠️");
+            manualRefresh(); 
+            return;
+        }
+
         const batch = db.batch();
         const invIndex = appData.history.findIndex(p => p.id === targetId);
         const inv = appData.history[invIndex];
@@ -459,6 +479,8 @@ async function executeDeleteInvoice(targetId, reason) {
             appData.history[invIndex].deleted = true; appData.history[invIndex].cart = [];
             appData.history[invIndex].totalAmount = 0; appData.history[invIndex].deleteReason = reason;
         }
+        
+        document.getElementById("delete-reason-modal").style.display = "none";
         renderProductList(); renderHistoryList(); switchScreen('screen-history', false);
     } catch (error) { showCustomAlert("Failed to delete record.", "Error", "🔴"); } 
     finally { document.getElementById('loading-overlay').style.display = 'none'; }
