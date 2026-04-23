@@ -35,6 +35,7 @@ async function generatePreview(type) {
         saveBtn = document.querySelector(btnId);
     }
 
+    // 🌟 STEP 1: LOCAL CHECK (Fast rejection for obvious stock issues)
     if (type === 'pos' || type === 'invoice') {
         let stockErrors = [];
         currentCart.forEach(cartItem => {
@@ -45,9 +46,7 @@ async function generatePreview(type) {
                 const oldDoc = appData.history.find(h => h.id === editingDocId);
                 if (oldDoc && oldDoc.cart) {
                     const oldItem = oldDoc.cart.find(i => i.id === cartItem.id);
-                    if (oldItem) {
-                        currentAvailable += oldItem.qty; 
-                    }
+                    if (oldItem) currentAvailable += oldItem.qty; 
                 }
             }
 
@@ -63,7 +62,6 @@ async function generatePreview(type) {
 
     if (saveBtn) { saveBtn.innerText = "⏳ Securing Invoice..."; saveBtn.disabled = true; } 
     
-    // Calculate totals locally
     let subTotal = 0, totalGst = 0;
     currentCart.forEach(item => {
         let baseAmt = item.qty * item.price;
@@ -110,7 +108,7 @@ async function generatePreview(type) {
         totalAmount: roundedGrandTotal, 
         paid: type === 'pos' ? true : false, 
         deleted: false, 
-        createdBy: userEmail, // 🌟 AUDIT TRAIL: Logs who created this invoice
+        createdBy: userEmail, 
         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
     }; 
     
@@ -128,17 +126,38 @@ async function generatePreview(type) {
     }
 
     try { 
-        // =================================================================
-        // 🌟 BUG FIX: FIREBASE ATOMIC TRANSACTION (RACE CONDITION FIX) 🌟
-        // =================================================================
         const finalResult = await db.runTransaction(async (transaction) => {
+            // 🌟 STEP 2: CLOUD LOCK - READ ALL DATA FIRST
             const metaRef = db.collection("metadata").doc("invoiceData");
             const metaDoc = await transaction.get(metaRef);
 
-            let metaData = metaDoc.exists ? metaDoc.data() : { lastNum: 22, lastPoNum: 5 };
-            let assignedNum = editingDocId ? tempDocNumber : ""; // Keep old number if editing
+            // Securely read the TRUE cloud stock for every item being checked out
+            const invRefs = {};
+            const invDocs = {};
+            for (const pid of Object.keys(stockChanges)) {
+                invRefs[pid] = db.collection("inventory").doc(pid);
+                invDocs[pid] = await transaction.get(invRefs[pid]);
+            }
 
-            // ONLY generate a new number if this is a brand NEW invoice
+            // 🌟 STEP 3: CLOUD STOCK VALIDATION
+            for (const [pid, change] of Object.entries(stockChanges)) {
+                // If change is negative, it means stock is being deducted (Sales/POS)
+                if (change < 0) {
+                    const invDoc = invDocs[pid];
+                    const currentCloudStock = invDoc.exists ? (invDoc.data().inStock || 0) : 0;
+                    const itemName = invDoc.exists ? invDoc.data().name : "Unknown Item";
+
+                    // If the cloud stock + our deduction drops below zero, THROW ERROR!
+                    if (currentCloudStock + change < 0) {
+                        throw new Error(`STOCK_ERROR||${itemName}||${currentCloudStock}`);
+                    }
+                }
+            }
+
+            // 🌟 STEP 4: WRITE DATA (Safe to proceed)
+            let metaData = metaDoc.exists ? metaDoc.data() : { lastNum: 22, lastPoNum: 5 };
+            let assignedNum = editingDocId ? tempDocNumber : ""; 
+
             if (!editingDocId) {
                 const d = new Date();
                 const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -158,18 +177,18 @@ async function generatePreview(type) {
             const docRef = db.collection(collectionName).doc(record.id);
             transaction.set(docRef, record);
 
-            // Apply stock updates inside the locked transaction using increment!
+            // Update cloud inventory using the explicitly locked numbers
             for (const [pid, change] of Object.entries(stockChanges)) {
                 if (change !== 0) {
-                    const prodRef = db.collection("inventory").doc(pid);
-                    transaction.update(prodRef, { inStock: firebase.firestore.FieldValue.increment(change) });
+                    const currentStock = invDocs[pid].exists ? (invDocs[pid].data().inStock || 0) : 0;
+                    transaction.update(invRefs[pid], { inStock: currentStock + change });
                 }
             }
 
             return { assignedNum, metaData };
         });
 
-        // 🌟 POST-TRANSACTION SUCCESS 🌟
+        // 🌟 POST-TRANSACTION SUCCESS
         tempDocNumber = finalResult.assignedNum;
         record.invoiceNumber = finalResult.assignedNum;
 
@@ -178,11 +197,9 @@ async function generatePreview(type) {
             else appData.lastInvoiceNum = finalResult.metaData.lastNum;
         }
 
-        // Render the exact HTML now that the invoice number is permanently guaranteed
         const { html } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
         document.getElementById("invoice-content").innerHTML = html;
 
-        // Safely update local arrays
         if (editingDocId) { 
             const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; 
         } else { 
@@ -191,7 +208,7 @@ async function generatePreview(type) {
         
         editingDocId = record.id;
 
-        // Apply stock changes locally so UI matches cloud
+        // Force local sync of inventory to match cloud truth
         for (const [pid, change] of Object.entries(stockChanges)) {
             if (change !== 0) {
                 const productIndex = appData.inventory.findIndex(p => p.id === pid);
@@ -228,9 +245,21 @@ async function generatePreview(type) {
         }
         
         renderProductList(); switchScreen('screen-preview'); 
+
     } catch (error) { 
         console.error("Save Error:", error); 
-        showCustomAlert("Failed to save to the cloud."); 
+        // 🌟 CATCH THE CLOUD ERROR AND ALERT THE USER
+        if (error.message && error.message.startsWith("STOCK_ERROR||")) {
+            const parts = error.message.split("||");
+            const itemName = parts[1];
+            const actualCloudStock = parts[2];
+            showCustomAlert(`Checkout Failed!\n\nAnother user just purchased "${itemName}". There are only ${actualCloudStock} unit(s) left in the cloud inventory.\n\nPlease correct your cart and try again.`, "Inventory Conflict", "🚫");
+            
+            // Force the app to pull the real data from the cloud so their UI updates
+            manualRefresh(); 
+        } else {
+            showCustomAlert("Failed to save to the cloud."); 
+        }
     } finally { 
         if (saveBtn) {
             saveBtn.innerText = type === 'po' ? "💾 Create PO" : (type === 'pos' ? "🛒 Checkout" : "💾 Create Invoice"); 
