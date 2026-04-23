@@ -18,7 +18,6 @@ function renderPOSGrid() {
             ? `<img src="${imgSrc}" class="pos-item-img">`
             : `<div class="pos-item-img">${p.name.charAt(0).toUpperCase()}</div>`;
             
-        // 🌟 Pull the Retail Price for the visual grid (fallback to WSP if old item)
         const displayPrice = p.retailPrice || p.price || 0;
         
         return `
@@ -39,7 +38,24 @@ function renderPOSGrid() {
 
 function handlePosItemClick(pid, event) {
     const product = appData.inventory.find(x => x.id === pid);
-    if ((product.inStock || 0) <= 0) return showCustomAlert("This item is currently out of stock!", "Stock Error", "❌");
+    
+    // 🌟 BUG FIX: Cross-Cart Reservation Check
+    // Calculate how many of this product are already sitting inside ALL active POS tabs
+    let reservedQty = 0;
+    posCarts.forEach(cart => {
+        const existingInCart = cart.items.find(i => i.id === product.id);
+        if (existingInCart) {
+            reservedQty += existingInCart.qty;
+        }
+    });
+    
+    let physicalStock = product.inStock || 0;
+    
+    // Block the scan/click if the reserved amount equals or exceeds the physical stock
+    if (reservedQty >= physicalStock) {
+        showToastMessage(`❌ Stock limit reached for ${product.name}`, true);
+        return showCustomAlert(`You only have ${physicalStock} unit(s) of "${product.name}" in stock, and they are currently reserved in your active checkout tabs!`, "Item Reserved", "📦");
+    }
 
     if (!activePosCartId) {
         pendingPosItemAdd = product; 
@@ -121,17 +137,10 @@ function addPosItemToActiveCart(product) {
     if (!cartObj) return;
 
     const existing = cartObj.items.find(i => i.id === product.id);
-    const currentQty = existing ? existing.qty : 0;
-
-    let availableStock = product.inStock || 0;
-    if (currentQty + 1 > availableStock) {
-        return showCustomAlert("Cannot add more. Retail limit reached based on available physical stock!", "Stock Limit", "📦");
-    }
 
     if (existing) { 
         existing.qty += 1; 
     } else { 
-        // 🌟 FORCE RETAIL PRICE INTO POS CART
         const posPrice = product.retailPrice || product.price || 0;
         cartObj.items.push({ ...product, qty: 1, price: posPrice, gstPercent: product.gstPercent }); 
     }
@@ -325,7 +334,10 @@ function processScannedCode(code) {
             showToastMessage("Please enter customer details to start billing.", true);
         } else {
             handlePosItemClick(product.id, null); 
-            showToastMessage(`✅ ${product.name} added to cart!`);
+            // Only show success toast if it wasn't blocked by the stock checker
+            const activeCartObj = posCarts.find(c => c.id === activePosCartId);
+            const isInCart = activeCartObj && activeCartObj.items.some(i => i.id === product.id);
+            if(isInCart) showToastMessage(`✅ ${product.name} added to cart!`);
         }
     } else {
         showToastMessage(`❌ Unrecognized code: ${code}`, true);
