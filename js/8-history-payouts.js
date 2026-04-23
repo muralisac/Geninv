@@ -16,15 +16,12 @@ async function generatePreview(type) {
         buyer = { id: 'retail', name: activeCart.name, address: activeCart.phone ? "Ph: " + activeCart.phone : "Retail Walk-in", gstin: "URP", stateCode: SELLER_STATE };
         
         const d = new Date(); 
-        tempDocNumber = `NN-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${appData.lastInvoiceNum + 1}`; 
         tempDocDate = createDateFromYMD(getLocalYMD(d)).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
         
         btnId = 'btn-pos-checkout';
         saveBtn = document.getElementById(btnId);
     } else {
         const vendorSelectId = type === 'po' ? "po-vendor-select" : "customer-select"; 
-        const btnContainer = type === 'po' ? "#screen-po-builder" : "#screen-builder";
-        
         const custId = document.getElementById(vendorSelectId).value; 
         if (!custId) return showCustomAlert("Select a client/vendor."); 
         if (currentCart.length === 0) return showCustomAlert("Cart is empty."); 
@@ -64,11 +61,17 @@ async function generatePreview(type) {
         }
     }
 
-    if (saveBtn) { saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; } 
+    if (saveBtn) { saveBtn.innerText = "⏳ Securing Invoice..."; saveBtn.disabled = true; } 
     
-    const { html, roundedGrandTotal } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
-    document.getElementById("invoice-content").innerHTML = html;
-    
+    // Calculate totals locally
+    let subTotal = 0, totalGst = 0;
+    currentCart.forEach(item => {
+        let baseAmt = item.qty * item.price;
+        let gstAmt = baseAmt * (item.gstPercent / 100);
+        subTotal += baseAmt; totalGst += gstAmt;
+    });
+    const roundedGrandTotal = Math.round(subTotal + totalGst);
+
     let stockChanges = {};
     if (editingDocId) {
         const oldDoc = (type === 'po' ? appData.purchaseOrders : appData.history).find(h => h.id === editingDocId);
@@ -95,10 +98,11 @@ async function generatePreview(type) {
         });
     }
 
+    const userEmail = auth.currentUser ? auth.currentUser.email : "Unknown User";
+
     const record = { 
         id: editingDocId || (type === 'po' ? 'po' : 'inv') + Date.now(), 
         docType: type,
-        invoiceNumber: tempDocNumber, 
         date: tempDocDate, 
         customerId: buyer.id, 
         customerName: buyer.name, 
@@ -106,50 +110,96 @@ async function generatePreview(type) {
         totalAmount: roundedGrandTotal, 
         paid: type === 'pos' ? true : false, 
         deleted: false, 
+        createdBy: userEmail, // 🌟 AUDIT TRAIL: Logs who created this invoice
         timestamp: firebase.firestore.FieldValue.serverTimestamp() 
     }; 
     
+    const collectionName = type === 'po' ? "purchaseOrders" : "history"; 
+    const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
+
+    if(type === 'po') { 
+        const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
+        record.status = existingPO ? (existingPO.status || 'converted') : 'created';
+        if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
+    }
+    if(type === 'invoice' && editingDocId) {
+        const existingInv = appData.history.find(h => h.id === editingDocId);
+        if(existingInv && existingInv.paid) record.paid = existingInv.paid;
+    }
+
     try { 
-        const collectionName = type === 'po' ? "purchaseOrders" : "history"; 
-        const arrayRef = type === 'po' ? appData.purchaseOrders : appData.history;
-        
-        if(type === 'po') { 
-            const existingPO = appData.purchaseOrders.find(h => h.id === editingDocId); 
-            record.status = existingPO ? (existingPO.status || 'converted') : 'created';
-            if(existingPO && existingPO.payout) record.payout = existingPO.payout; 
-        }
-        if(type === 'invoice' && editingDocId) {
-            const existingInv = appData.history.find(h => h.id === editingDocId);
-            if(existingInv && existingInv.paid) record.paid = existingInv.paid;
-        }
-        
-        const batch = db.batch();
-        for (const [pid, change] of Object.entries(stockChanges)) {
-            if (change !== 0) {
-                const productIndex = appData.inventory.findIndex(p => p.id === pid);
-                if (productIndex > -1) {
-                    let newStock = (appData.inventory[productIndex].inStock || 0) + change;
-                    appData.inventory[productIndex].inStock = newStock; 
-                    batch.update(db.collection("inventory").doc(pid), { inStock: newStock });
+        // =================================================================
+        // 🌟 BUG FIX: FIREBASE ATOMIC TRANSACTION (RACE CONDITION FIX) 🌟
+        // =================================================================
+        const finalResult = await db.runTransaction(async (transaction) => {
+            const metaRef = db.collection("metadata").doc("invoiceData");
+            const metaDoc = await transaction.get(metaRef);
+
+            let metaData = metaDoc.exists ? metaDoc.data() : { lastNum: 22, lastPoNum: 5 };
+            let assignedNum = editingDocId ? tempDocNumber : ""; // Keep old number if editing
+
+            // ONLY generate a new number if this is a brand NEW invoice
+            if (!editingDocId) {
+                const d = new Date();
+                const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+
+                if (type === 'po') {
+                    metaData.lastPoNum++;
+                    assignedNum = `PO-${dateStr}-${metaData.lastPoNum}`;
+                    transaction.update(metaRef, { lastPoNum: metaData.lastPoNum });
+                } else {
+                    metaData.lastNum++;
+                    assignedNum = `NN-${dateStr}-${metaData.lastNum}`;
+                    transaction.update(metaRef, { lastNum: metaData.lastNum });
                 }
             }
+
+            record.invoiceNumber = assignedNum;
+            const docRef = db.collection(collectionName).doc(record.id);
+            transaction.set(docRef, record);
+
+            // Apply stock updates inside the locked transaction using increment!
+            for (const [pid, change] of Object.entries(stockChanges)) {
+                if (change !== 0) {
+                    const prodRef = db.collection("inventory").doc(pid);
+                    transaction.update(prodRef, { inStock: firebase.firestore.FieldValue.increment(change) });
+                }
+            }
+
+            return { assignedNum, metaData };
+        });
+
+        // 🌟 POST-TRANSACTION SUCCESS 🌟
+        tempDocNumber = finalResult.assignedNum;
+        record.invoiceNumber = finalResult.assignedNum;
+
+        if (!editingDocId) {
+            if (type === 'po') appData.lastPoNum = finalResult.metaData.lastPoNum;
+            else appData.lastInvoiceNum = finalResult.metaData.lastNum;
         }
-        
-        batch.set(db.collection(collectionName).doc(record.id), record);
-        await batch.commit(); 
-        
+
+        // Render the exact HTML now that the invoice number is permanently guaranteed
+        const { html } = renderInvoiceHTML(currentCart, type, buyer, tempDocNumber, tempDocDate);
+        document.getElementById("invoice-content").innerHTML = html;
+
+        // Safely update local arrays
         if (editingDocId) { 
             const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; 
         } else { 
             arrayRef.unshift(record); 
-            if(type === 'po') { 
-                appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
-            } else { 
-                appData.lastInvoiceNum++; await db.collection("metadata").doc("invoiceData").update({ lastNum: appData.lastInvoiceNum }); 
-            } 
         } 
         
         editingDocId = record.id;
+
+        // Apply stock changes locally so UI matches cloud
+        for (const [pid, change] of Object.entries(stockChanges)) {
+            if (change !== 0) {
+                const productIndex = appData.inventory.findIndex(p => p.id === pid);
+                if (productIndex > -1) {
+                    appData.inventory[productIndex].inStock = (appData.inventory[productIndex].inStock || 0) + change;
+                }
+            }
+        }
         
         if (type === 'pos') {
             posCarts = posCarts.filter(c => c.id !== activePosCartId);
@@ -398,14 +448,12 @@ async function executeDeletePO(targetId, reason) {
     document.getElementById('loading-text').innerText = "Verifying & Deleting...";
     
     try {
-        // 🌟 BUG FIX: PRE-FLIGHT SYNC CHECK 🌟
-        // Ensures the document still exists in the cloud before we try to modify it!
         const cloudDoc = await db.collection("purchaseOrders").doc(targetId).get();
         if (!cloudDoc.exists || cloudDoc.data().deleted === true) {
             document.getElementById('loading-overlay').style.display = 'none';
             document.getElementById("delete-reason-modal").style.display = "none";
             showCustomAlert("This document has already been deleted or modified by another device.", "Sync Conflict", "⚠️");
-            manualRefresh(); // Force the device to pull the true truth from the cloud
+            manualRefresh(); 
             return;
         }
 
@@ -450,7 +498,6 @@ async function executeDeleteInvoice(targetId, reason) {
     document.getElementById('loading-text').innerText = "Verifying & Deleting...";
     
     try {
-        // 🌟 BUG FIX: PRE-FLIGHT SYNC CHECK 🌟
         const cloudDoc = await db.collection("history").doc(targetId).get();
         if (!cloudDoc.exists || cloudDoc.data().deleted === true) {
             document.getElementById('loading-overlay').style.display = 'none';
