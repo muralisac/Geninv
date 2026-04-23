@@ -7,8 +7,6 @@ async function generatePreview(type) {
     let buyer, btnId, saveBtn;
     
     if (type === 'pos') {
-        // 🌟 CRITICAL BUG FIX: Force the system to forget any previous document ID.
-        // POS transactions are ALWAYS brand new documents. They never "edit" old ones.
         editingDocId = null; 
         
         const activeCart = posCarts.find(c => c.id === activePosCartId);
@@ -39,6 +37,39 @@ async function generatePreview(type) {
         btnId = type === 'po' ? '#screen-po-builder .btn-success' : '#screen-builder .btn-success';
         saveBtn = document.querySelector(btnId);
     }
+
+    // =================================================================
+    // 🌟 BUG FIX: FINAL CHECKOUT STOCK VALIDATION GATE 🌟
+    // =================================================================
+    if (type === 'pos' || type === 'invoice') {
+        let stockErrors = [];
+        currentCart.forEach(cartItem => {
+            const invItem = appData.inventory.find(p => p.id === cartItem.id);
+            let currentAvailable = invItem ? (invItem.inStock || 0) : 0;
+
+            // If an Admin is editing an OLD invoice, give them back the stock they already bought
+            // so they don't get blocked when re-saving the invoice.
+            if (editingDocId && type === 'invoice') {
+                const oldDoc = appData.history.find(h => h.id === editingDocId);
+                if (oldDoc && oldDoc.cart) {
+                    const oldItem = oldDoc.cart.find(i => i.id === cartItem.id);
+                    if (oldItem) {
+                        currentAvailable += oldItem.qty; 
+                    }
+                }
+            }
+
+            // If the cart demands more than physical inventory, flag it!
+            if (cartItem.qty > currentAvailable) {
+                stockErrors.push(`- ${cartItem.name} (Need: ${cartItem.qty}, Avail: ${currentAvailable})`);
+            }
+        });
+
+        if (stockErrors.length > 0) {
+            return showCustomAlert(`Checkout blocked! Insufficient physical stock for:\n\n${stockErrors.join('\n')}\n\nPlease adjust the cart before proceeding.`, "Stock Error", "🚫");
+        }
+    }
+    // =================================================================
 
     if (saveBtn) { saveBtn.innerText = "⏳ Processing..."; saveBtn.disabled = true; } 
     
@@ -118,7 +149,6 @@ async function generatePreview(type) {
             const idx = arrayRef.findIndex(h => h.id === editingDocId); arrayRef[idx] = record; 
         } else { 
             arrayRef.unshift(record); 
-            // This safely increments the master counter because editingDocId is forced to null for POS!
             if(type === 'po') { 
                 appData.lastPoNum++; await db.collection("metadata").doc("invoiceData").update({ lastPoNum: appData.lastPoNum }); 
             } else { 
