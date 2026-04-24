@@ -246,6 +246,7 @@ function renderPOSCart() {
     }).join('');
 
     countEl.innerText = totalQty;
+	document.getElementById('pull-bar-count').innerText = totalQty;
     totalEl.innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
     
     // 🌟 Show the buttons
@@ -466,3 +467,55 @@ document.addEventListener('keydown', (e) => {
         }, 50); 
     }
 });
+// ========================================================
+// 🌟 MOBILE OFF-CANVAS CART LOGIC & SWIPE DETECTION
+// ========================================================
+
+function toggleMobileCart() {
+    const wrapper = document.getElementById('pos-cart-wrapper');
+    const overlay = document.getElementById('mobile-cart-overlay');
+    
+    if (wrapper.classList.contains('open')) {
+        closeMobileCart();
+    } else {
+        wrapper.classList.add('open');
+        overlay.classList.add('show');
+    }
+}
+
+function closeMobileCart() {
+    const wrapper = document.getElementById('pos-cart-wrapper');
+    const overlay = document.getElementById('mobile-cart-overlay');
+    if(wrapper) wrapper.classList.remove('open');
+    if(overlay) overlay.classList.remove('show');
+}
+
+// 🌟 Native Mobile Swipe Support
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+}, {passive: true});
+
+document.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleMobileSwipe();
+}, {passive: true});
+
+function handleMobileSwipe() {
+    const posScreen = document.getElementById('screen-pos');
+    if (!posScreen || !posScreen.classList.contains('active')) return;
+    
+    const wrapper = document.getElementById('pos-cart-wrapper');
+    
+    // Swipe Right to Open (Only if starting from the left edge)
+    if (touchEndX - touchStartX > 60 && touchStartX < 50) {
+        if (wrapper && !wrapper.classList.contains('open')) toggleMobileCart();
+    }
+    
+    // Swipe Left to Close (Only if drawer is open)
+    if (touchStartX - touchEndX > 60) {
+        if (wrapper && wrapper.classList.contains('open')) closeMobileCart();
+    }
+}

@@ -269,3 +269,66 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     pointer-events: none;
     white-space: nowrap;
 }
+/* --- MOBILE POS CART DRAWER --- */
+@media (max-width: 991.98px) {
+    #pos-cart-wrapper {
+        position: fixed;
+        top: 0;
+        left: -85vw; /* Hides the drawer off the left edge */
+        width: 85vw;
+        height: 100vh;
+        z-index: 10040;
+        transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        padding-top: 15px; /* Creates top spacing */
+        padding-bottom: 15px;
+    }
+    #pos-cart-wrapper.open {
+        left: 0; /* Slides the drawer into view */
+    }
+    #pos-cart-panel {
+        border-radius: 0 16px 16px 0 !important; /* Flat on left, rounded on right */
+        box-shadow: 10px 0 25px rgba(0,0,0,0.3);
+        border-left: none !important;
+        background: #f8fafc !important;
+    }
+    .cart-pull-bar {
+        position: absolute;
+        top: 50%;
+        right: -36px; /* Sticks out past the hidden edge */
+        transform: translateY(-50%);
+        width: 36px;
+        height: 110px;
+        background: #800000;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0 12px 12px 0;
+        writing-mode: vertical-rl; /* Rotates the text sideways */
+        text-orientation: mixed;
+        cursor: pointer;
+        box-shadow: 4px 0 10px rgba(0,0,0,0.2);
+        z-index: 10041;
+        font-weight: 800;
+        font-size: 15px;
+        letter-spacing: 1px;
+    }
+    .cart-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+        z-index: 10035;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s, visibility 0.3s;
+    }
+    .cart-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+@media (min-width: 992px) {
+    .cart-pull-bar { display: none !important; }
+    .cart-overlay { display: none !important; }
+}
