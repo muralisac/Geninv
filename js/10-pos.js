@@ -205,7 +205,7 @@ function renderPOSTabs() {
     container.innerHTML = html;
 }
 
-// 🌟 UPDATED: Uses raw styles to bypass mobile CSS conflicts
+// 🌟 UPDATED: Removed the pull-bar-count logic
 function renderPOSCart() {
     const container = document.getElementById('pos-cart-container');
     const countEl = document.getElementById('pos-cart-count');
@@ -246,10 +246,8 @@ function renderPOSCart() {
     }).join('');
 
     countEl.innerText = totalQty;
-	document.getElementById('pull-bar-count').innerText = totalQty;
     totalEl.innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
     
-    // 🌟 Show the buttons
     if(btnCheckout) btnCheckout.style.display = 'block';
     if(btnQc) btnQc.style.display = 'flex';
 }

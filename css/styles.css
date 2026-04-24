@@ -274,45 +274,40 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     #pos-cart-wrapper {
         position: fixed;
         top: 0;
-        left: -85vw; /* Hides the drawer off the left edge */
+        left: -85vw; 
         width: 85vw;
         height: 100vh;
         z-index: 10040;
         transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        padding-top: 15px; /* Creates top spacing */
+        padding-top: 15px; 
         padding-bottom: 15px;
     }
     #pos-cart-wrapper.open {
-        left: 0; /* Slides the drawer into view */
+        left: 0; 
     }
     #pos-cart-panel {
-        border-radius: 0 16px 16px 0 !important; /* Flat on left, rounded on right */
+        border-radius: 0 16px 16px 0 !important; 
         box-shadow: 10px 0 25px rgba(0,0,0,0.3);
         border-left: none !important;
         background: #f8fafc !important;
+        height: 100%;
     }
+    
+/* 🌟 THIN PULL BAR */
     .cart-pull-bar {
         position: absolute;
         top: 50%;
-        right: -36px; /* Sticks out past the hidden edge */
+        right: -12px; /* Sticks out slightly */
         transform: translateY(-50%);
-        width: 36px;
-        height: 110px;
+        width: 12px; /* Very thin */
+        height: 80px;
         background: #800000;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 0 12px 12px 0;
-        writing-mode: vertical-rl; /* Rotates the text sideways */
-        text-orientation: mixed;
         cursor: pointer;
         box-shadow: 4px 0 10px rgba(0,0,0,0.2);
         z-index: 10041;
-        font-weight: 800;
-        font-size: 15px;
-        letter-spacing: 1px;
+        border-radius: 0 8px 8px 0;
     }
+    
     .cart-overlay {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
@@ -328,7 +323,22 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
         visibility: visible;
     }
 }
+
+/* 🌟 DESKTOP FLOATING CART */
 @media (min-width: 992px) {
     .cart-pull-bar { display: none !important; }
     .cart-overlay { display: none !important; }
+    
+    .pos-sticky-cart {
+        position: sticky !important;
+        top: 90px; /* Sits perfectly below your floating top bar */
+        height: calc(100vh - 120px); /* Calculates screen height to trigger internal scroll */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #pos-cart-container {
+        flex-grow: 1;
+        overflow-y: auto; /* Adds the internal scrollbar if items overflow */
+    }
 }
