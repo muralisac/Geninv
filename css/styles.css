@@ -270,20 +270,30 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     white-space: nowrap;
 }
 /* --- MOBILE POS CART DRAWER --- */
+
+/* 🌟 FIX: Forcefully stop the parent container from dragging the fixed drawer */
+#screen-pos {
+    transform: none !important;
+    animation: none !important;
+}
+
 @media (max-width: 991.98px) {
     #pos-cart-wrapper {
-        position: fixed;
-        top: 0;
-        left: -85vw; 
-        width: 85vw;
-        height: 100vh;
+        position: fixed !important;
+        top: 0 !important;
+        left: -85vw !important; 
+        width: 85vw !important;
+        height: 100vh !important;
         z-index: 10040;
-        transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        /* 🌟 Smooth GPU-accelerated sliding */
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        transform: translateX(0);
         padding-top: 15px; 
         padding-bottom: 15px;
+        margin: 0 !important;
     }
     #pos-cart-wrapper.open {
-        left: 0; 
+        transform: translateX(85vw); 
     }
     #pos-cart-panel {
         border-radius: 0 16px 16px 0 !important; 
@@ -293,19 +303,19 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
         height: 100%;
     }
     
-/* 🌟 THIN PULL BAR */
+    /* 🌟 SUPER THIN FIXED PULL BAR 🌟 */
     .cart-pull-bar {
         position: absolute;
-        top: 50%;
-        right: -12px; /* Sticks out slightly */
+        top: 50vh; /* Pegs it exactly to the middle of the viewport */
+        right: -6px; /* Sticks out exactly 6 pixels */
         transform: translateY(-50%);
-        width: 12px; /* Very thin */
-        height: 80px;
+        width: 6px; /* Razor thin */
+        height: 120px; /* Slightly taller to easily catch the thumb */
         background: #800000;
         cursor: pointer;
         box-shadow: 4px 0 10px rgba(0,0,0,0.2);
         z-index: 10041;
-        border-radius: 0 8px 8px 0;
+        border-radius: 0 6px 6px 0;
     }
     
     .cart-overlay {
@@ -321,6 +331,30 @@ body.login-mode { display: flex; align-items: center; justify-content: center; p
     .cart-overlay.show {
         opacity: 1;
         visibility: visible;
+    }
+}
+
+/* 🌟 DESKTOP FLOATING CART */
+@media (min-width: 992px) {
+    .cart-pull-bar { display: none !important; }
+    .cart-overlay { display: none !important; }
+    
+    #pos-cart-wrapper {
+        position: sticky !important;
+        top: 80px; 
+        height: calc(100vh - 100px); 
+        align-self: flex-start; /* Crucial for sticky columns in Bootstrap */
+    }
+    
+    .pos-sticky-cart {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #pos-cart-container {
+        flex-grow: 1;
+        overflow-y: auto; 
     }
 }
 
