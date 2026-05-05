@@ -441,24 +441,42 @@
         </div>
     </div>
 
-    <div id="pos-checkout-modal" class="custom-modal-overlay" style="z-index: 10030;">
-        <div class="custom-modal-content" style="max-width: 500px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0;">
-            <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light" style="border-radius: 12px 12px 0 0;">
-                <h5 class="fw-bold m-0 text-dark">🛒 Final Review</h5>
-                <button class="btn-close" onclick="closeCheckoutReview()"></button>
-            </div>
-            <div id="review-cart-items" class="p-3 overflow-auto flex-grow-1" style="background: #f8fafc;">
-                </div>
-            <div class="p-3 border-top bg-white" style="border-radius: 0 0 12px 12px;">
-                <div class="d-flex justify-content-between align-items-center fw-bold fs-5 mb-3" style="color: #800000;">
-                    <span>Grand Total:</span>
-                    <span id="review-grand-total">₹0.00</span>
-                </div>
-                <button class="btn btn-success w-100 btn-lg shadow-sm fw-bold" onclick="confirmReviewCheckout()">✅ Confirm & Generate Invoice</button>
-            </div>
-        </div>
-    </div>
+	<div id="pos-checkout-modal" class="custom-modal-overlay" style="z-index: 10030;">
+		<div class="custom-modal-content" style="max-width: 600px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 0;">
+			<div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light" style="border-radius: 12px 12px 0 0;">
+				<h5 class="fw-bold m-0 text-dark">🛒 Final Review & Payment</h5>
+				<button class="btn-close" onclick="closeCheckoutReview()"></button>
+			</div>
+			
+			<!-- Cart Items (Now with Item-Level Discount Inputs) -->
+			<div id="review-cart-items" class="p-3 overflow-auto flex-grow-1" style="background: #f8fafc;">
+			</div>
+			
+			<div class="p-3 border-top bg-white" style="border-radius: 0 0 12px 12px;">
+				<div class="row g-2 mb-3">
+					<div class="col-6">
+						<label class="form-label fw-bold text-muted small mb-1">Overall Discount (₹)</label>
+						<input type="number" id="review-overall-discount" class="form-control" value="0" min="0" oninput="recalculateReviewTotal()">
+					</div>
+					<div class="col-6">
+						<label class="form-label fw-bold text-muted small mb-1">Payment Mode</label>
+						<select id="review-payment-mode" class="form-select border-primary fw-bold" style="color: #0b2a5c;">
+							<option value="cash">💵 Cash</option>
+							<option value="upi">📱 UPI</option>
+							<option value="credit">📝 Credit (Pending)</option>
+						</select>
+					</div>
+				</div>
 
+				<div class="d-flex justify-content-between align-items-center fw-bold fs-5 mb-3" style="color: #800000;">
+					<span>Grand Total:</span>
+					<span id="review-grand-total">₹0.00</span>
+				</div>
+				<button class="btn btn-success w-100 btn-lg shadow-sm fw-bold" onclick="confirmReviewCheckout()">✅ Confirm & Generate Invoice</button>
+			</div>
+		</div>
+	</div>
+	
     <div id="pos-customer-modal" class="custom-modal-overlay" style="z-index: 10006;">
         <div class="custom-modal-content text-center">
             <div class="mb-3 fs-1">🛍️</div>

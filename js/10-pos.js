@@ -257,11 +257,39 @@ function renderPOSCart() {
 // ========================================================
 
 function openCheckoutReview() {
-    const cartObj = posCarts.find(c => c.id === activePosCartId);
-    if (!cartObj || cartObj.items.length === 0) return showCustomAlert("Cart is empty.");
+    if (posCart.length === 0) return showCustomAlert("Cart is empty!", "Notice", "⚠️");
     
-    renderCheckoutReviewModal();
+    const container = document.getElementById('review-cart-items');
+    container.innerHTML = '';
+    
+    posCart.forEach((item, index) => {
+        // Default discount to 0 if not set
+        item.discount = item.discount || 0; 
+        
+        const itemHtml = `
+            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
+                <div style="width: 40%;">
+                    <div class="fw-bold text-dark font-13">${item.name}</div>
+                    <div class="small text-muted">${item.qty} x ₹${item.price}</div>
+                </div>
+                <div style="width: 30%;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text text-danger">-₹</span>
+                        <input type="number" class="form-control" value="${item.discount}" 
+                            oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
+                    </div>
+                </div>
+                <div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
+                    ₹${((item.price * item.qty) - item.discount).toFixed(2)}
+                </div>
+            </div>
+        `;
+        container.innerHTML += itemHtml;
+    });
+
     document.getElementById('pos-checkout-modal').style.display = 'flex';
+    document.getElementById('review-overall-discount').value = 0; // Reset overall discount
+    recalculateReviewTotal();
 }
 
 function closeCheckoutReview() {
@@ -333,9 +361,36 @@ function updateReviewQty(pid, change) {
     renderCheckoutReviewModal(); // Re-render the modal with new numbers
 }
 
-function confirmReviewCheckout() {
-    closeCheckoutReview();
-    generatePreview('pos'); // Proceeds with the standard checkout engine
+
+async function confirmReviewCheckout() {
+    const paymentMode = document.getElementById('review-payment-mode').value;
+    const overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
+    const grandTotal = recalculateReviewTotal();
+
+    // Determine status based on payment mode
+    const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
+
+    // Build your invoice object
+    const invoiceData = {
+        tenantId: currentUserTenantId,
+        type: 'retail', // Differentiate from B2B
+        customerName: document.getElementById('pos-cust-name').value || "Walk-in Customer",
+        items: posCart, // Now includes item.discount
+        subTotal: grandTotal + overallDiscount,
+        overallDiscount: overallDiscount,
+        totalAmount: grandTotal,
+        paymentMode: paymentMode,
+        paymentStatus: paymentStatus,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // -> (Keep your existing code here that saves invoiceData to Firestore and generates the PDF)
+        closeCheckoutReview();
+		generatePreview('pos');  // Proceeds with the standard checkout engine
+    // Example:
+    // await db.collection('history').add(invoiceData);
+    // showToastMessage(`Invoice generated. Status: ${paymentStatus.toUpperCase()}`);
+    // closeCheckoutReview();
 }
 
 // ========================================================
