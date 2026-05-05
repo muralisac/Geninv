@@ -358,7 +358,13 @@ async function confirmReviewCheckout() {
 
     const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
+    // 🌟 FIX 1: Generate a unique, professional Invoice Number
+    const dateString = new Date().toISOString().slice(0,10).replace(/-/g, '');
+    const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 digit random number
+    const generatedInvoiceNumber = `POS-${dateString}-${randomNum}`;
+
     const invoiceData = {
+        invoiceNumber: generatedInvoiceNumber, // <-- Added this crucial line!
         type: 'retail', 
         customerName: cartObj.name || "Walk-in Customer",
         customerPhone: cartObj.phone || "",
@@ -371,7 +377,6 @@ async function confirmReviewCheckout() {
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // Safety check: Only attach Tenant ID if this is the SaaS version, ignore if Old GenInv
     if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
         invoiceData.tenantId = currentUserTenantId;
     }
@@ -380,19 +385,23 @@ async function confirmReviewCheckout() {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Generating Invoice...";
 
-        const docRef = await db.collection("history").add(invoiceData);
+        // Save to Database
+        await db.collection("history").add(invoiceData);
         
-        showToastMessage(`Invoice saved! Status: ${paymentStatus.toUpperCase()}`, false);
+        showToastMessage(`Invoice ${generatedInvoiceNumber} saved! Status: ${paymentStatus.toUpperCase()}`, false);
         closeCheckoutReview();
         
-        // Close the tab now that it's paid
+        // Close the current tab
         posCarts = posCarts.filter(c => c.id !== activePosCartId);
         activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
         
         renderPOSTabs();
         renderPOSCart();
         
-        await viewDocument(docRef.id);
+        // 🌟 FIX 2: Safely switch to the History screen instead of crashing
+        if (typeof switchScreen === 'function') {
+            switchScreen('screen-history');
+        }
 
     } catch (error) {
         console.error("Checkout Error: ", error);
