@@ -373,39 +373,92 @@ async function confirmReviewCheckout() {
         overallDiscount: overallDiscount,
         totalAmount: grandTotal,
         paymentMode: paymentMode,
-        paymentStatus: paymentStatus,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    };
+        paymentStaasync function confirmReviewCheckout() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj || cartObj.items.length === 0) return;
 
-    if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
-        invoiceData.tenantId = currentUserTenantId;
-    }
+    const paymentMode = document.getElementById('review-payment-mode').value;
+    const overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
+    const grandTotal = recalculateReviewTotal();
+
+    const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
     try {
         document.getElementById('loading-overlay').style.display = 'flex';
-        document.getElementById('loading-text').innerText = "Generating Invoice...";
+        document.getElementById('loading-text').innerText = "Securing Invoice Number...";
 
-        // Save to Database
-        await db.collection("history").add(invoiceData);
+        let generatedInvoiceNumber = "POS-UNKNOWN";
+
+        // 🌟 THE FIX 1: Robust, Contention-Free Transaction Logic
+        let metadataRef;
+        if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
+            // For the new SaaS Application
+            metadataRef = db.collection("metadata").doc(currentUserTenantId);
+        } else {
+            // For the older standalone GenInv application
+            metadataRef = db.collection("metadata").doc("counters"); 
+        }
+
+        // Run a strict database transaction to prevent duplicate invoice numbers
+        await db.runTransaction(async (transaction) => {
+            const metaDoc = await transaction.get(metadataRef);
+            let newNum = 1;
+            
+            if (metaDoc.exists) {
+                newNum = (metaDoc.data().lastNum || 0) + 1;
+                transaction.update(metadataRef, { lastNum: newNum });
+            } else {
+                // If this is the very first invoice ever, create the counter document
+                transaction.set(metadataRef, { lastNum: newNum, lastPoNum: 0 }, { merge: true });
+            }
+            
+            // Format the number properly so the UI knows it's a POS transaction
+            generatedInvoiceNumber = `POS-${String(newNum).padStart(4, '0')}`;
+        });
+
+        // 🌟 THE FIX 2: Explicitly mark as Retail
+        const invoiceData = {
+            invoiceNumber: generatedInvoiceNumber,
+            type: 'retail', // This tells the history list NOT to show it as Wholesale
+            invoiceType: 'Retail POS', 
+            customerName: cartObj.name || "Walk-in Customer",
+            customerPhone: cartObj.phone || "",
+            items: cartObj.items, 
+            subTotal: grandTotal + overallDiscount,
+            overallDiscount: overallDiscount,
+            totalAmount: grandTotal,
+            paymentMode: paymentMode,
+            paymentStatus: paymentStatus,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
+            invoiceData.tenantId = currentUserTenantId;
+        }
+
+        document.getElementById('loading-text').innerText = "Saving Data...";
+        const docRef = await db.collection("history").add(invoiceData);
         
-        showToastMessage(`Invoice ${generatedInvoiceNumber} saved! Status: ${paymentStatus.toUpperCase()}`, false);
+        showToastMessage(`Retail Invoice ${generatedInvoiceNumber} saved!`, false);
         closeCheckoutReview();
         
-        // Close the current tab
+        // Clear the cart and update the UI
         posCarts = posCarts.filter(c => c.id !== activePosCartId);
         activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
         
         renderPOSTabs();
         renderPOSCart();
         
-        // 🌟 FIX 2: Safely switch to the History screen instead of crashing
-        if (typeof switchScreen === 'function') {
+        // Safely route the user to preview the document or view the history
+        if (typeof viewDocument === 'function') {
+            await viewDocument(docRef.id);
+        } else if (typeof switchScreen === 'function') {
             switchScreen('screen-history');
         }
 
     } catch (error) {
-        console.error("Checkout Error: ", error);
-        showCustomAlert("Failed to generate invoice. " + error.message, "Error", "🔴");
+        console.error("Checkout Transaction Error: ", error);
+        showCustomAlert("Failed to securely generate invoice: " + error.message, "Transaction Error", "🔴");
     } finally {
         document.getElementById('loading-overlay').style.display = 'none';
     }
