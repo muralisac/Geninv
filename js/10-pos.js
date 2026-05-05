@@ -145,7 +145,7 @@ function addPosItemToActiveCart(product) {
         existing.qty += 1; 
     } else { 
         const posPrice = product.retailPrice || product.price || 0;
-        cartObj.items.push({ ...product, qty: 1, price: posPrice, gstPercent: product.gstPercent }); 
+        cartObj.items.push({ ...product, qty: 1, price: posPrice, gstPercent: product.gstPercent || 0 }); 
     }
     
     renderPOSCart();
@@ -205,7 +205,6 @@ function renderPOSTabs() {
     container.innerHTML = html;
 }
 
-// 🌟 UPDATED: Removed the pull-bar-count logic
 function renderPOSCart() {
     const container = document.getElementById('pos-cart-container');
     const countEl = document.getElementById('pos-cart-count');
@@ -229,14 +228,14 @@ function renderPOSCart() {
     container.innerHTML = cartObj.items.map(item => {
         totalQty += item.qty;
         const baseAmt = item.qty * item.price;
-        const gstAmt = baseAmt * (item.gstPercent / 100);
+        const gstAmt = baseAmt * ((item.gstPercent || 0) / 100);
         grandTotal += (baseAmt + gstAmt);
 
         return `
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded shadow-sm">
             <div class="font-13">
                 <div class="fw-bold text-dark lh-1 mb-1">${item.name}</div>
-                <div class="text-muted" style="font-size:11px;">₹${item.price.toFixed(2)} + ${item.gstPercent}% GST</div>
+                <div class="text-muted" style="font-size:11px;">₹${item.price.toFixed(2)} + ${item.gstPercent || 0}% GST</div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-secondary rounded-pill" style="font-size:12px;">x${item.qty}</span>
@@ -253,162 +252,111 @@ function renderPOSCart() {
 }
 
 // ==========================================
-// 🛒 NEW POS CHECKOUT ENGINE
+// 🛒 NEW POS CHECKOUT ENGINE (With Multi-Cart Support)
 // ==========================================
 
-	function openCheckoutReview() {
-		if (posCart.length === 0) return showCustomAlert("Cart is empty!", "Notice", "⚠️");
-		
-		const container = document.getElementById('review-cart-items');
-		container.innerHTML = '';
-		
-		posCart.forEach((item, index) => {
-			item.discount = item.discount || 0; // Default discount to 0
-			
-			const itemHtml = `
-				<div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
-					<div style="width: 40%;">
-						<div class="fw-bold text-dark font-13">${item.name}</div>
-						<div class="small text-muted">${item.qty} x ₹${item.price}</div>
-					</div>
-					<div style="width: 30%;">
-						<div class="input-group input-group-sm">
-							<span class="input-group-text text-danger">-₹</span>
-							<input type="number" class="form-control" value="${item.discount}" 
-								oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
-						</div>
-					</div>
-					<div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
-						₹${((item.price * item.qty) - item.discount).toFixed(2)}
-					</div>
-				</div>
-			`;
-			container.innerHTML += itemHtml;
-		});
+function openCheckoutReview() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj || cartObj.items.length === 0) return showCustomAlert("Cart is empty!", "Notice", "⚠️");
+    
+    const container = document.getElementById('review-cart-items');
+    container.innerHTML = '';
+    
+    cartObj.items.forEach((item, index) => {
+        item.discount = item.discount || 0; 
+        const baseAmt = item.price * item.qty;
+        const gstAmt = baseAmt * ((item.gstPercent || 0) / 100);
+        const rowTotal = baseAmt + gstAmt;
+        
+        const itemHtml = `
+            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
+                <div style="width: 40%;">
+                    <div class="fw-bold text-dark font-13">${item.name}</div>
+                    <div class="small text-muted">${item.qty} x ₹${item.price.toFixed(2)} + ${item.gstPercent||0}% GST</div>
+                </div>
+                <div style="width: 30%;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text text-danger">-₹</span>
+                        <input type="number" class="form-control" value="${item.discount}" 
+                            oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
+                    </div>
+                </div>
+                <div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
+                    ₹${(rowTotal - item.discount).toFixed(2)}
+                </div>
+            </div>
+        `;
+        container.innerHTML += itemHtml;
+    });
 
-		document.getElementById('pos-checkout-modal').style.display = 'flex';
-		document.getElementById('review-overall-discount').value = 0; // Reset overall
-		recalculateReviewTotal();
-	}
+    document.getElementById('pos-checkout-modal').style.display = 'flex';
+    document.getElementById('review-overall-discount').value = 0; 
+    recalculateReviewTotal();
+}
 
-	// Live Math Engine: Item Level
-	window.updateItemDiscount = function(index, discountValue) {
-		let disc = parseFloat(discountValue) || 0;
-		const maxDiscount = posCart[index].price * posCart[index].qty;
-		if (disc > maxDiscount) disc = maxDiscount; // Prevent negative totals
-		
-		posCart[index].discount = disc;
-		openCheckoutReview(); // Refresh the UI
-	};
+window.updateItemDiscount = function(index, discountValue) {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj) return;
 
-	// Live Math Engine: Grand Total
-	window.recalculateReviewTotal = function() {
-		let subtotal = 0;
-		posCart.forEach(item => {
-			subtotal += (item.price * item.qty) - (item.discount || 0);
-		});
+    let disc = parseFloat(discountValue) || 0;
+    
+    const baseAmt = cartObj.items[index].price * cartObj.items[index].qty;
+    const gstAmt = baseAmt * ((cartObj.items[index].gstPercent || 0) / 100);
+    const maxDiscount = baseAmt + gstAmt;
 
-		let overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
-		if (overallDiscount > subtotal) {
-			overallDiscount = subtotal;
-			document.getElementById('review-overall-discount').value = subtotal;
-		}
+    if (disc > maxDiscount) disc = maxDiscount; 
+    
+    cartObj.items[index].discount = disc;
+    openCheckoutReview(); 
+};
 
-		const grandTotal = subtotal - overallDiscount;
-		document.getElementById('review-grand-total').innerText = `₹${grandTotal.toFixed(2)}`;
-		return grandTotal;
-	};
+window.recalculateReviewTotal = function() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj) return 0;
+
+    let subtotal = 0;
+    cartObj.items.forEach(item => {
+        const baseAmt = item.price * item.qty;
+        const gstAmt = baseAmt * ((item.gstPercent || 0) / 100);
+        subtotal += (baseAmt + gstAmt) - (item.discount || 0);
+    });
+
+    let overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
+    if (overallDiscount > subtotal) {
+        overallDiscount = subtotal;
+        document.getElementById('review-overall-discount').value = subtotal;
+    }
+
+    const grandTotal = subtotal - overallDiscount;
+    document.getElementById('review-grand-total').innerText = `₹${grandTotal.toFixed(2)}`;
+    return grandTotal;
+};
 
 function closeCheckoutReview() {
     document.getElementById('pos-checkout-modal').style.display = 'none';
 }
 
-function renderCheckoutReviewModal() {
-    const cartObj = posCarts.find(c => c.id === activePosCartId);
-    const container = document.getElementById('review-cart-items');
-    
-    if (!cartObj || cartObj.items.length === 0) {
-        closeCheckoutReview();
-        return;
-    }
-
-    let html = '';
-    let grandTotal = 0;
-
-    cartObj.items.forEach(item => {
-        const baseAmt = item.qty * item.price;
-        const gstAmt = baseAmt * (item.gstPercent / 100);
-        const rowTotal = baseAmt + gstAmt;
-        grandTotal += rowTotal;
-
-        html += `
-        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white border rounded shadow-sm">
-            <div class="font-13 flex-grow-1">
-                <div class="fw-bold text-dark lh-1 mb-1" style="font-size: 14px;">${item.name}</div>
-                <div class="text-muted" style="font-size:11px;">₹${item.price.toFixed(2)} + ${item.gstPercent}% GST</div>
-                <div class="fw-bold text-maroon mt-1">₹${rowTotal.toFixed(2)}</div>
-            </div>
-            <div class="d-flex align-items-center gap-1">
-                <button class="btn btn-light border fw-bold px-3 py-1 shadow-sm rounded-start" onclick="updateReviewQty('${item.id}', -1)">-</button>
-                <div class="bg-light border-top border-bottom fw-bold px-3 py-1 text-center" style="min-width: 40px;">${item.qty}</div>
-                <button class="btn btn-light border fw-bold px-3 py-1 shadow-sm rounded-end" onclick="updateReviewQty('${item.id}', 1)">+</button>
-                <button class="btn btn-danger px-2 py-1 ms-2 shadow-sm rounded" onclick="updateReviewQty('${item.id}', 'remove')">🗑️</button>
-            </div>
-        </div>`;
-    });
-
-    container.innerHTML = html;
-    document.getElementById('review-grand-total').innerText = `₹${Math.round(grandTotal).toFixed(2)}`;
-}
-
-function updateReviewQty(pid, change) {
-    const cartObj = posCarts.find(c => c.id === activePosCartId);
-    if (!cartObj) return;
-    
-    const idx = cartObj.items.findIndex(i => i.id === pid);
-    if (idx === -1) return;
-
-    const product = appData.inventory.find(p => p.id === pid);
-    const physicalStock = product ? (product.inStock || 0) : 0;
-
-    if (change === 'remove') {
-        cartObj.items.splice(idx, 1);
-    } else {
-        const newQty = cartObj.items[idx].qty + change;
-        if (newQty <= 0) {
-            cartObj.items.splice(idx, 1);
-        } else if (newQty > physicalStock) {
-            return showCustomAlert(`Cannot add more. Only ${physicalStock} in stock!`, "Stock Limit", "📦");
-        } else {
-            cartObj.items[idx].qty = newQty;
-        }
-    }
-
-    renderPOSCart(); // Keep the background UI synced
-    renderCheckoutReviewModal(); // Re-render the modal with new numbers
-}
-
-// The Database Save Engine
-
 async function confirmReviewCheckout() {
+    const cartObj = posCarts.find(c => c.id === activePosCartId);
+    if (!cartObj || cartObj.items.length === 0) return;
+
     const paymentMode = document.getElementById('review-payment-mode').value;
     const overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
     const grandTotal = recalculateReviewTotal();
 
-    // Determine status (Credit = Pending, Everything else = Paid)
     const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
-    // Build the master invoice object
     const invoiceData = {
         tenantId: currentUserTenantId,
         type: 'retail', 
-        customerName: document.getElementById('pos-cust-name').value || "Walk-in Customer",
-        items: posCart, 
+        customerName: cartObj.name || "Walk-in Customer",
+        customerPhone: cartObj.phone || "",
+        items: cartObj.items, 
         subTotal: grandTotal + overallDiscount,
         overallDiscount: overallDiscount,
         totalAmount: grandTotal,
         paymentMode: paymentMode,
-        paymentStatus: paymentStatus, // This is the crucial flag!
+        paymentStatus: paymentStatus,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -416,16 +364,18 @@ async function confirmReviewCheckout() {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Generating Invoice...";
 
-        // Save to Firestore
         const docRef = await db.collection("history").add(invoiceData);
         
-        // Show success and reset
         showToastMessage(`Invoice saved! Status: ${paymentStatus.toUpperCase()}`, false);
         closeCheckoutReview();
-        posCart = [];
-        updateCartUI();
         
-        // Open the preview to print/download
+        // 🌟 Close the tab now that it's paid
+        posCarts = posCarts.filter(c => c.id !== activePosCartId);
+        activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
+        
+        renderPOSTabs();
+        renderPOSCart();
+        
         await viewDocument(docRef.id);
 
     } catch (error) {
@@ -563,6 +513,7 @@ document.addEventListener('keydown', (e) => {
         }, 50); 
     }
 });
+
 // ========================================================
 // 🌟 MOBILE OFF-CANVAS CART LOGIC & SWIPE DETECTION
 // ========================================================
@@ -586,7 +537,6 @@ function closeMobileCart() {
     if(overlay) overlay.classList.remove('show');
 }
 
-// 🌟 Native Mobile Swipe Support
 let touchStartX = 0;
 let touchEndX = 0;
 
@@ -605,12 +555,10 @@ function handleMobileSwipe() {
     
     const wrapper = document.getElementById('pos-cart-wrapper');
     
-    // Swipe Right to Open (Only if starting from the left edge)
     if (touchEndX - touchStartX > 60 && touchStartX < 50) {
         if (wrapper && !wrapper.classList.contains('open')) toggleMobileCart();
     }
     
-    // Swipe Left to Close (Only if drawer is open)
     if (touchStartX - touchEndX > 60) {
         if (wrapper && wrapper.classList.contains('open')) closeMobileCart();
     }
