@@ -252,45 +252,72 @@ function renderPOSCart() {
     if(btnQc) btnQc.style.display = 'flex';
 }
 
-// ========================================================
-// 🌟 NEW: CHECKOUT REVIEW MODAL LOGIC
-// ========================================================
+// ==========================================
+// 🛒 NEW POS CHECKOUT ENGINE
+// ==========================================
 
-function openCheckoutReview() {
-    if (posCart.length === 0) return showCustomAlert("Cart is empty!", "Notice", "⚠️");
-    
-    const container = document.getElementById('review-cart-items');
-    container.innerHTML = '';
-    
-    posCart.forEach((item, index) => {
-        // Default discount to 0 if not set
-        item.discount = item.discount || 0; 
-        
-        const itemHtml = `
-            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
-                <div style="width: 40%;">
-                    <div class="fw-bold text-dark font-13">${item.name}</div>
-                    <div class="small text-muted">${item.qty} x ₹${item.price}</div>
-                </div>
-                <div style="width: 30%;">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text text-danger">-₹</span>
-                        <input type="number" class="form-control" value="${item.discount}" 
-                            oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
-                    </div>
-                </div>
-                <div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
-                    ₹${((item.price * item.qty) - item.discount).toFixed(2)}
-                </div>
-            </div>
-        `;
-        container.innerHTML += itemHtml;
-    });
+	function openCheckoutReview() {
+		if (posCart.length === 0) return showCustomAlert("Cart is empty!", "Notice", "⚠️");
+		
+		const container = document.getElementById('review-cart-items');
+		container.innerHTML = '';
+		
+		posCart.forEach((item, index) => {
+			item.discount = item.discount || 0; // Default discount to 0
+			
+			const itemHtml = `
+				<div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
+					<div style="width: 40%;">
+						<div class="fw-bold text-dark font-13">${item.name}</div>
+						<div class="small text-muted">${item.qty} x ₹${item.price}</div>
+					</div>
+					<div style="width: 30%;">
+						<div class="input-group input-group-sm">
+							<span class="input-group-text text-danger">-₹</span>
+							<input type="number" class="form-control" value="${item.discount}" 
+								oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
+						</div>
+					</div>
+					<div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
+						₹${((item.price * item.qty) - item.discount).toFixed(2)}
+					</div>
+				</div>
+			`;
+			container.innerHTML += itemHtml;
+		});
 
-    document.getElementById('pos-checkout-modal').style.display = 'flex';
-    document.getElementById('review-overall-discount').value = 0; // Reset overall discount
-    recalculateReviewTotal();
-}
+		document.getElementById('pos-checkout-modal').style.display = 'flex';
+		document.getElementById('review-overall-discount').value = 0; // Reset overall
+		recalculateReviewTotal();
+	}
+
+	// Live Math Engine: Item Level
+	window.updateItemDiscount = function(index, discountValue) {
+		let disc = parseFloat(discountValue) || 0;
+		const maxDiscount = posCart[index].price * posCart[index].qty;
+		if (disc > maxDiscount) disc = maxDiscount; // Prevent negative totals
+		
+		posCart[index].discount = disc;
+		openCheckoutReview(); // Refresh the UI
+	};
+
+	// Live Math Engine: Grand Total
+	window.recalculateReviewTotal = function() {
+		let subtotal = 0;
+		posCart.forEach(item => {
+			subtotal += (item.price * item.qty) - (item.discount || 0);
+		});
+
+		let overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
+		if (overallDiscount > subtotal) {
+			overallDiscount = subtotal;
+			document.getElementById('review-overall-discount').value = subtotal;
+		}
+
+		const grandTotal = subtotal - overallDiscount;
+		document.getElementById('review-grand-total').innerText = `₹${grandTotal.toFixed(2)}`;
+		return grandTotal;
+	};
 
 function closeCheckoutReview() {
     document.getElementById('pos-checkout-modal').style.display = 'none';
@@ -361,36 +388,52 @@ function updateReviewQty(pid, change) {
     renderCheckoutReviewModal(); // Re-render the modal with new numbers
 }
 
+// The Database Save Engine
 
 async function confirmReviewCheckout() {
     const paymentMode = document.getElementById('review-payment-mode').value;
     const overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
     const grandTotal = recalculateReviewTotal();
 
-    // Determine status based on payment mode
+    // Determine status (Credit = Pending, Everything else = Paid)
     const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
-    // Build your invoice object
+    // Build the master invoice object
     const invoiceData = {
         tenantId: currentUserTenantId,
-        type: 'retail', // Differentiate from B2B
+        type: 'retail', 
         customerName: document.getElementById('pos-cust-name').value || "Walk-in Customer",
-        items: posCart, // Now includes item.discount
+        items: posCart, 
         subTotal: grandTotal + overallDiscount,
         overallDiscount: overallDiscount,
         totalAmount: grandTotal,
         paymentMode: paymentMode,
-        paymentStatus: paymentStatus,
+        paymentStatus: paymentStatus, // This is the crucial flag!
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    // -> (Keep your existing code here that saves invoiceData to Firestore and generates the PDF)
+    try {
+        document.getElementById('loading-overlay').style.display = 'flex';
+        document.getElementById('loading-text').innerText = "Generating Invoice...";
+
+        // Save to Firestore
+        const docRef = await db.collection("history").add(invoiceData);
+        
+        // Show success and reset
+        showToastMessage(`Invoice saved! Status: ${paymentStatus.toUpperCase()}`, false);
         closeCheckoutReview();
-		generatePreview('pos');  // Proceeds with the standard checkout engine
-    // Example:
-    // await db.collection('history').add(invoiceData);
-    // showToastMessage(`Invoice generated. Status: ${paymentStatus.toUpperCase()}`);
-    // closeCheckoutReview();
+        posCart = [];
+        updateCartUI();
+        
+        // Open the preview to print/download
+        await viewDocument(docRef.id);
+
+    } catch (error) {
+        console.error("Checkout Error: ", error);
+        showCustomAlert("Failed to generate invoice.", "Error", "🔴");
+    } finally {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
 }
 
 // ========================================================
