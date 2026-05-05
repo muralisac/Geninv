@@ -359,9 +359,9 @@ async function confirmReviewCheckout() {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Securing Invoice Number...";
 
-        let generatedInvoiceNumber = "POS-UNKNOWN";
+        let generatedInvoiceNumber = "NN-UNKNOWN";
 
-        // 🌟 Robust Transaction Logic (Compatible with SaaS and Standalone)
+        // 🌟 Transaction Logic (Compatible with SaaS and Standalone)
         let metadataRef;
         if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
             metadataRef = db.collection("metadata").doc(currentUserTenantId);
@@ -380,10 +380,17 @@ async function confirmReviewCheckout() {
                 transaction.set(metadataRef, { lastNum: newNum, lastPoNum: 0 }, { merge: true });
             }
             
-            generatedInvoiceNumber = `POS-${String(newNum).padStart(4, '0')}`;
+            // 🌟 EXACT FORMAT: NN + YYYYMMDD + RunningNum
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const paddedNum = String(newNum).padStart(4, '0');
+            
+            generatedInvoiceNumber = `NN${year}${month}${day}${paddedNum}`;
         });
 
-        // 🌟 Explicitly typed as Retail
+        // Explicitly typed as Retail
         const invoiceData = {
             invoiceNumber: generatedInvoiceNumber,
             type: 'retail', 
