@@ -252,7 +252,7 @@ function renderPOSCart() {
 }
 
 // ==========================================
-// 🛒 NEW POS CHECKOUT ENGINE (Fixed Focus & App Version)
+// 🛒 NEW POS CHECKOUT ENGINE
 // ==========================================
 
 function openCheckoutReview() {
@@ -268,7 +268,6 @@ function openCheckoutReview() {
         const gstAmt = baseAmt * ((item.gstPercent || 0) / 100);
         const rowTotal = baseAmt + gstAmt;
         
-        // Notice we pass 'this' to the function now, so we don't drop focus
         const itemHtml = `
             <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
                 <div style="width: 40%;">
@@ -305,7 +304,6 @@ window.updateItemDiscount = function(index, inputElement) {
     const gstAmt = baseAmt * ((cartObj.items[index].gstPercent || 0) / 100);
     const maxDiscount = baseAmt + gstAmt;
 
-    // Prevent discounting below zero
     if (disc > maxDiscount) {
         disc = maxDiscount;
         inputElement.value = disc; 
@@ -313,7 +311,6 @@ window.updateItemDiscount = function(index, inputElement) {
     
     cartObj.items[index].discount = disc;
     
-    // UPDATE ONLY THE TEXT (Do not redraw the HTML, preserves typing focus)
     const rowTotalEl = document.getElementById(`review-item-total-${index}`);
     if (rowTotalEl) {
         rowTotalEl.innerText = `₹${(maxDiscount - disc).toFixed(2)}`;
@@ -358,48 +355,20 @@ async function confirmReviewCheckout() {
 
     const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
-    // 🌟 FIX 1: Generate a unique, professional Invoice Number
-    const dateString = new Date().toISOString().slice(0,10).replace(/-/g, '');
-    const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 digit random number
-    const generatedInvoiceNumber = `POS-${dateString}-${randomNum}`;
-
-    const invoiceData = {
-        invoiceNumber: generatedInvoiceNumber, // <-- Added this crucial line!
-        type: 'retail', 
-        customerName: cartObj.name || "Walk-in Customer",
-        customerPhone: cartObj.phone || "",
-        items: cartObj.items, 
-        subTotal: grandTotal + overallDiscount,
-        overallDiscount: overallDiscount,
-        totalAmount: grandTotal,
-        paymentMode: paymentMode,
-        paymentStaasync function confirmReviewCheckout() {
-    const cartObj = posCarts.find(c => c.id === activePosCartId);
-    if (!cartObj || cartObj.items.length === 0) return;
-
-    const paymentMode = document.getElementById('review-payment-mode').value;
-    const overallDiscount = parseFloat(document.getElementById('review-overall-discount').value) || 0;
-    const grandTotal = recalculateReviewTotal();
-
-    const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
-
     try {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Securing Invoice Number...";
 
         let generatedInvoiceNumber = "POS-UNKNOWN";
 
-        // 🌟 THE FIX 1: Robust, Contention-Free Transaction Logic
+        // 🌟 Robust Transaction Logic (Compatible with SaaS and Standalone)
         let metadataRef;
         if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
-            // For the new SaaS Application
             metadataRef = db.collection("metadata").doc(currentUserTenantId);
         } else {
-            // For the older standalone GenInv application
             metadataRef = db.collection("metadata").doc("counters"); 
         }
 
-        // Run a strict database transaction to prevent duplicate invoice numbers
         await db.runTransaction(async (transaction) => {
             const metaDoc = await transaction.get(metadataRef);
             let newNum = 1;
@@ -408,18 +377,16 @@ async function confirmReviewCheckout() {
                 newNum = (metaDoc.data().lastNum || 0) + 1;
                 transaction.update(metadataRef, { lastNum: newNum });
             } else {
-                // If this is the very first invoice ever, create the counter document
                 transaction.set(metadataRef, { lastNum: newNum, lastPoNum: 0 }, { merge: true });
             }
             
-            // Format the number properly so the UI knows it's a POS transaction
             generatedInvoiceNumber = `POS-${String(newNum).padStart(4, '0')}`;
         });
 
-        // 🌟 THE FIX 2: Explicitly mark as Retail
+        // 🌟 Explicitly typed as Retail
         const invoiceData = {
             invoiceNumber: generatedInvoiceNumber,
-            type: 'retail', // This tells the history list NOT to show it as Wholesale
+            type: 'retail', 
             invoiceType: 'Retail POS', 
             customerName: cartObj.name || "Walk-in Customer",
             customerPhone: cartObj.phone || "",
@@ -442,14 +409,12 @@ async function confirmReviewCheckout() {
         showToastMessage(`Retail Invoice ${generatedInvoiceNumber} saved!`, false);
         closeCheckoutReview();
         
-        // Clear the cart and update the UI
         posCarts = posCarts.filter(c => c.id !== activePosCartId);
         activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
         
         renderPOSTabs();
         renderPOSCart();
         
-        // Safely route the user to preview the document or view the history
         if (typeof viewDocument === 'function') {
             await viewDocument(docRef.id);
         } else if (typeof switchScreen === 'function') {
