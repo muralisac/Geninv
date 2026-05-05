@@ -252,7 +252,7 @@ function renderPOSCart() {
 }
 
 // ==========================================
-// 🛒 NEW POS CHECKOUT ENGINE (With Multi-Cart Support)
+// 🛒 NEW POS CHECKOUT ENGINE (Fixed Focus & App Version)
 // ==========================================
 
 function openCheckoutReview() {
@@ -268,6 +268,7 @@ function openCheckoutReview() {
         const gstAmt = baseAmt * ((item.gstPercent || 0) / 100);
         const rowTotal = baseAmt + gstAmt;
         
+        // Notice we pass 'this' to the function now, so we don't drop focus
         const itemHtml = `
             <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-white border rounded">
                 <div style="width: 40%;">
@@ -278,10 +279,10 @@ function openCheckoutReview() {
                     <div class="input-group input-group-sm">
                         <span class="input-group-text text-danger">-₹</span>
                         <input type="number" class="form-control" value="${item.discount}" 
-                            oninput="updateItemDiscount(${index}, this.value)" placeholder="Disc">
+                            oninput="updateItemDiscount(${index}, this)" placeholder="Disc">
                     </div>
                 </div>
-                <div class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
+                <div id="review-item-total-${index}" class="fw-bold text-end" style="width: 30%; color: #0b2a5c;">
                     ₹${(rowTotal - item.discount).toFixed(2)}
                 </div>
             </div>
@@ -294,20 +295,31 @@ function openCheckoutReview() {
     recalculateReviewTotal();
 }
 
-window.updateItemDiscount = function(index, discountValue) {
+window.updateItemDiscount = function(index, inputElement) {
     const cartObj = posCarts.find(c => c.id === activePosCartId);
     if (!cartObj) return;
 
-    let disc = parseFloat(discountValue) || 0;
+    let disc = parseFloat(inputElement.value) || 0;
     
     const baseAmt = cartObj.items[index].price * cartObj.items[index].qty;
     const gstAmt = baseAmt * ((cartObj.items[index].gstPercent || 0) / 100);
     const maxDiscount = baseAmt + gstAmt;
 
-    if (disc > maxDiscount) disc = maxDiscount; 
+    // Prevent discounting below zero
+    if (disc > maxDiscount) {
+        disc = maxDiscount;
+        inputElement.value = disc; 
+    }
     
     cartObj.items[index].discount = disc;
-    openCheckoutReview(); 
+    
+    // UPDATE ONLY THE TEXT (Do not redraw the HTML, preserves typing focus)
+    const rowTotalEl = document.getElementById(`review-item-total-${index}`);
+    if (rowTotalEl) {
+        rowTotalEl.innerText = `₹${(maxDiscount - disc).toFixed(2)}`;
+    }
+
+    recalculateReviewTotal(); 
 };
 
 window.recalculateReviewTotal = function() {
@@ -347,7 +359,6 @@ async function confirmReviewCheckout() {
     const paymentStatus = (paymentMode === 'credit') ? 'pending' : 'paid';
 
     const invoiceData = {
-        tenantId: currentUserTenantId,
         type: 'retail', 
         customerName: cartObj.name || "Walk-in Customer",
         customerPhone: cartObj.phone || "",
@@ -360,6 +371,11 @@ async function confirmReviewCheckout() {
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
+    // Safety check: Only attach Tenant ID if this is the SaaS version, ignore if Old GenInv
+    if (typeof currentUserTenantId !== 'undefined' && currentUserTenantId !== null) {
+        invoiceData.tenantId = currentUserTenantId;
+    }
+
     try {
         document.getElementById('loading-overlay').style.display = 'flex';
         document.getElementById('loading-text').innerText = "Generating Invoice...";
@@ -369,7 +385,7 @@ async function confirmReviewCheckout() {
         showToastMessage(`Invoice saved! Status: ${paymentStatus.toUpperCase()}`, false);
         closeCheckoutReview();
         
-        // 🌟 Close the tab now that it's paid
+        // Close the tab now that it's paid
         posCarts = posCarts.filter(c => c.id !== activePosCartId);
         activePosCartId = posCarts.length > 0 ? posCarts[0].id : null;
         
@@ -380,7 +396,7 @@ async function confirmReviewCheckout() {
 
     } catch (error) {
         console.error("Checkout Error: ", error);
-        showCustomAlert("Failed to generate invoice.", "Error", "🔴");
+        showCustomAlert("Failed to generate invoice. " + error.message, "Error", "🔴");
     } finally {
         document.getElementById('loading-overlay').style.display = 'none';
     }
@@ -513,10 +529,6 @@ document.addEventListener('keydown', (e) => {
         }, 50); 
     }
 });
-
-// ========================================================
-// 🌟 MOBILE OFF-CANVAS CART LOGIC & SWIPE DETECTION
-// ========================================================
 
 function toggleMobileCart() {
     const wrapper = document.getElementById('pos-cart-wrapper');
